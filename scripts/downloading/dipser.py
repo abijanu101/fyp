@@ -28,14 +28,16 @@ IGNORE_GROUPS = [
     "group_02"
 ]
 IGNORE_EXPERIMENTS = [
+    "experiment_01",
+    "experiment_02",
+    "experiment_03",
+    "experiment_04",
+    "experiment_05",
+    "experiment_06",
     "experiment_07",
-    "experiment_08",
-    "experiment_09"
 ]
 IGNORE_CONTEXT_CAMS = [
-    "context_cam_04",
-    "context_cam_05",
-    "context_cam_06",
+    # "context_cam_04",
 ]
 
 # ============================================================
