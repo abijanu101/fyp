@@ -1,9 +1,10 @@
 # Datasets
 data/DIPSER/DIPSEER
+data/DIPSER/dataset.json
+
 data/ouc-cge
 data/SCB-Dataset3
 data/SCB-ST-Dataset4
-
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
