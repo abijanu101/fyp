@@ -1,0 +1,2989 @@
+{
+    "group_01": {
+        "experiment_01": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 2093043965,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1861706932,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1959585547,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1926149646,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1715182285,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1096788461,
+                    "source_modified": "20261026003152",
+                    "archive_size": 498163
+                },
+                "subject_02.zip": {
+                    "source_size": 1150816343,
+                    "source_modified": "20261026003152",
+                    "archive_size": 648747
+                },
+                "subject_03.zip": {
+                    "source_size": 1057260612,
+                    "source_modified": "20261026003152",
+                    "archive_size": 612825
+                },
+                "subject_05.zip": {
+                    "source_size": 1058512635,
+                    "source_modified": "20261026003152",
+                    "archive_size": 566887
+                },
+                "subject_06.zip": {
+                    "source_size": 1107789294,
+                    "source_modified": "20261026003152",
+                    "archive_size": 651627
+                },
+                "subject_07.zip": {
+                    "source_size": 999637284,
+                    "source_modified": "20261026003152",
+                    "archive_size": 605282
+                },
+                "subject_04.zip": {
+                    "source_size": 1002782880,
+                    "source_modified": "20261026003152",
+                    "archive_size": 584298
+                },
+                "subject_08.zip": {
+                    "source_size": 973011414,
+                    "source_modified": "20261026003152",
+                    "archive_size": 586875
+                },
+                "subject_09.zip": {
+                    "source_size": 915751386,
+                    "source_modified": "20261026003152",
+                    "archive_size": 585662
+                },
+                "subject_10.zip": {
+                    "source_size": 1019622535,
+                    "source_modified": "20261026003152",
+                    "archive_size": 631780
+                },
+                "subject_11.zip": {
+                    "source_size": 1186978827,
+                    "source_modified": "20261026003152",
+                    "archive_size": 674490
+                },
+                "subject_12.zip": {
+                    "source_size": 1005852874,
+                    "source_modified": "20261026003152",
+                    "archive_size": 598355
+                },
+                "subject_13.zip": {
+                    "source_size": 1097733191,
+                    "source_modified": "20261026003152",
+                    "archive_size": 638283
+                },
+                "subject_14.zip": {
+                    "source_size": 1052586131,
+                    "source_modified": "20261026003152",
+                    "archive_size": 631728
+                },
+                "subject_15.zip": {
+                    "source_size": 1194739727,
+                    "source_modified": "20261026003152",
+                    "archive_size": 679601
+                },
+                "subject_16.zip": {
+                    "source_size": 1042827314,
+                    "source_modified": "20261026003152",
+                    "archive_size": 617774
+                },
+                "subject_17.zip": {
+                    "source_size": 1032226363,
+                    "source_modified": "20261026003152",
+                    "archive_size": 621746
+                },
+                "subject_18.zip": {
+                    "source_size": 1223965410,
+                    "source_modified": "20261026003152",
+                    "archive_size": 693279
+                },
+                "subject_19.zip": {
+                    "source_size": 1047608587,
+                    "source_modified": "20261026003152",
+                    "archive_size": 638006
+                },
+                "subject_20.zip": {
+                    "source_size": 1027484105,
+                    "source_modified": "20261026003152",
+                    "archive_size": 620235
+                }
+            }
+        },
+        "experiment_02": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 2064620811,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1864916618,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1963329046,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1913774820,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1715809057,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 962130797,
+                    "source_modified": "20261026003152",
+                    "archive_size": 586857
+                },
+                "subject_02.zip": {
+                    "source_size": 1042830382,
+                    "source_modified": "20261026003152",
+                    "archive_size": 605040
+                },
+                "subject_03.zip": {
+                    "source_size": 994068633,
+                    "source_modified": "20261026003152",
+                    "archive_size": 499383
+                },
+                "subject_04.zip": {
+                    "source_size": 990090180,
+                    "source_modified": "20261026003152",
+                    "archive_size": 502133
+                },
+                "subject_05.zip": {
+                    "source_size": 1008960827,
+                    "source_modified": "20261026003152",
+                    "archive_size": 482336
+                },
+                "subject_06.zip": {
+                    "source_size": 1110416075,
+                    "source_modified": "20261026003152",
+                    "archive_size": 632754
+                },
+                "subject_07.zip": {
+                    "source_size": 987658715,
+                    "source_modified": "20261026003152",
+                    "archive_size": 567967
+                },
+                "subject_08.zip": {
+                    "source_size": 987138372,
+                    "source_modified": "20261026003152",
+                    "archive_size": 553529
+                },
+                "subject_09.zip": {
+                    "source_size": 971108156,
+                    "source_modified": "20261026003152",
+                    "archive_size": 489182
+                },
+                "subject_10.zip": {
+                    "source_size": 1047826280,
+                    "source_modified": "20261026003152",
+                    "archive_size": 635913
+                },
+                "subject_11.zip": {
+                    "source_size": 1052386640,
+                    "source_modified": "20261026003152",
+                    "archive_size": 625172
+                },
+                "subject_12.zip": {
+                    "source_size": 945564261,
+                    "source_modified": "20261026003152",
+                    "archive_size": 536131
+                },
+                "subject_13.zip": {
+                    "source_size": 1076531685,
+                    "source_modified": "20261026003152",
+                    "archive_size": 614689
+                },
+                "subject_14.zip": {
+                    "source_size": 1039080704,
+                    "source_modified": "20261026003152",
+                    "archive_size": 596438
+                },
+                "subject_15.zip": {
+                    "source_size": 1166341236,
+                    "source_modified": "20261026003152",
+                    "archive_size": 654227
+                },
+                "subject_16.zip": {
+                    "source_size": 1090331224,
+                    "source_modified": "20261026003152",
+                    "archive_size": 629980
+                },
+                "subject_17.zip": {
+                    "source_size": 1061750044,
+                    "source_modified": "20261026003152",
+                    "archive_size": 606523
+                },
+                "subject_18.zip": {
+                    "source_size": 1142698563,
+                    "source_modified": "20261026003152",
+                    "archive_size": 624298
+                },
+                "subject_19.zip": {
+                    "source_size": 1050145513,
+                    "source_modified": "20261026003152",
+                    "archive_size": 629137
+                },
+                "subject_20.zip": {
+                    "source_size": 1049819179,
+                    "source_modified": "20261026003152",
+                    "archive_size": 614297
+                }
+            }
+        },
+        "experiment_03": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 2008227649,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1814906417,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1997560004,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1140992636,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 994598915,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1240033681,
+                    "source_modified": "20261026003152",
+                    "archive_size": 685289
+                },
+                "subject_02.zip": {
+                    "source_size": 1115913812,
+                    "source_modified": "20261026003152",
+                    "archive_size": 593187
+                },
+                "subject_03.zip": {
+                    "source_size": 1161274827,
+                    "source_modified": "20261026003152",
+                    "archive_size": 527588
+                },
+                "subject_04.zip": {
+                    "source_size": 1236688645,
+                    "source_modified": "20261026003152",
+                    "archive_size": 667592
+                },
+                "subject_05.zip": {
+                    "source_size": 1165416162,
+                    "source_modified": "20261026003152",
+                    "archive_size": 476774
+                },
+                "subject_06.zip": {
+                    "source_size": 1192497423,
+                    "source_modified": "20261026003152",
+                    "archive_size": 625251
+                },
+                "subject_07.zip": {
+                    "source_size": 1151759523,
+                    "source_modified": "20261026003152",
+                    "archive_size": 597991
+                },
+                "subject_08.zip": {
+                    "source_size": 1119132937,
+                    "source_modified": "20261026003152",
+                    "archive_size": 614181
+                },
+                "subject_09.zip": {
+                    "source_size": 1293807730,
+                    "source_modified": "20261026003152",
+                    "archive_size": 581052
+                },
+                "subject_10.zip": {
+                    "source_size": 1234006253,
+                    "source_modified": "20261026003152",
+                    "archive_size": 632533
+                },
+                "subject_11.zip": {
+                    "source_size": 1165257913,
+                    "source_modified": "20261026003152",
+                    "archive_size": 634967
+                },
+                "subject_12.zip": {
+                    "source_size": 1056419745,
+                    "source_modified": "20261026003152",
+                    "archive_size": 580136
+                },
+                "subject_13.zip": {
+                    "source_size": 1181270880,
+                    "source_modified": "20261026003152",
+                    "archive_size": 646798
+                },
+                "subject_14.zip": {
+                    "source_size": 1224815868,
+                    "source_modified": "20261026003152",
+                    "archive_size": 654328
+                },
+                "subject_15.zip": {
+                    "source_size": 1238849270,
+                    "source_modified": "20261026003152",
+                    "archive_size": 678968
+                },
+                "subject_16.zip": {
+                    "source_size": 1097996115,
+                    "source_modified": "20261026003152",
+                    "archive_size": 612401
+                },
+                "subject_17.zip": {
+                    "source_size": 1190538309,
+                    "source_modified": "20261026003152",
+                    "archive_size": 652793
+                },
+                "subject_18.zip": {
+                    "source_size": 1089891648,
+                    "source_modified": "20261026003152",
+                    "archive_size": 609330
+                },
+                "subject_19.zip": {
+                    "source_size": 1256405754,
+                    "source_modified": "20261026003152",
+                    "archive_size": 678208
+                },
+                "subject_20.zip": {
+                    "source_size": 1253671877,
+                    "source_modified": "20261026003152",
+                    "archive_size": 673596
+                }
+            }
+        },
+        "experiment_04": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 2039094143,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1745688792,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1891623832,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1127273996,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 976533298,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1261584266,
+                    "source_modified": "20261026003152",
+                    "archive_size": 626397
+                },
+                "subject_02.zip": {
+                    "source_size": 1071714416,
+                    "source_modified": "20261026003152",
+                    "archive_size": 626296
+                },
+                "subject_03.zip": {
+                    "source_size": 1180044144,
+                    "source_modified": "20261026003152",
+                    "archive_size": 635178
+                },
+                "subject_04.zip": {
+                    "source_size": 1216831196,
+                    "source_modified": "20261026003152",
+                    "archive_size": 669031
+                },
+                "subject_05.zip": {
+                    "source_size": 1216609229,
+                    "source_modified": "20261026003152",
+                    "archive_size": 649714
+                },
+                "subject_06.zip": {
+                    "source_size": 1207776924,
+                    "source_modified": "20261026003152",
+                    "archive_size": 512023
+                },
+                "subject_07.zip": {
+                    "source_size": 1102768791,
+                    "source_modified": "20261026003152",
+                    "archive_size": 571186
+                },
+                "subject_08.zip": {
+                    "source_size": 1086185739,
+                    "source_modified": "20261026003152",
+                    "archive_size": 611475
+                },
+                "subject_09.zip": {
+                    "source_size": 1285407531,
+                    "source_modified": "20261026003152",
+                    "archive_size": 639498
+                },
+                "subject_10.zip": {
+                    "source_size": 1179603328,
+                    "source_modified": "20261026003152",
+                    "archive_size": 650027
+                },
+                "subject_11.zip": {
+                    "source_size": 1251113965,
+                    "source_modified": "20261026003152",
+                    "archive_size": 674012
+                },
+                "subject_12.zip": {
+                    "source_size": 1076405528,
+                    "source_modified": "20261026003152",
+                    "archive_size": 596017
+                },
+                "subject_13.zip": {
+                    "source_size": 1198070640,
+                    "source_modified": "20261026003152",
+                    "archive_size": 649464
+                },
+                "subject_14.zip": {
+                    "source_size": 1179133522,
+                    "source_modified": "20261026003152",
+                    "archive_size": 624420
+                },
+                "subject_15.zip": {
+                    "source_size": 1236523902,
+                    "source_modified": "20261026003152",
+                    "archive_size": 666306
+                },
+                "subject_16.zip": {
+                    "source_size": 1097421092,
+                    "source_modified": "20261026003152",
+                    "archive_size": 621303
+                },
+                "subject_17.zip": {
+                    "source_size": 1172858347,
+                    "source_modified": "20261026003152",
+                    "archive_size": 620534
+                },
+                "subject_18.zip": {
+                    "source_size": 1077364110,
+                    "source_modified": "20261026003152",
+                    "archive_size": 605063
+                },
+                "subject_19.zip": {
+                    "source_size": 1239250850,
+                    "source_modified": "20261026003152",
+                    "archive_size": 671491
+                },
+                "subject_20.zip": {
+                    "source_size": 1231018665,
+                    "source_modified": "20261026003152",
+                    "archive_size": 666697
+                }
+            }
+        },
+        "experiment_05": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 2052617586,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1722191520,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1879189867,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1161854468,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 984913901,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1310117056,
+                    "source_modified": "20261026003152",
+                    "archive_size": 671452
+                },
+                "subject_02.zip": {
+                    "source_size": 1114902367,
+                    "source_modified": "20261026003152",
+                    "archive_size": 593440
+                },
+                "subject_03.zip": {
+                    "source_size": 1183851229,
+                    "source_modified": "20261026003152",
+                    "archive_size": 614083
+                },
+                "subject_04.zip": {
+                    "source_size": 1146046768,
+                    "source_modified": "20261026003152",
+                    "archive_size": 600586
+                },
+                "subject_05.zip": {
+                    "source_size": 1176759077,
+                    "source_modified": "20261026003152",
+                    "archive_size": 605571
+                },
+                "subject_06.zip": {
+                    "source_size": 1199587799,
+                    "source_modified": "20261026003152",
+                    "archive_size": 613300
+                },
+                "subject_07.zip": {
+                    "source_size": 1156387571,
+                    "source_modified": "20261026003152",
+                    "archive_size": 558912
+                },
+                "subject_08.zip": {
+                    "source_size": 1102269755,
+                    "source_modified": "20261026003152",
+                    "archive_size": 599662
+                },
+                "subject_09.zip": {
+                    "source_size": 1264619257,
+                    "source_modified": "20261026003152",
+                    "archive_size": 516055
+                },
+                "subject_10.zip": {
+                    "source_size": 1183971617,
+                    "source_modified": "20261026003152",
+                    "archive_size": 638914
+                },
+                "subject_11.zip": {
+                    "source_size": 1210685576,
+                    "source_modified": "20261026003152",
+                    "archive_size": 655787
+                },
+                "subject_12.zip": {
+                    "source_size": 1071813963,
+                    "source_modified": "20261026003152",
+                    "archive_size": 594045
+                },
+                "subject_13.zip": {
+                    "source_size": 1122451054,
+                    "source_modified": "20261026003152",
+                    "archive_size": 634575
+                },
+                "subject_14.zip": {
+                    "source_size": 1145267231,
+                    "source_modified": "20261026003152",
+                    "archive_size": 642739
+                },
+                "subject_15.zip": {
+                    "source_size": 1293540419,
+                    "source_modified": "20261026003152",
+                    "archive_size": 686848
+                },
+                "subject_16.zip": {
+                    "source_size": 1094090161,
+                    "source_modified": "20261026003152",
+                    "archive_size": 613315
+                },
+                "subject_17.zip": {
+                    "source_size": 1189748774,
+                    "source_modified": "20261026003152",
+                    "archive_size": 658042
+                },
+                "subject_18.zip": {
+                    "source_size": 1080748249,
+                    "source_modified": "20261026003152",
+                    "archive_size": 617522
+                },
+                "subject_19.zip": {
+                    "source_size": 1210673399,
+                    "source_modified": "20261026003152",
+                    "archive_size": 663580
+                },
+                "subject_20.zip": {
+                    "source_size": 1248085805,
+                    "source_modified": "20261026003152",
+                    "archive_size": 674199
+                }
+            }
+        },
+        "experiment_06": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1978008942,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1733032689,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1561088487,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1774217189,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1574004911,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1134209145,
+                    "source_modified": "20261026003152",
+                    "archive_size": 648535
+                },
+                "subject_02.zip": {
+                    "source_size": 1159596155,
+                    "source_modified": "20261026003152",
+                    "archive_size": 634767
+                },
+                "subject_03.zip": {
+                    "source_size": 971330952,
+                    "source_modified": "20261026003152",
+                    "archive_size": 547172
+                },
+                "subject_04.zip": {
+                    "source_size": 1015002965,
+                    "source_modified": "20261026003152",
+                    "archive_size": 586493
+                },
+                "subject_05.zip": {
+                    "source_size": 1034188812,
+                    "source_modified": "20261026003152",
+                    "archive_size": 584902
+                },
+                "subject_06.zip": {
+                    "source_size": 1038839448,
+                    "source_modified": "20261026003152",
+                    "archive_size": 573065
+                },
+                "subject_07.zip": {
+                    "source_size": 1076592994,
+                    "source_modified": "20261026003152",
+                    "archive_size": 627621
+                },
+                "subject_08.zip": {
+                    "source_size": 994016441,
+                    "source_modified": "20261026003152",
+                    "archive_size": 586701
+                },
+                "subject_09.zip": {
+                    "source_size": 1026751103,
+                    "source_modified": "20261026003152",
+                    "archive_size": 578360
+                },
+                "subject_10.zip": {
+                    "source_size": 927467305,
+                    "source_modified": "20261026003152",
+                    "archive_size": 495322
+                },
+                "subject_12.zip": {
+                    "source_size": 975924167,
+                    "source_modified": "20261026003152",
+                    "archive_size": 618247
+                },
+                "subject_13.zip": {
+                    "source_size": 870890328,
+                    "source_modified": "20261026003152",
+                    "archive_size": 621738
+                },
+                "subject_14.zip": {
+                    "source_size": 794907886,
+                    "source_modified": "20261026003152",
+                    "archive_size": 576164
+                },
+                "subject_15.zip": {
+                    "source_size": 1091862268,
+                    "source_modified": "20261026003152",
+                    "archive_size": 661705
+                },
+                "subject_16.zip": {
+                    "source_size": 1091851866,
+                    "source_modified": "20261026003152",
+                    "archive_size": 643933
+                },
+                "subject_17.zip": {
+                    "source_size": 1051091915,
+                    "source_modified": "20261026003152",
+                    "archive_size": 645658
+                },
+                "subject_18.zip": {
+                    "source_size": 960779639,
+                    "source_modified": "20261026003152",
+                    "archive_size": 609668
+                },
+                "subject_19.zip": {
+                    "source_size": 1022054043,
+                    "source_modified": "20261026003152",
+                    "archive_size": 622301
+                },
+                "subject_20.zip": {
+                    "source_size": 1094769252,
+                    "source_modified": "20261026003152",
+                    "archive_size": 645196
+                }
+            }
+        },
+        "experiment_07": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 2008374187,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1716892937,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1653011325,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1869539021,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1728137564,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1146976263,
+                    "source_modified": "20261026003152",
+                    "archive_size": 591774
+                },
+                "subject_02.zip": {
+                    "source_size": 1039916459,
+                    "source_modified": "20261026003152",
+                    "archive_size": 559211
+                },
+                "subject_03.zip": {
+                    "source_size": 986284830,
+                    "source_modified": "20261026003152",
+                    "archive_size": 554361
+                },
+                "subject_04.zip": {
+                    "source_size": 951753118,
+                    "source_modified": "20261026003152",
+                    "archive_size": 559968
+                },
+                "subject_05.zip": {
+                    "source_size": 947745758,
+                    "source_modified": "20261026003152",
+                    "archive_size": 529819
+                },
+                "subject_06.zip": {
+                    "source_size": 920687326,
+                    "source_modified": "20261026003152",
+                    "archive_size": 540202
+                },
+                "subject_07.zip": {
+                    "source_size": 917815154,
+                    "source_modified": "20261026003152",
+                    "archive_size": 493579
+                },
+                "subject_08.zip": {
+                    "source_size": 857571198,
+                    "source_modified": "20261026003152",
+                    "archive_size": 475533
+                },
+                "subject_09.zip": {
+                    "source_size": 939514532,
+                    "source_modified": "20261026003152",
+                    "archive_size": 550508
+                },
+                "subject_10.zip": {
+                    "source_size": 789599296,
+                    "source_modified": "20261026003152",
+                    "archive_size": 477342
+                },
+                "subject_12.zip": {
+                    "source_size": 1001414821,
+                    "source_modified": "20261026003152",
+                    "archive_size": 613639
+                },
+                "subject_13.zip": {
+                    "source_size": 881212508,
+                    "source_modified": "20261026003152",
+                    "archive_size": 582165
+                },
+                "subject_14.zip": {
+                    "source_size": 757762631,
+                    "source_modified": "20261026003152",
+                    "archive_size": 508882
+                },
+                "subject_15.zip": {
+                    "source_size": 1101779888,
+                    "source_modified": "20261026003152",
+                    "archive_size": 656928
+                },
+                "subject_16.zip": {
+                    "source_size": 1090840656,
+                    "source_modified": "20261026003152",
+                    "archive_size": 602698
+                },
+                "subject_17.zip": {
+                    "source_size": 1053828785,
+                    "source_modified": "20261026003152",
+                    "archive_size": 641192
+                },
+                "subject_18.zip": {
+                    "source_size": 1007894516,
+                    "source_modified": "20261026003152",
+                    "archive_size": 628327
+                },
+                "subject_19.zip": {
+                    "source_size": 1081344987,
+                    "source_modified": "20261026003152",
+                    "archive_size": 630631
+                },
+                "subject_20.zip": {
+                    "source_size": 1089684924,
+                    "source_modified": "20261026003152",
+                    "archive_size": 639976
+                }
+            }
+        },
+        "experiment_08": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1984073886,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1719002600,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1716176182,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1924058910,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1743039160,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1112193013,
+                    "source_modified": "20261026003152",
+                    "archive_size": 593295
+                },
+                "subject_02.zip": {
+                    "source_size": 1018649542,
+                    "source_modified": "20261026003152",
+                    "archive_size": 621033
+                },
+                "subject_03.zip": {
+                    "source_size": 1011950046,
+                    "source_modified": "20261026003152",
+                    "archive_size": 622481
+                },
+                "subject_04.zip": {
+                    "source_size": 971659727,
+                    "source_modified": "20261026003152",
+                    "archive_size": 596544
+                },
+                "subject_05.zip": {
+                    "source_size": 962634227,
+                    "source_modified": "20261026003152",
+                    "archive_size": 577358
+                },
+                "subject_06.zip": {
+                    "source_size": 1012800478,
+                    "source_modified": "20261026003152",
+                    "archive_size": 576720
+                },
+                "subject_07.zip": {
+                    "source_size": 952598845,
+                    "source_modified": "20261026003152",
+                    "archive_size": 507028
+                },
+                "subject_08.zip": {
+                    "source_size": 940552951,
+                    "source_modified": "20261026003152",
+                    "archive_size": 549774
+                },
+                "subject_09.zip": {
+                    "source_size": 937598857,
+                    "source_modified": "20261026003152",
+                    "archive_size": 516915
+                },
+                "subject_10.zip": {
+                    "source_size": 857131206,
+                    "source_modified": "20261026003152",
+                    "archive_size": 550124
+                },
+                "subject_12.zip": {
+                    "source_size": 1017374594,
+                    "source_modified": "20261026003152",
+                    "archive_size": 590192
+                },
+                "subject_13.zip": {
+                    "source_size": 820368853,
+                    "source_modified": "20261026003152",
+                    "archive_size": 600770
+                },
+                "subject_14.zip": {
+                    "source_size": 713005274,
+                    "source_modified": "20261026003152",
+                    "archive_size": 481665
+                },
+                "subject_15.zip": {
+                    "source_size": 1117637317,
+                    "source_modified": "20261026003152",
+                    "archive_size": 661288
+                },
+                "subject_16.zip": {
+                    "source_size": 1063983911,
+                    "source_modified": "20261026003152",
+                    "archive_size": 577691
+                },
+                "subject_17.zip": {
+                    "source_size": 1003905404,
+                    "source_modified": "20261026003152",
+                    "archive_size": 630284
+                },
+                "subject_18.zip": {
+                    "source_size": 1024762340,
+                    "source_modified": "20261026003152",
+                    "archive_size": 603429
+                },
+                "subject_19.zip": {
+                    "source_size": 1052175504,
+                    "source_modified": "20261026003152",
+                    "archive_size": 577591
+                },
+                "subject_20.zip": {
+                    "source_size": 1106270146,
+                    "source_modified": "20261026003152",
+                    "archive_size": 650100
+                }
+            }
+        },
+        "experiment_09": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 2034814688,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1728460978,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1682659179,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1860066557,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1776899136,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1167361961,
+                    "source_modified": "20261026003152",
+                    "archive_size": 579700
+                },
+                "subject_02.zip": {
+                    "source_size": 1012728818,
+                    "source_modified": "20261026003152",
+                    "archive_size": 480797
+                },
+                "subject_03.zip": {
+                    "source_size": 970488088,
+                    "source_modified": "20261026003152",
+                    "archive_size": 627122
+                },
+                "subject_04.zip": {
+                    "source_size": 950723994,
+                    "source_modified": "20261026003152",
+                    "archive_size": 518520
+                },
+                "subject_05.zip": {
+                    "source_size": 896203561,
+                    "source_modified": "20261026003152",
+                    "archive_size": 629663
+                },
+                "subject_06.zip": {
+                    "source_size": 903495095,
+                    "source_modified": "20261026003152",
+                    "archive_size": 585199
+                },
+                "subject_07.zip": {
+                    "source_size": 908680977,
+                    "source_modified": "20261026003152",
+                    "archive_size": 524432
+                },
+                "subject_08.zip": {
+                    "source_size": 866908539,
+                    "source_modified": "20261026003152",
+                    "archive_size": 504369
+                },
+                "subject_09.zip": {
+                    "source_size": 954918229,
+                    "source_modified": "20261026003152",
+                    "archive_size": 558949
+                },
+                "subject_10.zip": {
+                    "source_size": 742996616,
+                    "source_modified": "20261026003152",
+                    "archive_size": 449169
+                },
+                "subject_12.zip": {
+                    "source_size": 992489052,
+                    "source_modified": "20261026003152",
+                    "archive_size": 583638
+                },
+                "subject_13.zip": {
+                    "source_size": 819506718,
+                    "source_modified": "20261026003152",
+                    "archive_size": 580339
+                },
+                "subject_14.zip": {
+                    "source_size": 714587855,
+                    "source_modified": "20261026003152",
+                    "archive_size": 493830
+                },
+                "subject_15.zip": {
+                    "source_size": 1025582020,
+                    "source_modified": "20261026003152",
+                    "archive_size": 591893
+                },
+                "subject_16.zip": {
+                    "source_size": 1036054189,
+                    "source_modified": "20261026003152",
+                    "archive_size": 626370
+                },
+                "subject_17.zip": {
+                    "source_size": 1003254459,
+                    "source_modified": "20261026003152",
+                    "archive_size": 587275
+                },
+                "subject_18.zip": {
+                    "source_size": 982073955,
+                    "source_modified": "20261026003152",
+                    "archive_size": 633629
+                },
+                "subject_19.zip": {
+                    "source_size": 969105490,
+                    "source_modified": "20261026003152",
+                    "archive_size": 637425
+                },
+                "subject_20.zip": {
+                    "source_size": 1017843959,
+                    "source_modified": "20261026003152",
+                    "archive_size": 636796
+                }
+            }
+        }
+    },
+    "group_02": {
+        "experiment_01": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 2051008338,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1843420247,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1919646722,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1839956407,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1639011729,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 968890229,
+                    "source_modified": "20261026003152",
+                    "archive_size": 450396
+                },
+                "subject_02.zip": {
+                    "source_size": 1006397755,
+                    "source_modified": "20261026003152",
+                    "archive_size": 603474
+                },
+                "subject_03.zip": {
+                    "source_size": 1096045088,
+                    "source_modified": "20261026003152",
+                    "archive_size": 624189
+                },
+                "subject_04.zip": {
+                    "source_size": 1194342901,
+                    "source_modified": "20261026003152",
+                    "archive_size": 646026
+                },
+                "subject_05.zip": {
+                    "source_size": 1120584205,
+                    "source_modified": "20261026003152",
+                    "archive_size": 630500
+                },
+                "subject_06.zip": {
+                    "source_size": 967657298,
+                    "source_modified": "20261026003152",
+                    "archive_size": 585752
+                },
+                "subject_07.zip": {
+                    "source_size": 1131963385,
+                    "source_modified": "20261026003152",
+                    "archive_size": 661364
+                },
+                "subject_08.zip": {
+                    "source_size": 1032761992,
+                    "source_modified": "20261026003152",
+                    "archive_size": 588236
+                },
+                "subject_09.zip": {
+                    "source_size": 1123762079,
+                    "source_modified": "20261026003152",
+                    "archive_size": 667157
+                },
+                "subject_11.zip": {
+                    "source_size": 1072025518,
+                    "source_modified": "20261026003152",
+                    "archive_size": 648742
+                },
+                "subject_12.zip": {
+                    "source_size": 1138354645,
+                    "source_modified": "20261026003152",
+                    "archive_size": 615142
+                },
+                "subject_13.zip": {
+                    "source_size": 1007406188,
+                    "source_modified": "20261026003152",
+                    "archive_size": 601957
+                },
+                "subject_14.zip": {
+                    "source_size": 1076590624,
+                    "source_modified": "20261026003152",
+                    "archive_size": 625537
+                },
+                "subject_15.zip": {
+                    "source_size": 1158976381,
+                    "source_modified": "20261026003152",
+                    "archive_size": 658536
+                },
+                "subject_16.zip": {
+                    "source_size": 1084383769,
+                    "source_modified": "20261026003152",
+                    "archive_size": 623700
+                },
+                "subject_17.zip": {
+                    "source_size": 1161261563,
+                    "source_modified": "20261026003152",
+                    "archive_size": 670798
+                },
+                "subject_18.zip": {
+                    "source_size": 1054575179,
+                    "source_modified": "20261026003152",
+                    "archive_size": 624648
+                },
+                "subject_19.zip": {
+                    "source_size": 907601483,
+                    "source_modified": "20261026003152",
+                    "archive_size": 564750
+                },
+                "subject_20.zip": {
+                    "source_size": 1022814196,
+                    "source_modified": "20261026003152",
+                    "archive_size": 595961
+                }
+            }
+        },
+        "experiment_02": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 2051634794,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1845071090,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1930940068,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1904999440,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1700242855,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 972931750,
+                    "source_modified": "20261026003152",
+                    "archive_size": 524215
+                },
+                "subject_02.zip": {
+                    "source_size": 987583306,
+                    "source_modified": "20261026003152",
+                    "archive_size": 590121
+                },
+                "subject_03.zip": {
+                    "source_size": 1029262748,
+                    "source_modified": "20261026003152",
+                    "archive_size": 549208
+                },
+                "subject_04.zip": {
+                    "source_size": 1063753919,
+                    "source_modified": "20261026003152",
+                    "archive_size": 549334
+                },
+                "subject_05.zip": {
+                    "source_size": 1071569632,
+                    "source_modified": "20261026003152",
+                    "archive_size": 501607
+                },
+                "subject_06.zip": {
+                    "source_size": 962038877,
+                    "source_modified": "20261026003152",
+                    "archive_size": 530686
+                },
+                "subject_07.zip": {
+                    "source_size": 1046461943,
+                    "source_modified": "20261026003152",
+                    "archive_size": 590854
+                },
+                "subject_08.zip": {
+                    "source_size": 993498162,
+                    "source_modified": "20261026003152",
+                    "archive_size": 500970
+                },
+                "subject_09.zip": {
+                    "source_size": 1123036364,
+                    "source_modified": "20261026003152",
+                    "archive_size": 640141
+                },
+                "subject_11.zip": {
+                    "source_size": 1061273497,
+                    "source_modified": "20261026003152",
+                    "archive_size": 614074
+                },
+                "subject_12.zip": {
+                    "source_size": 1033072992,
+                    "source_modified": "20261026003152",
+                    "archive_size": 619538
+                },
+                "subject_13.zip": {
+                    "source_size": 992384235,
+                    "source_modified": "20261026003152",
+                    "archive_size": 590139
+                },
+                "subject_14.zip": {
+                    "source_size": 1042552700,
+                    "source_modified": "20261026003152",
+                    "archive_size": 610112
+                },
+                "subject_15.zip": {
+                    "source_size": 1154616353,
+                    "source_modified": "20261026003152",
+                    "archive_size": 647429
+                },
+                "subject_16.zip": {
+                    "source_size": 1035330630,
+                    "source_modified": "20261026003152",
+                    "archive_size": 560269
+                },
+                "subject_17.zip": {
+                    "source_size": 1029957345,
+                    "source_modified": "20261026003152",
+                    "archive_size": 641303
+                },
+                "subject_18.zip": {
+                    "source_size": 1047078651,
+                    "source_modified": "20261026003152",
+                    "archive_size": 611873
+                },
+                "subject_19.zip": {
+                    "source_size": 903552510,
+                    "source_modified": "20261026003152",
+                    "archive_size": 562309
+                },
+                "subject_20.zip": {
+                    "source_size": 1018834789,
+                    "source_modified": "20261026003152",
+                    "archive_size": 605115
+                }
+            }
+        },
+        "experiment_03": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1999569146,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1732318589,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1890658990,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1005705772,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 896249006,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_02.zip": {
+                    "source_size": 1002341198,
+                    "source_modified": "20261026003152",
+                    "archive_size": 542897
+                },
+                "subject_03.zip": {
+                    "source_size": 994079231,
+                    "source_modified": "20261026003152",
+                    "archive_size": 464241
+                },
+                "subject_04.zip": {
+                    "source_size": 1031018324,
+                    "source_modified": "20261026003152",
+                    "archive_size": 592941
+                },
+                "subject_05.zip": {
+                    "source_size": 981644594,
+                    "source_modified": "20261026003152",
+                    "archive_size": 609813
+                },
+                "subject_06.zip": {
+                    "source_size": 952776219,
+                    "source_modified": "20261026003152",
+                    "archive_size": 540015
+                },
+                "subject_07.zip": {
+                    "source_size": 1041752635,
+                    "source_modified": "20261026003152",
+                    "archive_size": 637404
+                },
+                "subject_08.zip": {
+                    "source_size": 1013806646,
+                    "source_modified": "20261026003152",
+                    "archive_size": 608692
+                },
+                "subject_09.zip": {
+                    "source_size": 1120302105,
+                    "source_modified": "20261026003152",
+                    "archive_size": 572281
+                },
+                "subject_10.zip": {
+                    "source_size": 1083660343,
+                    "source_modified": "20261026003152",
+                    "archive_size": 647938
+                },
+                "subject_11.zip": {
+                    "source_size": 1175093000,
+                    "source_modified": "20261026003152",
+                    "archive_size": 661704
+                },
+                "subject_12.zip": {
+                    "source_size": 1108592291,
+                    "source_modified": "20261026003152",
+                    "archive_size": 618852
+                },
+                "subject_13.zip": {
+                    "source_size": 1039388872,
+                    "source_modified": "20261026003152",
+                    "archive_size": 591726
+                },
+                "subject_15.zip": {
+                    "source_size": 1096390863,
+                    "source_modified": "20261026003152",
+                    "archive_size": 639231
+                },
+                "subject_16.zip": {
+                    "source_size": 989553143,
+                    "source_modified": "20261026003152",
+                    "archive_size": 586081
+                },
+                "subject_17.zip": {
+                    "source_size": 943917443,
+                    "source_modified": "20261026003152",
+                    "archive_size": 596712
+                },
+                "subject_18.zip": {
+                    "source_size": 966226032,
+                    "source_modified": "20261026003152",
+                    "archive_size": 606653
+                },
+                "subject_19.zip": {
+                    "source_size": 1011535669,
+                    "source_modified": "20261026003152",
+                    "archive_size": 605777
+                },
+                "subject_20.zip": {
+                    "source_size": 972950904,
+                    "source_modified": "20261026003152",
+                    "archive_size": 589875
+                },
+                "subject_21.zip": {
+                    "source_size": 991607484,
+                    "source_modified": "20261026003152",
+                    "archive_size": 592336
+                }
+            }
+        },
+        "experiment_04": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 2000681167,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1563383074,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1677470849,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1006678482,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 870221088,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_02.zip": {
+                    "source_size": 991470132,
+                    "source_modified": "20261026003152",
+                    "archive_size": 598894
+                },
+                "subject_03.zip": {
+                    "source_size": 1017767844,
+                    "source_modified": "20261026003152",
+                    "archive_size": 451986
+                },
+                "subject_04.zip": {
+                    "source_size": 1037993697,
+                    "source_modified": "20261026003152",
+                    "archive_size": 618344
+                },
+                "subject_05.zip": {
+                    "source_size": 1068241481,
+                    "source_modified": "20261026003152",
+                    "archive_size": 643477
+                },
+                "subject_06.zip": {
+                    "source_size": 967342047,
+                    "source_modified": "20261026003152",
+                    "archive_size": 472551
+                },
+                "subject_07.zip": {
+                    "source_size": 1141179197,
+                    "source_modified": "20261026003152",
+                    "archive_size": 641693
+                },
+                "subject_08.zip": {
+                    "source_size": 1039375112,
+                    "source_modified": "20261026003152",
+                    "archive_size": 612295
+                },
+                "subject_09.zip": {
+                    "source_size": 1076663527,
+                    "source_modified": "20261026003152",
+                    "archive_size": 634729
+                },
+                "subject_10.zip": {
+                    "source_size": 1014665685,
+                    "source_modified": "20261026003152",
+                    "archive_size": 629676
+                },
+                "subject_11.zip": {
+                    "source_size": 1181127954,
+                    "source_modified": "20261026003152",
+                    "archive_size": 661949
+                },
+                "subject_12.zip": {
+                    "source_size": 1140879302,
+                    "source_modified": "20261026003152",
+                    "archive_size": 648294
+                },
+                "subject_15.zip": {
+                    "source_size": 1109747828,
+                    "source_modified": "20261026003152",
+                    "archive_size": 640390
+                },
+                "subject_16.zip": {
+                    "source_size": 969320257,
+                    "source_modified": "20261026003152",
+                    "archive_size": 594116
+                },
+                "subject_17.zip": {
+                    "source_size": 954394437,
+                    "source_modified": "20261026003152",
+                    "archive_size": 599901
+                },
+                "subject_18.zip": {
+                    "source_size": 957903401,
+                    "source_modified": "20261026003152",
+                    "archive_size": 598707
+                },
+                "subject_19.zip": {
+                    "source_size": 921206598,
+                    "source_modified": "20261026003152",
+                    "archive_size": 586652
+                },
+                "subject_20.zip": {
+                    "source_size": 970829972,
+                    "source_modified": "20261026003152",
+                    "archive_size": 609650
+                },
+                "subject_21.zip": {
+                    "source_size": 995273746,
+                    "source_modified": "20261026003152",
+                    "archive_size": 609463
+                }
+            }
+        },
+        "experiment_05": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 2008970730,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 956602242,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 820317614,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_02.zip": {
+                    "source_size": 980074513,
+                    "source_modified": "20261026003152",
+                    "archive_size": 555002
+                },
+                "subject_03.zip": {
+                    "source_size": 1117486177,
+                    "source_modified": "20261026003152",
+                    "archive_size": 487865
+                },
+                "subject_04.zip": {
+                    "source_size": 1037841730,
+                    "source_modified": "20261026003152",
+                    "archive_size": 619439
+                },
+                "subject_05.zip": {
+                    "source_size": 1111857473,
+                    "source_modified": "20261026003152",
+                    "archive_size": 627949
+                },
+                "subject_06.zip": {
+                    "source_size": 1004869833,
+                    "source_modified": "20261026003152",
+                    "archive_size": 527320
+                },
+                "subject_07.zip": {
+                    "source_size": 1126906107,
+                    "source_modified": "20261026003152",
+                    "archive_size": 637446
+                },
+                "subject_08.zip": {
+                    "source_size": 1077357571,
+                    "source_modified": "20261026003152",
+                    "archive_size": 587991
+                },
+                "subject_09.zip": {
+                    "source_size": 1034160020,
+                    "source_modified": "20261026003152",
+                    "archive_size": 632156
+                },
+                "subject_10.zip": {
+                    "source_size": 1051385378,
+                    "source_modified": "20261026003152",
+                    "archive_size": 588165
+                },
+                "subject_11.zip": {
+                    "source_size": 1087119169,
+                    "source_modified": "20261026003152",
+                    "archive_size": 623733
+                },
+                "subject_12.zip": {
+                    "source_size": 1050692970,
+                    "source_modified": "20261026003152",
+                    "archive_size": 621917
+                },
+                "subject_15.zip": {
+                    "source_size": 1148227141,
+                    "source_modified": "20261026003152",
+                    "archive_size": 636651
+                },
+                "subject_16.zip": {
+                    "source_size": 1004843630,
+                    "source_modified": "20261026003152",
+                    "archive_size": 591034
+                },
+                "subject_17.zip": {
+                    "source_size": 1034350998,
+                    "source_modified": "20261026003152",
+                    "archive_size": 613404
+                },
+                "subject_18.zip": {
+                    "source_size": 1035855909,
+                    "source_modified": "20261026003152",
+                    "archive_size": 621454
+                },
+                "subject_19.zip": {
+                    "source_size": 987042235,
+                    "source_modified": "20261026003152",
+                    "archive_size": 597467
+                },
+                "subject_20.zip": {
+                    "source_size": 1062654527,
+                    "source_modified": "20261026003152",
+                    "archive_size": 615075
+                },
+                "subject_21.zip": {
+                    "source_size": 1020270256,
+                    "source_modified": "20261026003152",
+                    "archive_size": 612336
+                }
+            }
+        },
+        "experiment_06": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1913095910,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1518497425,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1468980826,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1854399310,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1664302868,
+                    "modified": "20261026003152"
+                },
+                "context_cam_06.zip": {
+                    "size": 198248687,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1079508135,
+                    "source_modified": "20261026003152",
+                    "archive_size": 537675
+                },
+                "subject_02.zip": {
+                    "source_size": 1019452121,
+                    "source_modified": "20261026003152",
+                    "archive_size": 612857
+                },
+                "subject_04.zip": {
+                    "source_size": 1101890158,
+                    "source_modified": "20261026003152",
+                    "archive_size": 609118
+                },
+                "subject_05.zip": {
+                    "source_size": 981237169,
+                    "source_modified": "20261026003152",
+                    "archive_size": 557888
+                },
+                "subject_06.zip": {
+                    "source_size": 961989452,
+                    "source_modified": "20261026003152",
+                    "archive_size": 461052
+                },
+                "subject_08.zip": {
+                    "source_size": 1044079716,
+                    "source_modified": "20261026003152",
+                    "archive_size": 612830
+                },
+                "subject_09.zip": {
+                    "source_size": 1018396782,
+                    "source_modified": "20261026003152",
+                    "archive_size": 602397
+                },
+                "subject_10.zip": {
+                    "source_size": 963817388,
+                    "source_modified": "20261026003152",
+                    "archive_size": 539397
+                },
+                "subject_11.zip": {
+                    "source_size": 1074959981,
+                    "source_modified": "20261026003152",
+                    "archive_size": 602968
+                },
+                "subject_12.zip": {
+                    "source_size": 1045106971,
+                    "source_modified": "20261026003152",
+                    "archive_size": 611588
+                },
+                "subject_13.zip": {
+                    "source_size": 810189200,
+                    "source_modified": "20261026003152",
+                    "archive_size": 578188
+                },
+                "subject_14.zip": {
+                    "source_size": 790235668,
+                    "source_modified": "20261026003152",
+                    "archive_size": 582563
+                },
+                "subject_15.zip": {
+                    "source_size": 1017317374,
+                    "source_modified": "20261026003152",
+                    "archive_size": 618624
+                },
+                "subject_16.zip": {
+                    "source_size": 1053050845,
+                    "source_modified": "20261026003152",
+                    "archive_size": 647423
+                },
+                "subject_17.zip": {
+                    "source_size": 1146894188,
+                    "source_modified": "20261026003152",
+                    "archive_size": 663315
+                },
+                "subject_18.zip": {
+                    "source_size": 1009527358,
+                    "source_modified": "20261026003152",
+                    "archive_size": 641383
+                },
+                "subject_19.zip": {
+                    "source_size": 1086831212,
+                    "source_modified": "20261026003152",
+                    "archive_size": 631084
+                },
+                "subject_20.zip": {
+                    "source_size": 1077653396,
+                    "source_modified": "20261026003152",
+                    "archive_size": 634881
+                },
+                "subject_21.zip": {
+                    "source_size": 978542993,
+                    "source_modified": "20261026003152",
+                    "archive_size": 614575
+                }
+            }
+        },
+        "experiment_07": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1895772472,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1725270314,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1674658871,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1759244333,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1621197920,
+                    "modified": "20261026003152"
+                },
+                "context_cam_06.zip": {
+                    "size": 1615569557,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1049734941,
+                    "source_modified": "20261026003152",
+                    "archive_size": 618104
+                },
+                "subject_02.zip": {
+                    "source_size": 963763093,
+                    "source_modified": "20261026003152",
+                    "archive_size": 578872
+                },
+                "subject_04.zip": {
+                    "source_size": 954893138,
+                    "source_modified": "20261026003152",
+                    "archive_size": 570888
+                },
+                "subject_05.zip": {
+                    "source_size": 827673976,
+                    "source_modified": "20261026003152",
+                    "archive_size": 511852
+                },
+                "subject_06.zip": {
+                    "source_size": 771005398,
+                    "source_modified": "20261026003152",
+                    "archive_size": 486035
+                },
+                "subject_08.zip": {
+                    "source_size": 804123164,
+                    "source_modified": "20261026003152",
+                    "archive_size": 520287
+                },
+                "subject_09.zip": {
+                    "source_size": 898310965,
+                    "source_modified": "20261026003152",
+                    "archive_size": 568585
+                },
+                "subject_10.zip": {
+                    "source_size": 819924521,
+                    "source_modified": "20261026003152",
+                    "archive_size": 542509
+                },
+                "subject_11.zip": {
+                    "source_size": 976549686,
+                    "source_modified": "20261026003152",
+                    "archive_size": 604389
+                },
+                "subject_12.zip": {
+                    "source_size": 999731507,
+                    "source_modified": "20261026003152",
+                    "archive_size": 637194
+                },
+                "subject_13.zip": {
+                    "source_size": 746359195,
+                    "source_modified": "20261026003152",
+                    "archive_size": 545428
+                },
+                "subject_14.zip": {
+                    "source_size": 722945436,
+                    "source_modified": "20261026003152",
+                    "archive_size": 537285
+                },
+                "subject_15.zip": {
+                    "source_size": 1020081715,
+                    "source_modified": "20261026003152",
+                    "archive_size": 617119
+                },
+                "subject_16.zip": {
+                    "source_size": 1015086051,
+                    "source_modified": "20261026003152",
+                    "archive_size": 527598
+                },
+                "subject_17.zip": {
+                    "source_size": 1100709303,
+                    "source_modified": "20261026003152",
+                    "archive_size": 649496
+                },
+                "subject_18.zip": {
+                    "source_size": 937804116,
+                    "source_modified": "20261026003152",
+                    "archive_size": 584362
+                },
+                "subject_19.zip": {
+                    "source_size": 987236230,
+                    "source_modified": "20261026003152",
+                    "archive_size": 612689
+                },
+                "subject_20.zip": {
+                    "source_size": 975670530,
+                    "source_modified": "20261026003152",
+                    "archive_size": 595932
+                },
+                "subject_21.zip": {
+                    "source_size": 726763184,
+                    "source_modified": "20261026003152",
+                    "archive_size": 452335
+                }
+            }
+        },
+        "experiment_08": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1877288693,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1543350426,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1571882535,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1966120265,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1817263298,
+                    "modified": "20261026003152"
+                },
+                "context_cam_06.zip": {
+                    "size": 1917534432,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1126543151,
+                    "source_modified": "20261026003152",
+                    "archive_size": 629200
+                },
+                "subject_02.zip": {
+                    "source_size": 1119514990,
+                    "source_modified": "20261026003152",
+                    "archive_size": 632766
+                },
+                "subject_04.zip": {
+                    "source_size": 938007701,
+                    "source_modified": "20261026003152",
+                    "archive_size": 549609
+                },
+                "subject_05.zip": {
+                    "source_size": 911592058,
+                    "source_modified": "20261026003152",
+                    "archive_size": 562600
+                },
+                "subject_06.zip": {
+                    "source_size": 847284815,
+                    "source_modified": "20261026003152",
+                    "archive_size": 531620
+                },
+                "subject_08.zip": {
+                    "source_size": 993436076,
+                    "source_modified": "20261026003152",
+                    "archive_size": 583259
+                },
+                "subject_09.zip": {
+                    "source_size": 978948260,
+                    "source_modified": "20261026003152",
+                    "archive_size": 576264
+                },
+                "subject_10.zip": {
+                    "source_size": 890842388,
+                    "source_modified": "20261026003152",
+                    "archive_size": 558752
+                },
+                "subject_11.zip": {
+                    "source_size": 989837673,
+                    "source_modified": "20261026003152",
+                    "archive_size": 583906
+                },
+                "subject_12.zip": {
+                    "source_size": 980568695,
+                    "source_modified": "20261026003152",
+                    "archive_size": 572811
+                },
+                "subject_13.zip": {
+                    "source_size": 782864629,
+                    "source_modified": "20261026003152",
+                    "archive_size": 540212
+                },
+                "subject_14.zip": {
+                    "source_size": 813148897,
+                    "source_modified": "20261026003152",
+                    "archive_size": 576923
+                },
+                "subject_15.zip": {
+                    "source_size": 1007644784,
+                    "source_modified": "20261026003152",
+                    "archive_size": 616125
+                },
+                "subject_16.zip": {
+                    "source_size": 1024809604,
+                    "source_modified": "20261026003152",
+                    "archive_size": 581295
+                },
+                "subject_17.zip": {
+                    "source_size": 1155550021,
+                    "source_modified": "20261026003152",
+                    "archive_size": 673802
+                },
+                "subject_18.zip": {
+                    "source_size": 1051068376,
+                    "source_modified": "20261026003152",
+                    "archive_size": 601169
+                },
+                "subject_19.zip": {
+                    "source_size": 1011458717,
+                    "source_modified": "20261026003152",
+                    "archive_size": 615868
+                },
+                "subject_20.zip": {
+                    "source_size": 978540684,
+                    "source_modified": "20261026003152",
+                    "archive_size": 607286
+                },
+                "subject_21.zip": {
+                    "source_size": 916308818,
+                    "source_modified": "20261026003152",
+                    "archive_size": 558913
+                }
+            }
+        },
+        "experiment_09": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1935672095,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1692029744,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1693427419,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1900302490,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1733758517,
+                    "modified": "20261026003152"
+                },
+                "context_cam_06.zip": {
+                    "size": 1812955383,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1117241654,
+                    "source_modified": "20261026003152",
+                    "archive_size": 659680
+                },
+                "subject_02.zip": {
+                    "source_size": 1076912997,
+                    "source_modified": "20261026003152",
+                    "archive_size": 559825
+                },
+                "subject_04.zip": {
+                    "source_size": 899106953,
+                    "source_modified": "20261026003152",
+                    "archive_size": 546004
+                },
+                "subject_05.zip": {
+                    "source_size": 936319294,
+                    "source_modified": "20261026003152",
+                    "archive_size": 581514
+                },
+                "subject_06.zip": {
+                    "source_size": 851021259,
+                    "source_modified": "20261026003152",
+                    "archive_size": 498879
+                },
+                "subject_08.zip": {
+                    "source_size": 850978477,
+                    "source_modified": "20261026003152",
+                    "archive_size": 446501
+                },
+                "subject_09.zip": {
+                    "source_size": 927696833,
+                    "source_modified": "20261026003152",
+                    "archive_size": 528417
+                },
+                "subject_10.zip": {
+                    "source_size": 793523344,
+                    "source_modified": "20261026003152",
+                    "archive_size": 471842
+                },
+                "subject_11.zip": {
+                    "source_size": 1003167822,
+                    "source_modified": "20261026003152",
+                    "archive_size": 525446
+                },
+                "subject_12.zip": {
+                    "source_size": 993361684,
+                    "source_modified": "20261026003152",
+                    "archive_size": 583952
+                },
+                "subject_13.zip": {
+                    "source_size": 715134709,
+                    "source_modified": "20261026003152",
+                    "archive_size": 533817
+                },
+                "subject_14.zip": {
+                    "source_size": 769758466,
+                    "source_modified": "20261026003152",
+                    "archive_size": 563128
+                },
+                "subject_15.zip": {
+                    "source_size": 1061830342,
+                    "source_modified": "20261026003152",
+                    "archive_size": 566595
+                },
+                "subject_16.zip": {
+                    "source_size": 1016315056,
+                    "source_modified": "20261026003152",
+                    "archive_size": 648118
+                },
+                "subject_17.zip": {
+                    "source_size": 1029740589,
+                    "source_modified": "20261026003152",
+                    "archive_size": 596197
+                },
+                "subject_18.zip": {
+                    "source_size": 964761345,
+                    "source_modified": "20261026003152",
+                    "archive_size": 562046
+                },
+                "subject_19.zip": {
+                    "source_size": 1064302100,
+                    "source_modified": "20261026003152",
+                    "archive_size": 620515
+                },
+                "subject_20.zip": {
+                    "source_size": 1103673598,
+                    "source_modified": "20261026003152",
+                    "archive_size": 622000
+                },
+                "subject_21.zip": {
+                    "source_size": 850361212,
+                    "source_modified": "20261026003152",
+                    "archive_size": 540008
+                }
+            }
+        }
+    },
+    "group_03": {
+        "experiment_01": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1914630796,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1648330107,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1516529176,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1578327822,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1176839262,
+                    "source_modified": "20261026003152",
+                    "archive_size": 663018
+                },
+                "subject_02.zip": {
+                    "source_size": 987922082,
+                    "source_modified": "20261026003152",
+                    "archive_size": 430903
+                },
+                "subject_03.zip": {
+                    "source_size": 1112407750,
+                    "source_modified": "20261026003152",
+                    "archive_size": 667743
+                },
+                "subject_04.zip": {
+                    "source_size": 1069861419,
+                    "source_modified": "20261026003152",
+                    "archive_size": 522296
+                },
+                "subject_05.zip": {
+                    "source_size": 1104981057,
+                    "source_modified": "20261026003152",
+                    "archive_size": 651088
+                },
+                "subject_06.zip": {
+                    "source_size": 921845999,
+                    "source_modified": "20261026003152",
+                    "archive_size": 582457
+                },
+                "subject_07.zip": {
+                    "source_size": 1007625665,
+                    "source_modified": "20261026003152",
+                    "archive_size": 612443
+                },
+                "subject_09.zip": {
+                    "source_size": 962216161,
+                    "source_modified": "20261026003152",
+                    "archive_size": 594781
+                },
+                "subject_10.zip": {
+                    "source_size": 1193947723,
+                    "source_modified": "20261026003152",
+                    "archive_size": 669226
+                },
+                "subject_11.zip": {
+                    "source_size": 1095983022,
+                    "source_modified": "20261026003152",
+                    "archive_size": 631039
+                },
+                "subject_12.zip": {
+                    "source_size": 999498310,
+                    "source_modified": "20261026003152",
+                    "archive_size": 616512
+                },
+                "subject_13.zip": {
+                    "source_size": 993256519,
+                    "source_modified": "20261026003152",
+                    "archive_size": 614385
+                },
+                "subject_14.zip": {
+                    "source_size": 1029824282,
+                    "source_modified": "20261026003152",
+                    "archive_size": 618754
+                },
+                "subject_15.zip": {
+                    "source_size": 1068737706,
+                    "source_modified": "20261026003152",
+                    "archive_size": 647903
+                },
+                "subject_16.zip": {
+                    "source_size": 1098220222,
+                    "source_modified": "20261026003152",
+                    "archive_size": 676955
+                }
+            }
+        },
+        "experiment_02": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1816331303,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1593379645,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1511486896,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1678940440,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1105600709,
+                    "source_modified": "20261026003152",
+                    "archive_size": 559896
+                },
+                "subject_02.zip": {
+                    "source_size": 994264545,
+                    "source_modified": "20261026003152",
+                    "archive_size": 462008
+                },
+                "subject_03.zip": {
+                    "source_size": 1014955730,
+                    "source_modified": "20261026003152",
+                    "archive_size": 618052
+                },
+                "subject_04.zip": {
+                    "source_size": 1054647823,
+                    "source_modified": "20261026003152",
+                    "archive_size": 504494
+                },
+                "subject_05.zip": {
+                    "source_size": 1042644177,
+                    "source_modified": "20261026003152",
+                    "archive_size": 540631
+                },
+                "subject_06.zip": {
+                    "source_size": 920333879,
+                    "source_modified": "20261026003152",
+                    "archive_size": 514612
+                },
+                "subject_07.zip": {
+                    "source_size": 1013732219,
+                    "source_modified": "20261026003152",
+                    "archive_size": 618356
+                },
+                "subject_09.zip": {
+                    "source_size": 744608105,
+                    "source_modified": "20261026003152",
+                    "archive_size": 581987
+                },
+                "subject_10.zip": {
+                    "source_size": 827293453,
+                    "source_modified": "20261026003152",
+                    "archive_size": 543868
+                },
+                "subject_11.zip": {
+                    "source_size": 1027291573,
+                    "source_modified": "20261026003152",
+                    "archive_size": 627190
+                },
+                "subject_12.zip": {
+                    "source_size": 1017785401,
+                    "source_modified": "20261026003152",
+                    "archive_size": 619781
+                },
+                "subject_13.zip": {
+                    "source_size": 956581779,
+                    "source_modified": "20261026003152",
+                    "archive_size": 623017
+                },
+                "subject_14.zip": {
+                    "source_size": 985405013,
+                    "source_modified": "20261026003152",
+                    "archive_size": 620781
+                },
+                "subject_15.zip": {
+                    "source_size": 1057058946,
+                    "source_modified": "20261026003152",
+                    "archive_size": 658237
+                },
+                "subject_16.zip": {
+                    "source_size": 1112961174,
+                    "source_modified": "20261026003152",
+                    "archive_size": 635487
+                }
+            }
+        },
+        "experiment_03": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1724956094,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1559299589,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1062371244,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1718122298,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1189426747,
+                    "source_modified": "20261026003152",
+                    "archive_size": 606709
+                },
+                "subject_02.zip": {
+                    "source_size": 1053985262,
+                    "source_modified": "20261026003152",
+                    "archive_size": 468642
+                },
+                "subject_03.zip": {
+                    "source_size": 1018432174,
+                    "source_modified": "20261026003152",
+                    "archive_size": 618084
+                },
+                "subject_04.zip": {
+                    "source_size": 1057132600,
+                    "source_modified": "20261026003152",
+                    "archive_size": 595816
+                },
+                "subject_05.zip": {
+                    "source_size": 965455661,
+                    "source_modified": "20261026003152",
+                    "archive_size": 408564
+                },
+                "subject_06.zip": {
+                    "source_size": 903426590,
+                    "source_modified": "20261026003152",
+                    "archive_size": 553652
+                },
+                "subject_07.zip": {
+                    "source_size": 1036172329,
+                    "source_modified": "20261026003152",
+                    "archive_size": 620287
+                },
+                "subject_09.zip": {
+                    "source_size": 751081418,
+                    "source_modified": "20261026003152",
+                    "archive_size": 559638
+                },
+                "subject_10.zip": {
+                    "source_size": 842615501,
+                    "source_modified": "20261026003152",
+                    "archive_size": 626905
+                },
+                "subject_11.zip": {
+                    "source_size": 1022767193,
+                    "source_modified": "20261026003152",
+                    "archive_size": 652372
+                },
+                "subject_12.zip": {
+                    "source_size": 980110776,
+                    "source_modified": "20261026003152",
+                    "archive_size": 609603
+                },
+                "subject_13.zip": {
+                    "source_size": 988288870,
+                    "source_modified": "20261026003152",
+                    "archive_size": 597968
+                },
+                "subject_14.zip": {
+                    "source_size": 1013801555,
+                    "source_modified": "20261026003152",
+                    "archive_size": 608335
+                },
+                "subject_15.zip": {
+                    "source_size": 991611726,
+                    "source_modified": "20261026003152",
+                    "archive_size": 617397
+                },
+                "subject_16.zip": {
+                    "source_size": 1029893861,
+                    "source_modified": "20261026003152",
+                    "archive_size": 616805
+                }
+            }
+        },
+        "experiment_04": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1699379698,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1429262819,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1350253579,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1686431287,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1116109073,
+                    "source_modified": "20261026003152",
+                    "archive_size": 675534
+                },
+                "subject_02.zip": {
+                    "source_size": 1015427137,
+                    "source_modified": "20261026003152",
+                    "archive_size": 434499
+                },
+                "subject_03.zip": {
+                    "source_size": 966576318,
+                    "source_modified": "20261026003152",
+                    "archive_size": 591663
+                },
+                "subject_04.zip": {
+                    "source_size": 1026446646,
+                    "source_modified": "20261026003152",
+                    "archive_size": 443455
+                },
+                "subject_05.zip": {
+                    "source_size": 975218571,
+                    "source_modified": "20261026003152",
+                    "archive_size": 519551
+                },
+                "subject_06.zip": {
+                    "source_size": 915832984,
+                    "source_modified": "20261026003152",
+                    "archive_size": 565379
+                },
+                "subject_07.zip": {
+                    "source_size": 1010006937,
+                    "source_modified": "20261026003152",
+                    "archive_size": 604450
+                },
+                "subject_09.zip": {
+                    "source_size": 748741563,
+                    "source_modified": "20261026003152",
+                    "archive_size": 559343
+                },
+                "subject_10.zip": {
+                    "source_size": 832769318,
+                    "source_modified": "20261026003152",
+                    "archive_size": 622232
+                },
+                "subject_11.zip": {
+                    "source_size": 1059174507,
+                    "source_modified": "20261026003152",
+                    "archive_size": 609038
+                },
+                "subject_12.zip": {
+                    "source_size": 1022227550,
+                    "source_modified": "20261026003152",
+                    "archive_size": 613804
+                },
+                "subject_13.zip": {
+                    "source_size": 945829446,
+                    "source_modified": "20261026003152",
+                    "archive_size": 607564
+                },
+                "subject_14.zip": {
+                    "source_size": 994312436,
+                    "source_modified": "20261026003152",
+                    "archive_size": 599454
+                },
+                "subject_15.zip": {
+                    "source_size": 1000769733,
+                    "source_modified": "20261026003152",
+                    "archive_size": 613546
+                },
+                "subject_16.zip": {
+                    "source_size": 1081177268,
+                    "source_modified": "20261026003152",
+                    "archive_size": 646855
+                }
+            }
+        },
+        "experiment_05": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1693780762,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1792116966,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1689017207,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1676114475,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1152484517,
+                    "source_modified": "20261026003152",
+                    "archive_size": 658178
+                },
+                "subject_02.zip": {
+                    "source_size": 1052377513,
+                    "source_modified": "20261026003152",
+                    "archive_size": 533535
+                },
+                "subject_03.zip": {
+                    "source_size": 1036754989,
+                    "source_modified": "20261026003152",
+                    "archive_size": 608875
+                },
+                "subject_04.zip": {
+                    "source_size": 1107941840,
+                    "source_modified": "20261026003152",
+                    "archive_size": 512767
+                },
+                "subject_05.zip": {
+                    "source_size": 957929337,
+                    "source_modified": "20261026003152",
+                    "archive_size": 560040
+                },
+                "subject_06.zip": {
+                    "source_size": 891497967,
+                    "source_modified": "20261026003152",
+                    "archive_size": 531612
+                },
+                "subject_07.zip": {
+                    "source_size": 1014235249,
+                    "source_modified": "20261026003152",
+                    "archive_size": 605849
+                },
+                "subject_09.zip": {
+                    "source_size": 765381915,
+                    "source_modified": "20261026003152",
+                    "archive_size": 577601
+                },
+                "subject_10.zip": {
+                    "source_size": 865112507,
+                    "source_modified": "20261026003152",
+                    "archive_size": 554877
+                },
+                "subject_11.zip": {
+                    "source_size": 1064240441,
+                    "source_modified": "20261026003152",
+                    "archive_size": 623616
+                },
+                "subject_12.zip": {
+                    "source_size": 1072168814,
+                    "source_modified": "20261026003152",
+                    "archive_size": 616999
+                },
+                "subject_13.zip": {
+                    "source_size": 929839888,
+                    "source_modified": "20261026003152",
+                    "archive_size": 543582
+                },
+                "subject_14.zip": {
+                    "source_size": 1017025116,
+                    "source_modified": "20261026003152",
+                    "archive_size": 599614
+                },
+                "subject_15.zip": {
+                    "source_size": 1046797767,
+                    "source_modified": "20261026003152",
+                    "archive_size": 607140
+                },
+                "subject_16.zip": {
+                    "source_size": 1111551317,
+                    "source_modified": "20261026003152",
+                    "archive_size": 642116
+                }
+            }
+        },
+        "experiment_06": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1861285740,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1517848771,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1435331896,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1853040673,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1695274190,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1098526861,
+                    "source_modified": "20261026003152",
+                    "archive_size": 620034
+                },
+                "subject_02.zip": {
+                    "source_size": 984493423,
+                    "source_modified": "20261026003152",
+                    "archive_size": 584729
+                },
+                "subject_03.zip": {
+                    "source_size": 1071030239,
+                    "source_modified": "20261026003152",
+                    "archive_size": 600107
+                },
+                "subject_05.zip": {
+                    "source_size": 1031731047,
+                    "source_modified": "20261026003152",
+                    "archive_size": 623056
+                },
+                "subject_06.zip": {
+                    "source_size": 857521226,
+                    "source_modified": "20261026003152",
+                    "archive_size": 541997
+                },
+                "subject_07.zip": {
+                    "source_size": 1036355539,
+                    "source_modified": "20261026003152",
+                    "archive_size": 577282
+                },
+                "subject_08.zip": {
+                    "source_size": 973844243,
+                    "source_modified": "20261026003152",
+                    "archive_size": 604384
+                },
+                "subject_09.zip": {
+                    "source_size": 795610172,
+                    "source_modified": "20261026003152",
+                    "archive_size": 563627
+                },
+                "subject_10.zip": {
+                    "source_size": 887015781,
+                    "source_modified": "20261026003152",
+                    "archive_size": 639221
+                },
+                "subject_11.zip": {
+                    "source_size": 1177461341,
+                    "source_modified": "20261026003152",
+                    "archive_size": 695814
+                },
+                "subject_12.zip": {
+                    "source_size": 1026098962,
+                    "source_modified": "20261026003152",
+                    "archive_size": 631085
+                },
+                "subject_13.zip": {
+                    "source_size": 962777098,
+                    "source_modified": "20261026003152",
+                    "archive_size": 587196
+                },
+                "subject_14.zip": {
+                    "source_size": 980311151,
+                    "source_modified": "20261026003152",
+                    "archive_size": 602106
+                },
+                "subject_15.zip": {
+                    "source_size": 1052739375,
+                    "source_modified": "20261026003152",
+                    "archive_size": 643178
+                },
+                "subject_16.zip": {
+                    "source_size": 1025115517,
+                    "source_modified": "20261026003152",
+                    "archive_size": 607233
+                }
+            }
+        },
+        "experiment_07": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1890019961,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1621773626,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1543161246,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1808243535,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1809279550,
+                    "modified": "20261026003152"
+                },
+                "context_cam_06.zip": {
+                    "size": 1117858935,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 1016599288,
+                    "source_modified": "20261026003152",
+                    "archive_size": 639787
+                },
+                "subject_02.zip": {
+                    "source_size": 864860470,
+                    "source_modified": "20261026003152",
+                    "archive_size": 539682
+                },
+                "subject_03.zip": {
+                    "source_size": 1000099153,
+                    "source_modified": "20261026003152",
+                    "archive_size": 652368
+                },
+                "subject_04.zip": {
+                    "source_size": 923851621,
+                    "source_modified": "20261026003152",
+                    "archive_size": 552994
+                },
+                "subject_05.zip": {
+                    "source_size": 959390102,
+                    "source_modified": "20261026003152",
+                    "archive_size": 596968
+                },
+                "subject_06.zip": {
+                    "source_size": 781646145,
+                    "source_modified": "20261026003152",
+                    "archive_size": 523254
+                },
+                "subject_07.zip": {
+                    "source_size": 942408754,
+                    "source_modified": "20261026003152",
+                    "archive_size": 583231
+                },
+                "subject_08.zip": {
+                    "source_size": 925591001,
+                    "source_modified": "20261026003152",
+                    "archive_size": 524365
+                },
+                "subject_09.zip": {
+                    "source_size": 779719197,
+                    "source_modified": "20261026003152",
+                    "archive_size": 569812
+                },
+                "subject_10.zip": {
+                    "source_size": 923237666,
+                    "source_modified": "20261026003152",
+                    "archive_size": 618072
+                },
+                "subject_11.zip": {
+                    "source_size": 1118415598,
+                    "source_modified": "20261026003152",
+                    "archive_size": 685087
+                },
+                "subject_12.zip": {
+                    "source_size": 1004171594,
+                    "source_modified": "20261026003152",
+                    "archive_size": 613954
+                },
+                "subject_13.zip": {
+                    "source_size": 921028408,
+                    "source_modified": "20261026003152",
+                    "archive_size": 602166
+                },
+                "subject_14.zip": {
+                    "source_size": 848481414,
+                    "source_modified": "20261026003152",
+                    "archive_size": 556861
+                },
+                "subject_15.zip": {
+                    "source_size": 920291276,
+                    "source_modified": "20261026003152",
+                    "archive_size": 596355
+                },
+                "subject_16.zip": {
+                    "source_size": 903495437,
+                    "source_modified": "20261026003152",
+                    "archive_size": 595276
+                }
+            }
+        },
+        "experiment_08": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1816148020,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1636728625,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1514410245,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1819510131,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1808824313,
+                    "modified": "20261026003152"
+                },
+                "context_cam_06.zip": {
+                    "size": 1166008428,
+                    "modified": "20261026003152"
+                }
+            },
+            "subjects": {
+                "subject_01.zip": {
+                    "source_size": 991259441,
+                    "source_modified": "20261026003152",
+                    "archive_size": 599808
+                },
+                "subject_02.zip": {
+                    "source_size": 952069909,
+                    "source_modified": "20261026003152",
+                    "archive_size": 579585
+                },
+                "subject_03.zip": {
+                    "source_size": 1004305103,
+                    "source_modified": "20261026003152",
+                    "archive_size": 649631
+                },
+                "subject_04.zip": {
+                    "source_size": 1030026396,
+                    "source_modified": "20261026003152",
+                    "archive_size": 616770
+                },
+                "subject_05.zip": {
+                    "source_size": 997264439,
+                    "source_modified": "20261026003152",
+                    "archive_size": 608702
+                }
+            }
+        },
+        "experiment_09": {
+            "context_cam_files": {
+                "context_cam_01.zip": {
+                    "size": 1841639076,
+                    "modified": "20261026003152"
+                },
+                "context_cam_02.zip": {
+                    "size": 1579359973,
+                    "modified": "20261026003152"
+                },
+                "context_cam_03.zip": {
+                    "size": 1459067525,
+                    "modified": "20261026003152"
+                },
+                "context_cam_04.zip": {
+                    "size": 1764464270,
+                    "modified": "20261026003152"
+                },
+                "context_cam_05.zip": {
+                    "size": 1755625535,
+                    "modified": "20261026003152"
+                },
+                "context_cam_06.zip": {
+                    "size": 1092808725,
+                    "modified": "20261026003152"
+                }
+            },
+            "subject_zip_count": 16
+        }
+    }
+}

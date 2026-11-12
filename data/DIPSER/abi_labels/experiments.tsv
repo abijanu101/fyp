@@ -1,0 +1,10 @@
+exp	layout	device_use	activity
+01	grid	required	News Reading
+02	grid	optional	QR Paper Scanning and Activity Setup
+03	grid	optional	Traditional Lecture
+04	grid	required	Canva Design Task
+05	grid	required	Online Quiz
+06	grid	required	Randomly Selected Student to Explain Their Work
+07	ring	optional	Brainstorming
+08	ring	optional	Engineering Lab
+09	ring	optional	Written Activity (Educational Activity Design using MTINY)

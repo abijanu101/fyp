@@ -1,0 +1,31 @@
+name: fyp-local
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  # PYTHON
+  - python=3.14.6
+  - ipykernel
+  - ipywidgets
+  - blas=*=openblas
+
+  # ML ESSENTIALS
+  - numpy
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - scipy
+  
+  # CV
+  - opencv
+  - fvcore
+
+  # STUFF THAT DIDNT HAVE GOOD CONDA MIRRORS
+  - pip
+  - pip:
+    # TORCH
+    - torch==2.9.0      # v2.9.0 VERY IMPORTANT, newer version dont support my GPU
+    - torchtext
+    - torchaudio==2.9.0+cu126
+    - torchvision
+    - --extra-index-url https://download.pytorch.org/whl/cu126
