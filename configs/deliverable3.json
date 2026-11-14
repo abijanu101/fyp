@@ -110,5 +110,16 @@
     }
   },
 
+  "benchmark": {
+    "sessions": ["group_01/experiment_03/context_cam_02",
+                 "group_02/experiment_04/context_cam_03",
+                 "group_03/experiment_01/context_cam_01"],
+    "variants": {
+      "botsort_motion": {"tracker.options.use_embeddings": false, "tracker.options.use_cmc": true},
+      "strongsort": {"tracker": {"name": "strongsort", "options": {"use_cmc": true}}},
+      "botsort_reid_cmc": {"tracker.options.use_embeddings": true, "tracker.options.use_cmc": true}
+    }
+  },
+
   "output_dir": "outputs"
 }

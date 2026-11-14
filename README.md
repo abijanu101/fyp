@@ -63,6 +63,7 @@ python -m scripts.tune_tracker [--profile full]        # detector conf + tracker
 python -m scripts.run_pipeline extract [--reuse]       # features for all in-scope sessions
 python -m scripts.train_models                         # LOGO evaluation + final models
 python -m scripts.tune_models [--component gate|expert]   # nested-LOGO hyperparameter search
+python -m scripts.benchmark [--name trackers]            # per-stage timing per tracker variant (resumable)
 python -m scripts.run_pipeline infer --zip <camera.zip> --models outputs/models/<hash>.joblib --out <dir>
 ```
 

@@ -9,6 +9,12 @@ data/SCB-ST-Dataset4
 #models
 *.pt
 
+# vendored third-party repos (cloned, not ours)
+# original StrongSORT reference implementation (the pipeline uses BoxMOT's)
+lib/StrongSORT/
+# WongKinYiu/yolov7 @ a207844: model code needed to load the SCB behaviour checkpoints
+lib/yolov7/
+
 # pipeline outputs are shared, except the large regenerable caches (detections, ReID embeddings)
 outputs/cache/
 
@@ -35,7 +41,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -202,4 +207,4 @@ cython_debug/
 .cursorindexingignore
 
 #vscode
-.vscode
+.vscode/

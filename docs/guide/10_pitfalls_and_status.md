@@ -74,49 +74,73 @@ imputer handle NaN with training statistics.
 **Selecting hyperparameters on the test group.** Use `nested_logo_search` and report its nested
 estimate.
 
+**Shortcuts that change what is measured.** Caching and blank frames make tuning affordable, but
+each is a claim that the fast path equals the real one. Verify it (`tune_tracker --check`), and
+prefer the slower honest path where a shortcut would be a single point of failure: the
+full-dataset tracker experiments keep CMC on, so every trial decodes real frames.
+
+**Inline comments in `.gitignore`.** Git reads `lib/yolov7/  # comment` as one pattern that matches
+nothing. Put comments on their own line.
+
 ## 10.5 Status
+
+*Last updated: November 2026. Update this section when you change something it describes.*
 
 ### Built and verified on real data
 
 - Ingestion, timing audit, empty-frame handling.
-- Person detection; BoT-SORT tracking with Kalman velocity access; tracklet filtering.
+- Person detection; BoT-SORT and StrongSORT tracking with Kalman velocity access; tracklet
+  filtering.
 - SID–TID association with the passing-person guard; tracking metrics against the manual boxes.
 - BFMU: Kalman/geometry motion, residual flow, SCB (soft and flags modes).
-- Two-pass pipeline with the two-level cache; feature pass verified against a cached track.
-- Tracker tuning (quick profile done: IDF1 0.908 → 0.950; full profile in progress).
-- Label parsing, label viewers and plots, label inspection.
+- Two-pass pipeline with the two-level cache; feature pass verified against a cached track; one
+  full session extracted fresh with per-stage timing (Chapter 5).
+- Tracker tuning: quick profiles done (BoT-SORT 0.908 → 0.950, StrongSORT 0.851 → 0.932); ReID
+  embedding cache and fast paths verified with `--check`; resumable full-dataset runs.
+- Label parsing, label viewers and plots, label inspection; SCB sanity check and viewer.
 
-### Built and unit-tested, not yet run end to end on all data
+### Running
+
+- **Three full-dataset tracker experiments** (`tune_tracker`, 20 trials each, CMC on everywhere):
+  BoT-SORT without ReID (`full`), StrongSORT (`full_strongsort`), BoT-SORT with ReID
+  (`full_reid_cmc`). Their outcome sets the default tracker. Results go in
+  `docs/experiments/02_boxmot.md`, §6–7.
+
+### Built and unit-tested, not yet run on all data
 
 - Context gate, engagement experts, mixture, `train_models`, `tune_models`, `infer`.
+- `scripts/benchmark.py` (per-stage timing per tracker variant).
 
-These are waiting on the full extraction of all 52 sessions, which in turn waits for the final
-tracker settings.
+These wait on the full extraction of all 52 sessions, which is best run once the tracker is chosen
+(a different tracker means re-running the frame pass, about 4–5 hours).
 
 ### Decisions taken (and to explain in the write-up)
 
-- **Tracker choice pending the full-dataset comparison** of BoT-SORT (no ReID/CMC), StrongSORT, and
-  BoT-SORT with ReID and CMC (`docs/experiments/02_boxmot.md`, §7). On the quick clips, ReID made
+- **Tracker choice pending** the three full-dataset experiments. On the quick clips, ReID made
   tracking more forgiving of bad settings but did not beat a tuned motion-only tracker, at about
-  60× the per-frame cost.
-- **SCB in soft mode.** On DIPSER, SCB's `read` fires on anyone looking down at a desk or device,
-  and `hand_raising` fires on hand-on-cheek poses. Its raw scores are passed to the experts
-  instead of its decisions. A with/without-SCB comparison will decide whether it stays.
+  60× the per-frame tracking cost.
+- **CMC on for every full-dataset tracker trial**, for reliability: no full-dataset result depends
+  on the blank-frame shortcut.
+- **SCB in soft mode.** On DIPSER, `read` fires on anyone looking down at a desk or device and
+  `hand_raising` on hand-to-face poses (`docs/experiments/03_scb.md`). Raw scores are passed to the
+  experts instead of decisions; a with/without-SCB comparison will decide whether it stays.
 - **Region-of-interest features (visual focus of attention): out of scope** for now.
 - **Krippendorff's alpha on window-midpoint values** as the labeler-agreement measure.
 
 ### Open
 
 1. **Label target.** Labeler agreement is near chance (ordinal α between −0.08 and 0.13 per
-   experiment); labelers use the scale very differently (one labeler sits at 3 for 88% of the
-   time, another at 2 for 73%); the median removes almost all 4s and 5s. The design's thresholds
-   give 0.5% engaged windows. Provisional thresholds (`tau_att=3`, `tau_share=0.6`) will be used
+   experiment); labelers use the scale very differently (one sits at 3 for 88% of the time,
+   another at 2 for 73%); the median removes almost all 4s and 5s. The design's thresholds give
+   0.5% engaged windows. Provisional thresholds (`tau_att=3`, `tau_share=0.6`, passed with `--set`)
    until label design is revisited.
-2. **Performance.** About 32 minutes per 45-minute session against a 3-minute target. The largest
-   costs are detection (~55 ms/frame), residual flow (~56 ms), SCB (~100 ms) and PNG decoding
-   (~28 ms). The 50-student stress test (§11) is not done.
-3. **The first end-to-end result.** Full extraction, training, and one inference run, which gives
-   the first retention graph from trained models.
+2. **Performance.** About 190 ms per frame (~43 minutes per 45-minute session) against a 3-minute
+   target, measured under CPU load. Largest costs: residual flow (68 ms), SCB (46 ms), PNG decoding
+   (42 ms), detection (31 ms); ReID tracking would add 120–165 ms. The 50-student stress test (§11)
+   is not done.
+3. **The first end-to-end result.** Full extraction, training (with the feature-family ablation,
+   not yet written), and one inference run, which gives the first retention graph from trained
+   models.
 4. **Possible new feature family.** A frozen pretrained image encoder (for example DINOv2-small
    or ResNet18) on student crops, and possibly whole frames for the gate, as an alternative to
    SCB's fixed classes.

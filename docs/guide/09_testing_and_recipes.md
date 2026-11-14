@@ -29,7 +29,7 @@ python -m unittest tests.test_stages.TestTracklets.test_camera_frame_drop_is_not
 | `tests/test_mixture.py` | soft/hard/oracle mixing, shared scope, per-experiment training, hand-weighted signs, LOGO splits |
 | `tests/test_stages.py` | windows, tracklet gap filtering, SID association (including passing TAs), motion features, Vec key stability, config hashing and cache keys, track store round trip, the feature pass without video, graph privacy |
 | `tests/test_tuning.py` | Krippendorff's alpha (against the published example), tracking metrics, random and nested search |
-| `tests/test_scb.py` | SCB keys, soft score assignment, flags matching, per-class thresholds, the safe loader refusing bad checkpoints |
+| `tests/test_scb.py` | SCB keys in soft and flags mode, soft score assignment (best-IoU track, max per class, one track per candidate), mean and peak window features, flags matching, per-class thresholds, the safe loader refusing bad checkpoints |
 
 ## 9.3 The testing style: small synthetic inputs with known answers
 
@@ -155,7 +155,30 @@ for L in 6 8 10 12:
 
 Each `train_models` run writes its own `outputs/results/<hash>.json`.
 
-## 9.10 Before you commit
+## 9.10 Recipe: measure the cost of a change
+
+Add a variant to the config's `benchmark.variants` as dotted overrides, for example a cheaper flow
+setting:
+
+```json
+"flow_quarter_res": {"bfmu": [{"name": "kalman_geometry", "still_threshold": 0.05},
+                              {"name": "residual_flow", "grid": 2, "scale": 0.25}, {...scb entry...}]}
+```
+
+then run `python -m scripts.benchmark --name flow --variants botsort_motion flow_quarter_res` on an
+idle machine and compare the two rows of `outputs/benchmarks/flow.md`. Check what the change does
+to the features, not only to the time: a faster pipeline that changes Vec needs the downstream
+evaluation re-run.
+
+## 9.11 Recipe: run something that takes hours
+
+Long jobs are run in your own terminal, so their progress is visible, and are written to resume:
+they append each finished unit of work to a log as it completes and skip logged units on restart
+(`tune_tracker`'s `.sessions.jsonl`, `benchmark`'s CSV, `run_pipeline extract --reuse`). If you
+write a new long-running script, follow the same pattern: small units, append-as-you-go, a
+fingerprint of the settings so a restart cannot mix results, and a progress line on stdout.
+
+## 9.12 Before you commit
 
 - Tests pass.
 - If you changed a contract (a dataclass, config keys, a cache format), update the matching

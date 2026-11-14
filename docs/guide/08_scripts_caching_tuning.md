@@ -141,8 +141,8 @@ It returns both the selected parameters and the nested estimate. Report the nest
 ## 8.6 `tune_tracker` (`scripts/tune_tracker.py`)
 
 ```
-python -m scripts.tune_tracker --profile quick|full [--tracker botsort|strongsort] [--trials N]
-python -m scripts.tune_tracker --profile <name> --check
+python -m scripts.tune_tracker --profile <profile> [--trials N] [--fresh]
+python -m scripts.tune_tracker --profile <profile> --check
 ```
 
 **The objective.** Tracking is scored against our manual boxes (`abi_labels`) with
@@ -157,26 +157,69 @@ python -m scripts.tune_tracker --profile <name> --check
 | `subjects_found` | share of annotated students matched at all |
 
 IDF1 uses a one-to-one assignment between tracks and students, so if a student's time is split
-across two track ids, only the larger part counts.
+across two track ids, only the larger part counts. Scores are averaged over sessions and also
+reported per group, so a configuration that only helps one room is visible.
 
-**Why it is fast.** Detection is independent of tracker settings, so each session's detections
-are computed once at a low confidence floor (0.05) and cached in `outputs/cache/detections/`.
-Each trial filters them at its own `det_conf` (so detector confidence is tuned at no extra cost)
-and re-runs only the tracker.
+### What is computed once, and what each trial re-runs
 
-**Why blank frames.** BoxMOT's tracker takes the image as an input. With ReID and camera-motion
-compensation off, BoT-SORT never reads it, so the full profile feeds a blank frame of the right
-size instead of decoding PNGs: about 2 minutes per trial on all 52 sessions instead of 35.
-`--check` verifies that this fast path (blank frames, and cached ReID embeddings for profiles that
-use ReID) gives identical tracks to the tracker's own path before relying on it.
+Most of the work in tracking a session does not depend on tracker settings, so it is cached:
 
-**Profiles** (`tuning.tracker.profiles`):
+1. **Detections.** Each session's detections are computed once at a low confidence floor (0.05)
+   and stored in `outputs/cache/detections/`. Each trial filters them at its own `det_conf`, so
+   detector confidence is tuned alongside the tracker at no extra cost.
+2. **ReID embeddings.** An appearance embedding depends only on the frame and the box, never on
+   tracker settings. If any trial can use ReID, every floor-level detection is embedded once with
+   the trackers' default ReID model (`osnet-x0-25-msmt17`, shared by BoT-SORT and StrongSORT) and
+   stored next to the detections (`<session>.reid-osnet-x0-25-msmt17.npz`, float32, about 70 MB
+   per session). The embeddings are computed through BoxMOT's own embedding code
+   (`BoxmotTracker.embed`), and trials hand them to the tracker
+   (`BoxmotTracker.update_with_embeddings`), which then runs no ReID model.
+3. **Frames are only decoded when a trial needs pixels**, which, with embeddings cached, means only
+   when it turns camera-motion compensation (CMC) on. CMC estimates camera motion from consecutive
+   frames while masking that trial's own detections, so it cannot be cached. Otherwise the tracker
+   gets a blank frame of the right size. Frames are looked up by timestamp, so a frame that failed
+   to decode cannot shift detections onto the wrong frame.
 
-- `quick`: 3 sessions × first 300 frames; ReID may be searched.
-- `full`: all sessions, all frames; ReID and CMC fixed off (`fixed`).
+**Trust, but verify.** `--check` runs the profile's trial-0 settings on its first session twice:
+once through the fast path (cached embeddings, blank frames where possible) and once through the
+tracker's own path (decoded frames, its own ReID). It exits nonzero unless the tracks are
+identical, so it can gate a chained run. Checks run so far: blank frames for BoT-SORT without ReID
+(10 vs 10 tracks), cached embeddings with decoded frames for StrongSORT (42 vs 42) and BoT-SORT
+with ReID and CMC (16 vs 16).
 
-**Output**: `outputs/tuning/tracker_<name>_<profile>.csv` (every trial, with per-group scores)
-and `.json`, which includes a `config_patch` to paste into the config.
+### Profiles (`tuning.tracker.profiles`)
+
+| Profile | Tracker | Sessions | Trials | Fixed |
+|---|---|---|---|---|
+| `quick` | configured (BoT-SORT) | 3, first 300 frames each | 25 | none: ReID and CMC are searched |
+| `full` | BoT-SORT | all 52, all frames | 20 | ReID off, CMC on |
+| `full_strongsort` | StrongSORT | all 52 | 20 | CMC on |
+| `full_reid_cmc` | BoT-SORT | all 52 | 20 | ReID on, CMC on |
+
+A profile may name its `tracker`; its `fixed` parameters apply to every trial and are removed from
+the search space. The full-dataset profiles keep CMC **on** everywhere: every trial then decodes
+real frames, so no full-dataset result depends on the blank-frame shortcut, and the three
+experiments differ only in what they compare (ReID on/off with the same tracker; StrongSORT vs
+BoT-SORT with ReID). This costs time (up to about an hour per trial) in exchange for reliability.
+
+### Resuming long runs
+
+Full-dataset runs take a day or more, so they are resumable at the level of one session:
+
+- every (trial settings, session) result is appended to
+  `outputs/tuning/tracker_<name>_<profile>.sessions.jsonl` the moment it is computed;
+- re-running the same command re-creates the same seeded trial sequence and reuses every result
+  already on disk, so an interruption (Ctrl+C, a crash, a reboot) loses at most one session's work;
+- the file's first line fingerprints everything that affects the scores (tracker, profile settings,
+  search space, detector, association, seed, ReID model). A mismatch stops the run instead of mixing
+  results; `--fresh` moves the old file aside and starts over;
+- the trial count is *not* part of the fingerprint: raising `--trials` continues the same sequence.
+
+While running, each trial shows a live progress line (`trial 3: 17/52 sessions, 21.4 min`) and
+then a summary line with its scores and settings.
+
+**Output**: `outputs/tuning/tracker_<name>_<profile>.csv` (every trial, with per-group scores) and
+`.json`, which includes a `config_patch` to paste into the config.
 
 ## 8.7 `tune_models` (`scripts/tune_models.py`)
 
@@ -200,3 +243,33 @@ the label thresholds first: the expert objective depends on them.
 | `player.py` | `python scripts/dipser/player.py data/DIPSER/DIPSEER` | six-camera synchronised player |
 
 The first three import `src` and need `-m`; the last three are standalone files.
+
+## 8.9 `benchmark` (`scripts/benchmark.py`)
+
+```
+python -m scripts.benchmark [--name trackers] [--variants V ...] [--sessions g/e/c ...] [--max-frames N]
+```
+
+Times the extraction pipeline per stage. For each variant in the config's `benchmark` section (a
+set of dotted config overrides, by default the three tracker options) and each session (by default
+the three quick-tuning sessions), it runs a fresh extraction with nothing cached and appends one
+row to `outputs/benchmarks/<name>.csv`: per-stage seconds, frames, wall time, model-load time, and
+the machine's average CPU load during the run. Other jobs inflate the CPU-bound stages, and the
+load column makes such rows visible. Re-running skips rows already logged. At the end it writes
+`outputs/benchmarks/<name>.md`: per variant, mean ms/frame per stage, processing fps, and the time
+projected for a 45-minute session. Run it on an otherwise idle machine.
+
+## 8.10 Where files go, and what is shared
+
+| Folder | Contents | In git? |
+|---|---|---|
+| `outputs/cache/` | detections and ReID embeddings for tuning: large, regenerable | no |
+| `outputs/tracks/`, `outputs/features/` | frame-pass and feature-pass results | yes |
+| `outputs/results/`, `outputs/models/` | evaluation results, trained model bundles | yes |
+| `outputs/tuning/`, `outputs/benchmarks/` | tuning and timing logs | yes |
+| `outputs/labels/`, `outputs/label_plots/`, `outputs/scb_check/` | dataset inspection outputs | yes |
+| `tmp/` | working files that need to live a while (test runs, one-off scripts) | no |
+
+Everything under `outputs/` except the cache is meant to be shared. `outputs/tracks/` grows by
+about 50 MB per tracker configuration extracted; if that becomes heavy, it is the next candidate
+for the ignore list. Model bundles (`.joblib`) are pickles: only load ones you trust.

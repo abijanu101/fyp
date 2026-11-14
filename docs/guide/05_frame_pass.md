@@ -38,7 +38,8 @@ def track(self, path, key=None) -> SessionTrack:
 ```
 
 (The real code wraps each step in `with timer.stage("..."):` so the manifest records where time
-went.)
+went. Pixel-level extractors get one timer each, named after their class
+(`bfmu_frame.ResidualFlow`, `bfmu_frame.ScbBehaviour`), because their costs differ a lot.)
 
 Things to notice:
 
@@ -137,9 +138,10 @@ recognised as the same person who was at (302, 398) a moment ago, and keeps the 
 BoT-SORT does this mainly with a **Kalman filter**, a small motion model per track that predicts
 where each box should be next. Each frame, it matches new detections to predicted boxes; matched
 tracks update, unmatched detections can start new tracks, and tracks unmatched for too long
-(`max_lost_frames`) are dropped. Optionally it also compares appearance (ReID embeddings). In our
-tuned config ReID is off: in a fixed-camera room of seated students, a well-tuned motion-only
-tracker matched the best ReID result at about 60× less compute (Chapter 10).
+(`max_lost_frames`) are dropped. Optionally it also compares appearance (ReID embeddings of each
+person crop) and compensates for camera motion (CMC). The current config has both off, the
+winner of the quick tuning search; which tracker and options become the default is being
+decided by three full-dataset experiments (Chapter 8, and `docs/experiments/02_boxmot.md`).
 
 ### The wrapper
 
@@ -232,16 +234,27 @@ window.
 
 ## 5.8 What the frame pass costs
 
-From a fresh run on one 5-minute session (1,470 frames) on the GTX 1080, before SCB was added:
+One fresh extraction of `group_01/experiment_01/context_cam_01` (1,468 frames, 4.9 minutes of
+footage) on the GTX 1080, with the current config (BoT-SORT without ReID or CMC, residual flow,
+SCB soft mode):
 
-| Stage | Seconds | Per frame |
-|---|---|---|
-| PNG decoding | 42 | 28 ms |
-| Detection (YOLO11n) | 80 | 55 ms |
-| Tracking (BoT-SORT, no ReID) | 3.4 | 2 ms |
-| Residual flow | 83 | 56 ms |
-| Scene features | 2.7 | 2 ms |
+| Stage | Seconds | Per frame | Share |
+|---|---|---|---|
+| PNG decoding | 62.2 | 42 ms | 22% |
+| Person detection (YOLO11n) | 44.9 | 31 ms | 16% |
+| Tracking | 4.0 | 3 ms | 1% |
+| Residual optical flow | 99.2 | 68 ms | 35% |
+| SCB behaviour (YOLOv7, soft) | 67.1 | 46 ms | 24% |
+| Scene features | 3.5 | 2 ms | 1% |
+| Feature pass (filtering + aggregation) | 1.0 | | <1% |
+| **Total** | **294 s wall clock** | **~190 ms** | |
 
-SCB adds roughly another 100 ms per frame. Scaled to a 45-minute session, this is far from the
-design's 3-minute target; performance work is planned after the pipeline is complete
-(Chapter 10). The manifest of every extraction run records these numbers per session.
+Two tracker-tuning jobs kept the CPU at about 90% during this run, so the CPU-bound stages
+(decoding, flow, tracking) are upper bounds. Even so, the pipeline runs at about real time
+(5.2 frames/s processed against a 5 fps camera): a 45-minute session would take about 43 minutes,
+roughly 14× over the design's 3-minute target. Residual flow is the largest single cost: it
+computes dense flow over the whole half-resolution frame but only uses it inside student boxes.
+
+ReID tracking (StrongSORT, or BoT-SORT with `use_embeddings`) adds roughly 120–165 ms per frame on
+top. `scripts/benchmark.py` measures all of this per tracker variant on several sessions
+(Chapter 8). Every extraction run's manifest records these stage times per session.

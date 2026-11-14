@@ -103,9 +103,9 @@ class Pipeline:
                 dets = self.detector.detect(frame)
             with timer.stage("tracking"):
                 tracks = tracker.update(frame, dets)
-            with timer.stage("bfmu_frame"):
-                signals: dict[int, dict[str, float]] = {}
-                for e in frame_extractors:
+            signals: dict[int, dict[str, float]] = {}
+            for e in frame_extractors:                      # timed per extractor: they differ a lot in cost
+                with timer.stage(f"bfmu_frame.{type(e).__name__}"):
                     for tid, vals in e.frame_signals(frame, tracks).items():
                         signals.setdefault(tid, {}).update(vals)
             builder.add(frame.t, tracks, signals)

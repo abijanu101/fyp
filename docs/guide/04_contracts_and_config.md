@@ -183,6 +183,7 @@ with what reads each:
 | `expert`, `hand_weighted`, `mixture` | training, inference | expert model, baseline weights, mixing |
 | `labels` | label pipeline | `tau_att`, `tau_share`, minimum labelled students, offset |
 | `tuning` | tuning scripts only | search profiles and spaces |
+| `benchmark` | `scripts/benchmark.py` only | sessions and tracker variants to time |
 | `output_dir` | scripts | where caches and results go |
 
 ### Overriding values per run
@@ -207,7 +208,7 @@ copying the whole config into every table, we compute a **fingerprint**: the SHA
 config written as canonical JSON.
 
 ```python
-HASH_EXCLUDED_KEYS = ("output_dir", "tuning")
+HASH_EXCLUDED_KEYS = ("output_dir", "tuning", "benchmark")
 
 def config_hash(cfg: dict) -> str:
     clean = copy.deepcopy(cfg)
@@ -221,14 +222,14 @@ def config_hash(cfg: dict) -> str:
 variation. So the same settings always give the same hash, and any change, however small, gives
 a different one.
 
-Two sections are excluded because they do not change what a run produces: `output_dir` (where
-results go) and `tuning` (only the search scripts read it).
+Three sections are excluded because they do not change what a run produces: `output_dir` (where
+results go), and `tuning` and `benchmark` (only their own scripts read them).
 
 ### Three hashes, three purposes
 
 | Hash | Defined in | Covers | Used for |
 |---|---|---|---|
-| `config_hash(cfg)` | `core/config.py` | everything except output_dir, tuning | results tables, model bundles, manifests |
+| `config_hash(cfg)` | `core/config.py` | everything except output_dir, tuning, benchmark | results tables, model bundles, manifests |
 | `tracking_hash(cfg)` | `core/pipeline.py` | ingestion, detector, tracker, scene, pixel-level BFMU | the frame-pass cache folder |
 | `feature_hash(cfg)` | `core/pipeline.py` | tracking hash + tracklets, all BFMU, CFMU, window, aggregation | the feature-pass cache folder |
 

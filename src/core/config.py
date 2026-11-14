@@ -8,8 +8,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-# Neither changes what a run produces: output_dir is where it goes, tuning only drives the search scripts.
-HASH_EXCLUDED_KEYS = ("output_dir", "tuning")
+# None of these changes what a run produces: output_dir is where it goes; tuning and benchmark only
+# drive their own scripts.
+HASH_EXCLUDED_KEYS = ("output_dir", "tuning", "benchmark")
 
 
 def load_config(path: str | Path, overrides: dict[str, Any] | None = None) -> dict:
