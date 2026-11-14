@@ -1,0 +1,43 @@
+{
+  "tracker": "strongsort",
+  "profile": "quick",
+  "n_sessions": 3,
+  "max_frames": 300,
+  "fixed": {},
+  "objective": "idf1",
+  "baseline": {
+    "score": 0.851386423269691,
+    "by_group": {
+      "group_01": 0.8316388075133552,
+      "group_02": 0.8646762310973245,
+      "group_03": 0.8578442311983933
+    }
+  },
+  "best": {
+    "trial": 10,
+    "score": 0.9321140867420968,
+    "idf1": 0.9321140867420968,
+    "coverage": 0.981388888888889,
+    "id_switches_per_subject": 0.4783549783549783,
+    "tids_per_subject": 1.274891774891775,
+    "subjects_found": 1.0,
+    "n_tracks": 23.333333333333332,
+    "by_group": {
+      "group_01": 0.9937793961462601,
+      "group_02": 0.887289088863892,
+      "group_03": 0.9152737752161383
+    }
+  },
+  "config_patch": {
+    "detector.conf": 0.2344,
+    "tracker.options": {
+      "det_thresh": 0.2344,
+      "max_age": 15,
+      "max_cos_dist": 0.3252,
+      "max_iou_dist": 0.8583,
+      "min_conf": 0.2153,
+      "n_init": 3,
+      "use_cmc": true
+    }
+  }
+}

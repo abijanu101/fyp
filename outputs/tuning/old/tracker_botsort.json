@@ -1,0 +1,35 @@
+{
+  "tracker": "botsort",
+  "sessions": [
+    "group_01/experiment_03/context_cam_02",
+    "group_02/experiment_04/context_cam_03",
+    "group_03/experiment_01/context_cam_01"
+  ],
+  "max_frames": 300,
+  "objective": "idf1",
+  "baseline_score": 0.9082875261480371,
+  "best_score": 0.9498136051293674,
+  "best_metrics": {
+    "score": 0.9498136051293674,
+    "idf1": 0.9498136051293674,
+    "coverage": 0.9201226551226552,
+    "id_switches_per_subject": 0.14285714285714285,
+    "tids_per_subject": 1.0411255411255411,
+    "subjects_found": 0.9696969696969697,
+    "n_tracks": 13.333333333333334
+  },
+  "config_patch": {
+    "detector.conf": 0.2195,
+    "tracker.options": {
+      "appearance_thresh": 0.5482,
+      "match_thresh": 0.8024,
+      "max_lost_frames": 17,
+      "new_track_thresh": 0.6711,
+      "proximity_thresh": 0.4826,
+      "track_high_thresh": 0.2527,
+      "track_low_thresh": 0.2073,
+      "use_cmc": false,
+      "use_embeddings": false
+    }
+  }
+}

@@ -34,7 +34,8 @@ Resuming
   same order, and results already on disk are reused, so at most one session's work is lost when a
   run is interrupted. The file's first line fingerprints everything that affects scores (tracker,
   profile, space, detector, association, seed, ReID model); a mismatch stops the run rather than
-  mixing results. --fresh moves an existing results file aside and starts over.
+  mixing results. The trial count is not part of it: raising --trials (or n_trials) continues the
+  same seeded sequence. --fresh moves an existing results file aside and starts over.
 
 Tuning on all groups makes tracking metrics in-sample; the per-group breakdown is reported so a
 winner that only helps one room is visible.
@@ -246,7 +247,7 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     stem = f"tracker_{name}_{args.profile}"
     results_path = out / f"{stem}.sessions.jsonl"
-    fingerprint = config_hash({"tracker": name, "profile": prof, "space": space, "base_options": base_options,
+    fingerprint = config_hash({"tracker": name, "profile": {k: v for k, v in prof.items() if k != "n_trials"}, "space": space, "base_options": base_options,
                                "default_det_conf": cfg["detector"]["conf"], "detector": cfg["detector"],
                                "floor": tcfg["det_conf_floor"], "min_iou": min_iou, "seed": cfg["tuning"]["seed"],
                                "reid": REID_MODEL, "v": 1})

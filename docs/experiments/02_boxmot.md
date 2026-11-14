@@ -100,15 +100,15 @@ the one-to-one assignment.
   - `quick`: 3 sessions, one per group (`group_01/experiment_03/context_cam_02`,
     `group_02/experiment_04/context_cam_03`, `group_03/experiment_01/context_cam_01`), first 300
     frames (60 s) each, 25 trials; ReID and CMC are searched;
-  - `full`: BoT-SORT, all 52 sessions, all frames, 40 trials, ReID fixed **off**, CMC fixed **on**;
-  - `full_reid_cmc`: BoT-SORT, all 52 sessions, 40 trials, ReID and CMC fixed **on**;
-  - `full_strongsort`: StrongSORT, all 52 sessions, 40 trials, CMC fixed **on**.
+  - `full`: BoT-SORT, all 52 sessions, all frames, 20 trials, ReID fixed **off**, CMC fixed **on**;
+  - `full_reid_cmc`: BoT-SORT, all 52 sessions, 20 trials, ReID and CMC fixed **on**;
+  - `full_strongsort`: StrongSORT, all 52 sessions, 20 trials, CMC fixed **on**.
 
   CMC is on in every full-dataset trial, so every trial decodes real frames and no result depends
   on the blank-frame shortcut. The only remaining shortcut is the ReID embedding cache, verified
   with decoded frames and CMC on (StrongSORT 42 vs 42 tracks, BoT-SORT with ReID 16 vs 16).
   An earlier CMC-off run of `full` was stopped at 16 of 40 trials
-  (`outputs/tuning/partial_botsort_full_cmc_off_16trials.log`).
+  (`outputs/tuning/old/partial_botsort_full_cmc_off_16trials.log`).
 - **Blank-frame shortcut**: BoxMOT's tracker takes the image as input, but with ReID and CMC off
   BoT-SORT never reads it. Trials therefore pass a blank frame instead of decoding PNGs, cutting a
   full-dataset trial from about 35 minutes to about 2. **Verified**: the check produced identical
@@ -191,7 +191,7 @@ in-scope sessions, scored identically:
 | # | Tracker | ReID | CMC | Profile | Status |
 |---|---|---|---|---|---|
 | 1 | BoT-SORT | off | on | `full` | running (in parallel with 2) |
-| 2 | StrongSORT | on (always) | on | `full_strongsort` | check passed; embedding sessions, then 40 trials |
+| 2 | StrongSORT | on (always) | on | `full_strongsort` | check passed; embedding sessions, then 20 trials |
 | 3 | BoT-SORT | on | on | `full_reid_cmc` | check passed; queued after experiment 2 |
 
 With CMC held on everywhere, experiments 1 and 3 differ only in ReID (same tracker), and 2 and 3

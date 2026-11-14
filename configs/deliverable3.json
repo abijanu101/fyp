@@ -58,11 +58,11 @@
                                "group_02/experiment_04/context_cam_03",
                                "group_03/experiment_01/context_cam_01"],
                   "max_frames": 300, "n_trials": 25},
-        "full": {"tracker": "botsort", "sessions": "all", "max_frames": null, "n_trials": 40,
+        "full": {"tracker": "botsort", "sessions": "all", "max_frames": null, "n_trials": 20,
                  "fixed": {"use_embeddings": false, "use_cmc": true}},
-        "full_reid_cmc": {"tracker": "botsort", "sessions": "all", "max_frames": null, "n_trials": 40,
+        "full_reid_cmc": {"tracker": "botsort", "sessions": "all", "max_frames": null, "n_trials": 20,
                           "fixed": {"use_embeddings": true, "use_cmc": true}},
-        "full_strongsort": {"tracker": "strongsort", "sessions": "all", "max_frames": null, "n_trials": 40,
+        "full_strongsort": {"tracker": "strongsort", "sessions": "all", "max_frames": null, "n_trials": 20,
                             "fixed": {"use_cmc": true}}
       },
       "space": {
