@@ -39,7 +39,8 @@ python scripts/run_pipeline.py extract     # fails: "attempted relative import" 
 
 `python -m` puts the current directory (the repo root) on the import path, so `import src...`
 works from any script. The standalone tools in `scripts/dipser/` that do not import `src`
-(`label_viewer.py`, `plot_labels.py`, `player.py`) can be run directly as files.
+(`label_viewer.py`, `plot_labels.py`, `player.py`, `annotation_helper.py`, `camera_previews.py`)
+can be run directly as files.
 
 ### What `__init__.py` files do here
 

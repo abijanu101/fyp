@@ -1,5 +1,5 @@
-"""Evaluation metrics (design §11). Inter-labeler agreement (Krippendorff's ordinal alpha) and
-tracking-quality metrics are not built yet."""
+"""Evaluation metrics (design §11): engagement and context. Inter-labeler agreement is in
+agreement.py, tracking quality in tracking.py."""
 
 from __future__ import annotations
 

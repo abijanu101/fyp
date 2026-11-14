@@ -2,7 +2,7 @@
 
 This guide explains how the retention-graph pipeline is built, from first principles up to the
 details of every stage. It is written to be read in order: each chapter assumes the previous
-ones. If you only want to change one thing, Chapter 9 has step-by-step recipes, but they will
+ones. If you only want to change one thing, Chapter 10 has step-by-step recipes, but they will
 make much more sense after Chapters 3 and 4.
 
 The design document (*FYP-1 Baseline: Technical Design v3*) says **what** the system should do and
@@ -21,8 +21,9 @@ design document.
 | 6 | [The feature pass](06_feature_pass.md) | Tracklet filtering, window features, the vector Vec |
 | 7 | [Models: gate, experts, labels](07_models.md) | Context prediction, engagement experts, the label pipeline |
 | 8 | [Scripts, caches and tuning](08_scripts_caching_tuning.md) | The entry points, what is cached where, how tuning works |
-| 9 | [Tests and recipes](09_testing_and_recipes.md) | How to test, and how to make the common changes |
-| 10 | [Pitfalls and status](10_pitfalls_and_status.md) | Environment quirks, data quirks, what is open |
+| 9 | [Running experiments](09_experiments.md) | The terminology of the results, and how to experiment through the config (every key of `deliverable3.json`) |
+| 10 | [Tests and recipes](10_testing_and_recipes.md) | How to test, and how to make the common changes |
+| 11 | [Pitfalls and status](11_pitfalls_and_status.md) | Environment quirks, data quirks, what is open |
 
 ## Conventions used in this guide
 

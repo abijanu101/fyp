@@ -60,12 +60,18 @@ Run from the repo root.
 python -m unittest discover -s tests -t .              # tests
 
 python -m scripts.tune_tracker [--profile full]        # detector conf + tracker params vs manual boxes
+python -m scripts.scan_detector                        # does the detector threshold drop students? (cached detections)
 python -m scripts.run_pipeline extract [--reuse]       # features for all in-scope sessions
 python -m scripts.train_models                         # LOGO evaluation + final models
+python -m scripts.plot_results                         # held-out engagement curves vs labels, per session
+python -m scripts.output_viewer group_01 experiment_03 context_cam_01   # play a session with its predictions
 python -m scripts.tune_models [--component gate|expert]   # nested-LOGO hyperparameter search
 python -m scripts.benchmark [--name trackers]            # per-stage timing per tracker variant (resumable)
 python -m scripts.run_pipeline infer --zip <camera.zip> --models outputs/models/<hash>.joblib --out <dir>
 ```
+
+The contributor's guide (`docs/guide/`) explains how all of this works; Chapter 9 covers running
+experiments and every config key. `docs/experiments/` records what was tried and found.
 
 Any config value can be overridden per run with `--set key.path=<json>`, e.g.
 `--set window.length_s=10 labels.tau_att=3`.
@@ -89,18 +95,19 @@ python scripts/dipser/player.py data/DIPSER/DIPSEER                           # 
 
 ## Caches and reproducibility
 
-`outputs/` (git-ignored) holds:
+`outputs/` holds the following; everything except `cache/` (large, regenerable) is shared in git:
 
 | Path | Contents | Keyed by |
 |---|---|---|
 | `tracks/<hash>/` | frame pass per session: raw tracklets, pixel signals, scene features | detector, tracker, ingestion, scene, pixel-level BFMU |
-| `features/<hash>/` | window rows (Vec + scene) per session | the above + tracklets, BFMU, CFMU, window, aggregation |
-| `cache/detections/` | detections at a low confidence floor, for tracker tuning | detector |
+| `features/<hash>/` | per session: window rows (Vec + scene, `<session>.csv`) and per-student rows (`<session>.tracks.csv`) | the above + tracklets, BFMU, CFMU, window, aggregation |
+| `cache/detections/` | detections at a low confidence floor and ReID embeddings, for tracker tuning | detector |
 | `results/<hash>.json`, `models/<hash>.joblib` | evaluation and trained models | full config |
-| `tuning/` | search results with ready-to-paste config patches | — |
+| `plots/<hash>/` | held-out engagement curves (`plot_results`) | full config |
+| `tuning/` | search results with ready-to-paste config patches; detector-threshold scan | — |
 
 `run_pipeline extract` reads nothing back by default, so its manifests' stage timings are real
 runtime. With `--reuse` (development) it skips finished sessions and loads cached tracks: detection
 and tracking then re-run only when their settings change, and window, threshold and BFMU changes
 take seconds. Tuning scripts always use their caches. Every result carries the SHA-256 of the full
-resolved config (excluding `output_dir` and `tuning`); results from different hashes are never compared.
+resolved config (excluding `output_dir`, `tuning` and `benchmark`); results from different hashes are never compared.

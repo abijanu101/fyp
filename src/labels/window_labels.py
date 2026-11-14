@@ -31,6 +31,15 @@ class WindowLabeler:
         means = [m for m in means if np.isfinite(m)]
         return float(np.median(means)) if means else np.nan
 
+    def student_labels(self, students: dict[str, dict[str, AttentionTrack]], w: Window) -> dict[str, float]:
+        """Per student: 1.0 if their consensus attention >= tau_att, 0.0 if below, NaN if unlabelled.
+        The same rule the window label counts with; late aggregation trains on these directly."""
+        out = {}
+        for sid, labelers in students.items():
+            c = self.consensus(labelers, w)
+            out[sid] = float(c >= self.tau_att) if np.isfinite(c) else np.nan
+        return out
+
     def label(self, students: dict[str, dict[str, AttentionTrack]], w: Window) -> WindowLabel:
         """students: {subject_id: {labeler_name: AttentionTrack}}."""
         scores = np.array([self.consensus(lab, w) for lab in students.values()], float)

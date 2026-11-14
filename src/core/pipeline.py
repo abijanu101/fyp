@@ -23,6 +23,7 @@ from ..bfmu import FEATURE_EXTRACTORS
 from ..cfmu import CLUSTER_EXTRACTORS
 from ..detection import DETECTORS
 from ..evaluation import StageTimer
+from ..experts.levels import EngagementRows, late_rows, predict_windows
 from ..ingestion import FRAME_SOURCES, timing_audit
 from ..output import build_graph
 from ..spu import SCENE_EXTRACTORS, context_probs
@@ -30,7 +31,7 @@ from ..tracking import TRACKERS, TrackletBuilder, filter_visible
 from .config import config_hash
 from .types import SessionFeatures, SessionKey, SessionTrack
 
-VEC_PREFIX, SCENE_PREFIX = "vec.", "scene."
+VEC_PREFIX, SCENE_PREFIX, TRACK_PREFIX = "vec.", "scene.", "trk."
 
 
 def _build(registry, entry: dict):
@@ -127,7 +128,11 @@ class Pipeline:
         windows = make_windows(st.timing.get("t_first", 0.0), st.timing.get("t_last", 0.0),
                                win["length_s"], win["overlap"])
         with timer.stage("aggregation"):
-            vec = [self.aggregator.aggregate(w, tracklets, fps, st.frame_wh) for w in windows]
+            vec, track_rows = [], []
+            for i, w in enumerate(windows):
+                v, rows = self.aggregator.aggregate_with_tracks(w, tracklets, fps, st.frame_wh)
+                vec.append(v)
+                track_rows += [{"window": i, **r} for r in rows]
             scene = [self.scene.window_features([st.scene_rows[i] for i in frames_in(st.frame_t, w)])
                      for w in windows]
         manifest = {"session": str(st.key) if st.key else None, "timing": st.timing,
@@ -135,22 +140,34 @@ class Pipeline:
                     "frame_wh": list(st.frame_wh), "stage_seconds": {**st.stage_seconds, **timer.report()},
                     "config_hash": self.hash, "tracking_hash": tracking_hash(self.cfg),
                     "feature_hash": feature_hash(self.cfg)}
-        return SessionFeatures(st.key, windows, vec, scene, manifest)
+        return SessionFeatures(st.key, windows, vec, scene, manifest, track_rows)
 
     def extract(self, path: str | Path, key: SessionKey | None = None) -> SessionFeatures:
         return self.features(self.track(path, key))
 
     # ------------------------------------------------------------------ stages 7-9
     def predict(self, feats: SessionFeatures, models: dict) -> list[dict]:
-        """models: bundle saved by scripts/train_models.py (gate, mixture, column lists)."""
+        """models: bundle saved by scripts/train_models.py (gate, mixture, aggregation mode, columns)."""
         df = to_frame(feats)
-        X_vec = df.reindex(columns=models["vec_cols"]).to_numpy(float)
         X_gate = df.reindex(columns=models["gate_cols"]).to_numpy(float)
         classes = self.cfg["classes"]
         g = context_probs("classified", classes, gate=models["gate"], X_gate=X_gate)
-        p = models["mixture"].predict_proba(X_vec, g)
+        if models.get("aggregate", "early") == "late":
+            X, _, window = late_rows(df, to_track_frame(feats), context=False, cols=models["row_cols"])
+        else:
+            X, _, window = df.reindex(columns=models["row_cols"]).to_numpy(float), None, np.arange(len(df))
+        rows = EngagementRows(X, models["row_cols"], window, np.zeros(len(window)), np.zeros(len(window)))
+        p = predict_windows(models["mixture"], rows, np.arange(len(df)), g, models["fill"])
         return build_graph(feats.windows, g, classes, p, df[VEC_PREFIX + "n_tracks"].to_numpy(),
-                           tau=self.cfg["mixture"]["tau"])
+                           tau=models.get("tau", self.cfg["mixture"]["tau"]))
+
+
+def to_track_frame(feats: SessionFeatures) -> pd.DataFrame:
+    """One row per (window, visible track): window, tid and trk.* per-track features."""
+    rows = [{"window": r["window"], "tid": r["tid"],
+             **{TRACK_PREFIX + k: v for k, v in r.items() if k not in ("window", "tid")}}
+            for r in feats.track_rows]
+    return pd.DataFrame(rows, columns=None if rows else ["window", "tid"])
 
 
 def to_frame(feats: SessionFeatures) -> pd.DataFrame:

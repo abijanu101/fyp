@@ -121,3 +121,6 @@ class SessionFeatures:
     vec: list[dict[str, float]]
     scene: list[dict[str, float]]
     manifest: dict
+    # One row per (window, visible track): {"window": i, "tid": ..., <per-track BFMU features>}.
+    # Used by late aggregation (config engagement.aggregate = "late"); never part of any output.
+    track_rows: list[dict[str, float]] = field(default_factory=list)

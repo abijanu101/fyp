@@ -5,6 +5,9 @@ Vec = track count
     + coarse spatial occupancy heatmap of visible-track centroids
     + CFMU `cluster.*` features (empty while CFMU is the null extractor)
 
+aggregate_with_tracks also returns the per-track rows Vec was built from; late aggregation
+(config engagement.aggregate = "late") gives those to the experts instead of, or beside, Vec.
+
 Every window gets the same keys; NaN marks "no visible track", imputed downstream.
 Region-of-interest activity (board / explaining position), the design's weak stand-in for
 visual focus of attention, is out of scope for now along with VFoA itself.
@@ -45,6 +48,12 @@ class WindowAggregator:
 
     def aggregate(self, window: Window, tracklets: list[Tracklet], fps: float,
                   frame_wh: tuple[int, int]) -> dict[str, float]:
+        return self.aggregate_with_tracks(window, tracklets, fps, frame_wh)[0]
+
+    def aggregate_with_tracks(self, window: Window, tracklets: list[Tracklet], fps: float,
+                              frame_wh: tuple[int, int]) -> tuple[dict[str, float], list[dict[str, float]]]:
+        """Vec plus the per-track features it was built from ({"tid", <track_keys>} per visible track),
+        which late aggregation feeds to the experts directly."""
         tracks = self.visible(window, tracklets)
         per_track = [{k: v for e in self.extractors for k, v in e.window_features(tr, fps).items()}
                      for tr in tracks]
@@ -58,7 +67,9 @@ class WindowAggregator:
                 vec[f"{key}.frac"] = float(np.mean(ok > self.thresholds[key])) if len(ok) else np.nan
         vec.update(self._heatmap(tracks, frame_wh))
         vec.update(self.cfmu.window_features(window, tracks, per_track))
-        return vec
+        rows = [{"tid": float(tr.tid), **{k: pt.get(k, np.nan) for k in self.track_keys}}
+                for tr, pt in zip(tracks, per_track)]
+        return vec, rows
 
     def _heatmap(self, tracks: list[Tracklet], frame_wh: tuple[int, int]) -> dict[str, float]:
         g = self.grid

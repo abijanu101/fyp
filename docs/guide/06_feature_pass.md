@@ -11,10 +11,14 @@ def features(self, st: SessionTrack) -> SessionFeatures:
     tracklets = filter_visible(st.tracklets, st.frame_t, fps, tl["min_visible_s"], tl["max_gap_s"])
     win = self.cfg["window"]
     windows = make_windows(st.timing["t_first"], st.timing["t_last"], win["length_s"], win["overlap"])
-    vec = [self.aggregator.aggregate(w, tracklets, fps, st.frame_wh) for w in windows]
+    vec, track_rows = [], []
+    for i, w in enumerate(windows):
+        v, rows = self.aggregator.aggregate_with_tracks(w, tracklets, fps, st.frame_wh)
+        vec.append(v)
+        track_rows += [{"window": i, **r} for r in rows]
     scene = [self.scene.window_features([st.scene_rows[i] for i in frames_in(st.frame_t, w)])
              for w in windows]
-    return SessionFeatures(st.key, windows, vec, scene, manifest)
+    return SessionFeatures(st.key, windows, vec, scene, manifest, track_rows)
 ```
 
 Four steps: filter tracklets, cut windows, build Vec per window, summarise scene features per
@@ -105,7 +109,9 @@ track has no valid values.
 
 ## 6.4 Vec: from people to the classroom (`src/aggregation/vec.py`)
 
-`WindowAggregator.aggregate` is where individual students disappear. For one window:
+`WindowAggregator.aggregate_with_tracks` turns the students visible in one window into Vec, and
+also returns the per-student rows it built Vec from (step 2 below), which late aggregation feeds
+to the experts directly. `aggregate` returns Vec alone. For one window:
 
 **1. Which tracks are visible?** A track counts if it covers at least `min_coverage` (50%) of the
 window:
@@ -148,7 +154,9 @@ this (`test_vec_keys_stable_and_nan_when_empty`).
 
 With the current config: 10 motion keys, 4 flow keys and 8 SCB keys make 22 per-track features;
 each gets `.mean` and `.std` (44 columns), plus 4 `.frac` columns, 9 occupancy cells and
-`n_tracks`, for 58 columns. The experts see these 58 numbers per window.
+`n_tracks`, for 58 columns. With early aggregation the experts see these 58 numbers per window;
+with late aggregation they see each student's 22 per-track features (as `trk.*` columns), plus
+these 58 as context if `engagement.late_context` is on.
 
 ## 6.5 Scene windows
 
@@ -185,13 +193,16 @@ The tests check the identity the design relies on: within² + between² = total�
 
 ## 6.7 The saved feature table
 
-`to_frame(feats)` writes one CSV per session under `outputs/features/<feature hash>/`, with one
-row per window:
+`to_frame(feats)` builds the window table, and `run_pipeline extract` saves it as one CSV per
+session under `outputs/features/<feature hash>/`, with one row per window:
 
 ```
 t_start, t_end, vec.n_tracks, vec.kg.speed.mean, vec.kg.speed.std, ..., scene.motion.mean, ...
 ```
 
+A second file per session, `<session>.tracks.csv`, holds the per-student rows: `window` (row
+index in the window CSV), `tid`, and `trk.*` per-track features.
+
 `scripts/train_models.py` reads all these CSVs, adds group, experiment and label columns, and
-trains on them (Chapter 7). The CSV is written **last**, after the session's manifest, so its
-existence marks a completed session.
+trains on them (Chapter 7). The window CSV is written **last**, after the session's manifest
+and its `.tracks.csv`, so its existence marks a completed session.

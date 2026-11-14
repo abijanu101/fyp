@@ -19,6 +19,9 @@ chapter covers each entry point, what it caches where, and how the tuning machin
                                                │ tune_models     │ │ run_pipeline infer    │──► retention graph
                                                │ (gate, experts) │ │ (one ZIP + models)    │
                                                └────────────────┘ └──────────────────────┘
+
+ checking:  scan_detector (detector threshold vs manual boxes)   plot_results (held-out curves)
+            output_viewer (a session with tracks, per-student scores and labels)
 ```
 
 Every script takes `--config` (default `configs/deliverable3.json`) and `--set key=value`
@@ -38,12 +41,13 @@ For each in-scope session (or the one given), it runs both passes and writes:
 outputs/tracks/<tracking hash>/<session>.npz              the SessionTrack (frame pass)
 outputs/features/<feature hash>/<session>.csv             window rows
 outputs/features/<feature hash>/<session>.manifest.json   timing, stage seconds, hashes
+outputs/features/<feature hash>/<session>.tracks.csv      per-student rows (late aggregation)
 ```
 
 **By default nothing is read back.** Every session runs the full frame pass, so each manifest's
 `stage_seconds` are real runtime numbers. With `--reuse` (for development):
 
-- sessions whose CSV already exists are skipped;
+- sessions whose window CSV and per-student CSV both exist are skipped;
 - otherwise, a cached track for the current tracking hash is loaded instead of re-running the
   frame pass, and the manifest records `"frame_pass_cached": true`.
 
@@ -85,14 +89,55 @@ python -m scripts.train_models [--set labels.tau_att=3 labels.tau_share=0.6]
 
 1. **Load** every feature CSV for the current feature hash; attach group, experiment and window
    labels (`label_session`).
-2. **Select columns by prefix**: `vec.*` for the experts, `scene.*` for the gate (plus `vec.*`
-   if `gate_uses_vec`).
+2. **Build the expert rows** (`engagement_rows`, §7.5): `vec.*` per window (early), or `trk.*`
+   per student plus `vec.*` if `late_context` (late; read from `<session>.tracks.csv`, with each
+   track linked to its student by `associate_sids` on the cached `.npz` to attach per-student
+   labels). The gate gets `scene.*` (plus `vec.*` if `gate_uses_vec`).
 3. **Leave-one-group-out**: for each held-out group, fit the gate and every mixture variant on
    the other two groups and score on the held-out one (Chapter 7).
 4. **Write** `outputs/results/<config hash>.json`: the full config, data summary (windows, label
    coverage, class balance), every fold's metrics, and mean ± std summaries.
 5. **Fit final models on all groups** and save `outputs/models/<config hash>.joblib`, the bundle
-   `infer` loads. It contains the gate, the mixture, and the exact column lists.
+   `infer` loads. It contains the gate, the mixture, `gate_cols`, `row_cols`, the aggregation mode
+   (`aggregate`), `fill` (score for windows with nobody visible) and `tau` (the engaged cut-off).
+
+### Seeing the curves: `plot_results` (`scripts/plot_results.py`)
+
+```
+python -m scripts.plot_results [--set ...]        # same --set values as train_models
+```
+
+`train_models` reports averages. `plot_results` draws, per session, the predicted engagement
+score against the labelled share of engaged students, with the engaged cut-off and the gate's
+predicted activity as background shading. Every curve is out-of-sample: it repeats the
+leave-one-group-out fits (seconds) and plots each group from models that never saw it. The
+title gives the true activity, the gate's hit rate and the correlation r with the labelled
+share. Output: `<output_dir>/plots/<config hash>/`, one PNG per session plus `overview.png`.
+
+### Watching a session: `output_viewer` (`scripts/output_viewer.py`)
+
+```
+python -m scripts.output_viewer group_01 experiment_03 context_cam_01 [--set ...] [--models <bundle>]
+```
+
+Plays a session with what the pipeline made of it, from cached results only (the frame-pass `.npz`,
+the feature CSVs, and a model bundle), so it runs no network and scrubbing is instant:
+
+- every track drawn on the video, coloured red → green by that student's predicted engagement in
+  the current window; white if tracked but not scored in this window, thin grey if dropped by the
+  tracklet filter;
+- with labels on (`l`), each track's linked student and that student's own label, so per-student
+  errors are visible: a red box labelled `L1` is a student the model thinks is disengaged and the
+  labelers do not;
+- a header with the gate's activity against the true one, the window score against the cut-off,
+  and the labelled share;
+- a timeline of the score curve and the labelled share, with the predicted and true activity as
+  colour strips; click to seek.
+
+It uses the bundle trained under the same config (or `--models`), and the same `--set` values the
+session was extracted with. It is a development tool: per-student scores and identities appear
+only here and in training, never in the pipeline's outputs. `--snapshot out.png --start 30`
+renders one frame without opening a window.
 
 ## 8.5 How tuning works (`src/tuning/search.py`)
 
@@ -117,7 +162,7 @@ trials = random_search(space, objective, n_trials, seed, baseline=current_params
 
 - **Trial 0 evaluates the baseline** (the current config), so every search reports its gain.
 - Every other trial draws each parameter independently. Trials do not learn from each other;
-  there is no model of the objective. With about 10 parameters and 25–40 trials this is a
+  there is no model of the objective. With up to 10 parameters and 20–30 trials this is a
   reasonable choice: usually only a few parameters matter, and random sampling tries many distinct
   values of each, where a grid would repeat the same few.
 - The generator is seeded, so re-running a search draws exactly the same parameter sets.
@@ -170,8 +215,8 @@ Most of the work in tracking a session does not depend on tracker settings, so i
 2. **ReID embeddings.** An appearance embedding depends only on the frame and the box, never on
    tracker settings. If any trial can use ReID, every floor-level detection is embedded once with
    the trackers' default ReID model (`osnet-x0-25-msmt17`, shared by BoT-SORT and StrongSORT) and
-   stored next to the detections (`<session>.reid-osnet-x0-25-msmt17.npz`, float32, about 70 MB
-   per session). The embeddings are computed through BoxMOT's own embedding code
+   stored next to the detections (`<session>.reid-osnet-x0-25-msmt17.npz`, float32, about 55 MB
+   per session on average, 25–85 MB). The embeddings are computed through BoxMOT's own embedding code
    (`BoxmotTracker.embed`), and trials hand them to the tracker
    (`BoxmotTracker.update_with_embeddings`), which then runs no ReID model.
 3. **Frames are only decoded when a trial needs pixels**, which, with embeddings cached, means only
@@ -197,7 +242,16 @@ with ReID and CMC (16 vs 16).
 | `full_reid_cmc` | BoT-SORT | all 52 | 20 | ReID on, CMC on |
 
 A profile may name its `tracker`; its `fixed` parameters apply to every trial and are removed from
-the search space. The full-dataset profiles keep CMC **on** everywhere: every trial then decodes
+the search space. Trial 0 runs the profile's `base_options` if it has them, otherwise
+`tracker.options` for the configured tracker and BoxMOT's defaults for another one.
+`full_strongsort` sets `base_options` to the quick-tuned StrongSORT values, so both full-dataset
+trackers start from their best known settings (BoxMOT's StrongSORT default `min_conf` of 0.6 would
+drop whole students; `docs/experiments/02_boxmot.md`, §3).
+
+**Is the detector the limit?** `python -m scripts.scan_detector` checks, without any tracker, what
+each detector confidence threshold costs: from the cached floor detections it reports, per
+threshold, the share of frames in which each annotated student is detected, against the 0.05 floor
+(`outputs/tuning/detector_scan.csv`). At the configured 0.22 no student is dropped. The full-dataset profiles keep CMC **on** everywhere: every trial then decodes
 real frames, so no full-dataset result depends on the blank-frame shortcut, and the three
 experiments differ only in what they compare (ReID on/off with the same tracker; StrongSORT vs
 BoT-SORT with ReID). This costs time (up to about an hour per trial) in exchange for reliability.
@@ -242,7 +296,9 @@ the label thresholds first: the expert objective depends on them.
 | `plot_labels.py` | `python scripts/dipser/plot_labels.py g e s` or `--scan` | attention step plots per student and per session |
 | `player.py` | `python scripts/dipser/player.py data/DIPSER/DIPSEER` | six-camera synchronised player |
 
-The first three import `src` and need `-m`; the last three are standalone files.
+The first three import `src` and need `-m`; the last three are standalone files. Two more files
+are one-off helpers: `camera_previews.py` saves the first frame of each camera ZIP, and
+`annotation_helper.py` (hard-coded paths, no command line) was used while drawing the manual boxes.
 
 ## 8.9 `benchmark` (`scripts/benchmark.py`)
 
@@ -266,6 +322,7 @@ projected for a 45-minute session. Run it on an otherwise idle machine.
 | `outputs/cache/` | detections and ReID embeddings for tuning: large, regenerable | no |
 | `outputs/tracks/`, `outputs/features/` | frame-pass and feature-pass results | yes |
 | `outputs/results/`, `outputs/models/` | evaluation results, trained model bundles | yes |
+| `outputs/plots/` | held-out engagement curves from `plot_results` | yes |
 | `outputs/tuning/`, `outputs/benchmarks/` | tuning and timing logs | yes |
 | `outputs/labels/`, `outputs/label_plots/`, `outputs/scb_check/` | dataset inspection outputs | yes |
 | `tmp/` | working files that need to live a while (test runs, one-off scripts) | no |

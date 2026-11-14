@@ -5,6 +5,7 @@
       Both passes for every in-scope session (or one). Writes under <output_dir>:
         tracks/<tracking hash>/<session>.npz     frame pass (detection, tracking, pixel signals, scene)
         features/<feature hash>/<session>.csv    window rows (Vec + scene features), + .manifest.json
+        features/<feature hash>/<session>.tracks.csv   per-student rows (window, tid, trk.* features)
       By default nothing is read back: every session runs the full frame pass, so the stage timings
       in each manifest are real runtime. --reuse (development) skips sessions whose features exist
       and loads cached tracks, so changing only feature-pass settings (window, tracklets,
@@ -23,7 +24,7 @@ from pathlib import Path
 import joblib
 
 from src.core.config import config_hash, load_config
-from src.core.pipeline import Pipeline, feature_hash, to_frame, tracking_hash
+from src.core.pipeline import Pipeline, feature_hash, to_frame, to_track_frame, tracking_hash
 from src.core.store import load_track, save_track
 from src.core.types import SessionKey
 from src.datasets import DipserIndex
@@ -67,7 +68,7 @@ def cmd_extract(cfg: dict, session: str | None, reuse: bool) -> None:
     pipe = Pipeline(cfg)
     for i, key in enumerate(keys, 1):
         stem = session_stem(key)
-        if reuse and (out / f"{stem}.csv").exists():
+        if reuse and (out / f"{stem}.csv").exists() and (out / f"{stem}.tracks.csv").exists():
             print(f"[{i}/{len(keys)}] {key}: features cached")
             continue
         st, cached = session_track(pipe, index, key, reuse)
@@ -75,6 +76,7 @@ def cmd_extract(cfg: dict, session: str | None, reuse: bool) -> None:
         feats.manifest["frame_pass_cached"] = cached
         (out / f"{stem}.manifest.json").write_text(json.dumps(feats.manifest, indent=2, default=str),
                                                    encoding="utf-8")
+        to_track_frame(feats).to_csv(out / f"{stem}.tracks.csv", index=False)   # per-student rows (late aggregation)
         to_frame(feats).to_csv(out / f"{stem}.csv", index=False)   # written last: marks the session done
         t, secs = st.timing, feats.manifest["stage_seconds"]
         frame_pass = "cached" if cached else f"{sum(st.stage_seconds.values()):.0f}s"

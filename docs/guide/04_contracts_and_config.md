@@ -17,12 +17,15 @@ _CLOCK = re.compile(r"(\d{1,2})[_:](\d{2})[_:](\d{2})[_:](\d+)")
 
 def parse_clock(text: str) -> float:
     """Return seconds since midnight. The fractional part may have any number of digits."""
-    h, mi, s, frac = _CLOCK.fullmatch(text).groups()
+    m = _CLOCK.fullmatch(text)
+    if not m:
+        raise ValueError(f"Not a HH?MM?SS?frac timestamp: {text!r}")
+    h, mi, s, frac = m.groups()
     return int(h) * 3600 + int(mi) * 60 + int(s) + int(frac) / 10 ** len(frac)
 ```
 
-Because both sources share one clock, aligning labels with video needs no conversion (Chapter 7
-shows the measured offset is under 2.2 s, and there is a config knob for it). Relative times
+Because both sources share one clock, aligning labels with video needs no conversion (Chapter 11
+records that labels start up to 2.2 s before the video; `labels.offset_s` corrects this if needed). Relative times
 ("+95.2 s into the session") appear only in outputs and plots.
 
 ## 4.2 The dataclasses, in pipeline order
@@ -122,8 +125,8 @@ class SessionTrack:
     frame_wh: tuple[int, int]            # frame width, height
     tracklets: list[Tracklet]            # RAW tracker output, unfiltered
     scene_rows: list[dict[str, float]]   # per-frame scene features, aligned with frame_t
-    timing: dict                         # fps, gaps, duration (see ingestion)
-    stage_seconds: dict[str, float]      # how long each stage took
+    timing: dict                         # fps, t_first/t_last, gaps (from frame_t)
+    stage_seconds: dict[str, float]      # seconds spent per frame-pass stage
 ```
 
 Two details here are deliberate:
@@ -132,6 +135,41 @@ Two details here are deliberate:
   thresholds can change without re-running tracking.
 - `frame_t` lists every frame that was actually decoded. The tracklet filter needs it to tell
   "the tracker lost this student" apart from "the camera dropped frames" (Chapter 6).
+
+The other three fields:
+
+- **`scene_rows`** is the context gate's raw input, kept separate from the tracks. Every decoded
+  frame also goes to the scene extractor (`GlobalStats`, `src/spu/scene.py`), which shrinks the
+  whole frame to 64×36 and records a few numbers without looking at people:
+
+  | Key | Meaning |
+  |---|---|
+  | `motion` | mean absolute pixel change since the previous frame (NaN on the first frame) |
+  | `sat`, `val` | mean colour saturation and brightness |
+  | `edges` | share of edge pixels (Canny) |
+  | `int_00` … `int_22` | mean brightness of each cell of a 3×3 grid |
+
+  `scene_rows[i]` describes the frame at `frame_t[i]`. The feature pass takes the mean and standard
+  deviation of each key over a window's frames (`scene.motion.mean`, `scene.motion.std`, ...); those
+  are the gate's features (Chapter 6, §6.5).
+- **`timing`** comes from `timing_audit` (`src/ingestion/manifest.py`), computed from `frame_t`
+  alone:
+
+  ```
+  n_frames, t_first, t_last, duration_s
+  fps           1 / median interval between frames
+  median_dt_s, max_dt_s
+  gaps          every interval longer than 3 × the median: [{"t": ..., "length_s": ...}, ...]
+  ```
+
+  The feature pass uses `fps` to turn frame counts into seconds (tracklet filtering) and `t_first` /
+  `t_last` to lay out the windows. `gaps` records camera dropouts for the run's `manifest.json`.
+- **`stage_seconds`** is the frame pass's `StageTimer` report: total seconds spent in
+  `ingestion_index`, `ingestion_decode`, `detection`, `tracking`, one `bfmu_frame.<Extractor>` entry
+  per pixel-level extractor (for example `bfmu_frame.ResidualFlow`), and `scene`. The feature pass
+  adds its own entries, and both end up in `manifest.json`. These times belong to the run that
+  **built** the cache: a session loaded with `--reuse` reports the original run's frame-pass times,
+  not a new measurement. That is why `scripts/benchmark.py` runs with caching off.
 
 ### `SessionFeatures`: output of the feature pass
 
@@ -143,26 +181,32 @@ class SessionFeatures:
     vec: list[dict[str, float]]      # Vec, one dict per window
     scene: list[dict[str, float]]    # scene (gate) features, one dict per window
     manifest: dict
+    track_rows: list[dict[str, float]] = field(default_factory=list)
+                                     # one {"window", "tid", <per-track features>} per visible track
 ```
 
-`vec[i]` and `scene[i]` describe `windows[i]`. Both are flat `{name: value}` dicts rather than
+`vec[i]` and `scene[i]` describe `windows[i]`. `track_rows` holds the per-student features Vec
+was built from, one row per (window, visible track); only late aggregation uses them (Chapter 7). Both are flat `{name: value}` dicts rather than
 arrays, so features are always identified **by name**. `to_frame()` in `pipeline.py` turns this
 into a pandas table with prefixed columns (`vec.kg.speed.mean`, `scene.motion.mean`), which is
-what gets saved to CSV and what the models read.
+what gets saved to CSV and what the models read. `to_track_frame()` does the same for
+`track_rows` (columns `window`, `tid`, `trk.*`), saved as `<session>.tracks.csv`.
 
 ### Why dicts of named features instead of arrays?
 
 Because feature sets change. Adding `box_jitter` adds columns; turning CFMU on adds columns. If
 features were positional arrays, every model trained before the change would silently read the
 wrong columns. With names, the training script selects columns by name, and the saved model
-bundle records exactly which names it was trained on (`vec_cols`, `gate_cols`). At inference,
-`df.reindex(columns=models["vec_cols"])` puts columns in the trained order and fills any missing
-one with NaN.
+bundle records exactly which names it was trained on (`row_cols` for the experts, `gate_cols` for
+the gate). At inference, `df.reindex(columns=models["row_cols"])` (or
+`late_rows(..., cols=models["row_cols"])` with late aggregation) puts columns in the trained order
+and fills any missing one with NaN.
 
 ## 4.3 The configuration file
 
 `configs/deliverable3.json` holds every tunable value. Here are its sections, in pipeline order,
-with what reads each:
+with what reads each. Chapter 9, §9.6 goes through every key: its value, what it does, and what
+must re-run after changing it.
 
 | Section | Read by | Controls |
 |---|---|---|
@@ -173,18 +217,24 @@ with what reads each:
 | `detector` | YOLO wrapper | weights file, confidence threshold, input size, half precision |
 | `tracker` | tracker wrapper | `name` plus BoxMOT `options` (tuned values) |
 | `tracklets` | feature pass | `min_visible_s`, `max_gap_s` for the tracklet filter |
-| `association` | evaluation | IoU floor and match share for SID–TID association |
-| `bfmu` | extractors | **list** of extractor entries; order defines column order |
+| `association` | tracker tuning, late-aggregation training | IoU floor and match share for SID–TID association |
+| `bfmu` | extractors | **list** of extractor entries; order sets the key order in Vec and the CSV (models select columns by name, so it never affects training) |
 | `cfmu` | aggregator | cluster extractor (`null` in Deliverable III) |
 | `scene` | gate features | scene feature extractor |
 | `window` | feature pass | `length_s`, `overlap` |
 | `aggregation` | aggregator | thresholds for "fraction of students above", heatmap grid, coverage |
-| `gate`, `gate_uses_vec`, `context_mode` | training, inference | gate model and its inputs |
-| `expert`, `hand_weighted`, `mixture` | training, inference | expert model, baseline weights, mixing |
+| `gate`, `gate_uses_vec` | training | gate model and its inputs |
+| `context_mode` | nothing yet | unused: training reports both oracle and classified context, inference always uses classified |
+| `expert`, `hand_weighted`, `mixture` | training (`mixture.tau` also at inference) | expert model, baseline weights, mixing |
+| `engagement` | training | `aggregate`: `late` (default; experts see each student) or `early` (experts see Vec); `late_context` |
 | `labels` | label pipeline | `tau_att`, `tau_share`, minimum labelled students, offset |
 | `tuning` | tuning scripts only | search profiles and spaces |
 | `benchmark` | `scripts/benchmark.py` only | sessions and tracker variants to time |
 | `output_dir` | scripts | where caches and results go |
+
+At inference, `Pipeline.predict` takes the gate, its columns, the mixture, the aggregation mode and
+the fill value from the saved model bundle, not from the config; only `classes` and `mixture.tau`
+are read from the config there. So a model always runs the way it was trained.
 
 ### Overriding values per run
 

@@ -38,6 +38,46 @@ to the person class, at 640 px input and FP16 (`src/detection/detector.py`). Usi
 directly rather than BoxMOT's detector wrapper keeps the detector independent of the tracking
 library, so both trackers see identical detections.
 
+### Is the confidence threshold dropping students? (verified: no)
+
+`detector.conf` (0.22) is the only confidence filter before tracking: BoxMOT's `det_thresh` is
+stored but never read by BoT-SORT or StrongSORT (BoxMOT 26: only `trackers/common/base.py:188`
+assigns it), so it was removed from the config and from tuning. The detector threshold is therefore
+the setting to check, and it can be checked without any tracker.
+
+`scripts/scan_detector.py` takes the detections cached for tuning (every frame of all 52 sessions,
+at a 0.05 floor), keeps those at or above each threshold, and matches them per frame one-to-one to
+the manual student boxes (Hungarian, IoU ≥ 0.3, the tracker-scoring rule). Per student, recall is
+the share of frames in which they are matched. The floor is the reference: a student missed even
+at 0.05 is not lost to the threshold.
+
+| Threshold | Mean recall | 10th percentile | Lowest | Never detected | Below 50% | Lost > 10 pts vs floor | Lost > 25 pts |
+|---|---|---|---|---|---|---|---|
+| 0.05 (floor) | 0.999 | 0.995 | 0.939 | 0 | 0 | 0 | 0 |
+| 0.15 | 0.997 | 0.990 | 0.926 | 0 | 0 | 0 | 0 |
+| 0.20 | 0.995 | 0.988 | 0.770 | 0 | 0 | 2 | 0 |
+| **0.22 (config)** | **0.994** | **0.987** | **0.699** | **0** | **0** | **3** | **1** |
+| 0.25 | 0.992 | 0.982 | 0.594 | 0 | 0 | 7 | 2 |
+| 0.30 | 0.986 | 0.969 | 0.442 | 0 | 2 | 21 | 3 |
+| 0.40 | 0.952 | 0.882 | 0.090 | 0 | 15 | 68 | 38 |
+| 0.50 | 0.873 | 0.568 | 0.002 | 0 | 56 | 170 | 105 |
+| 0.60 | 0.727 | 0.118 | 0.000 | 6 | 142 | 325 | 227 |
+
+621 student-sessions (each annotated student in each of the 52 sessions); full table in
+`outputs/tuning/detector_scan.csv`, per student in `detector_scan_students.csv`.
+
+**At 0.22 no student is dropped**: every one is detected, none in fewer than half the frames, and
+the mean is within 0.005 of the floor. Three students lose more than 10 percentage points against
+the floor, the largest `subject_11` in `group_02/experiment_06/context_cam_01` (0.70 against 1.0
+at the floor); these are partial losses of a hard-to-see student, not drops. Below 0.25 the curve
+is flat, so the threshold sits on the plateau and a finer search (e.g. bisection) would not change
+the conclusion. Above 0.30 losses grow quickly.
+
+The table also quantifies a hazard: StrongSORT's own `min_conf` filter defaults to **0.6**, where
+6 students are never detected and 142 are detected in under half their frames. The full StrongSORT
+experiment therefore starts from the quick-tuned values (`min_conf` 0.2153; §7), not BoxMOT's
+defaults.
+
 ### Tracker wrapper
 
 `src/tracking/tracker.py` wraps BoxMOT 26.0 through its numpy interface: detections go in as rows
@@ -102,7 +142,8 @@ the one-to-one assignment.
     frames (60 s) each, 25 trials; ReID and CMC are searched;
   - `full`: BoT-SORT, all 52 sessions, all frames, 20 trials, ReID fixed **off**, CMC fixed **on**;
   - `full_reid_cmc`: BoT-SORT, all 52 sessions, 20 trials, ReID and CMC fixed **on**;
-  - `full_strongsort`: StrongSORT, all 52 sessions, 20 trials, CMC fixed **on**.
+  - `full_strongsort`: StrongSORT, all 52 sessions, 20 trials, CMC fixed **on**; trial 0 runs the
+    quick-tuned StrongSORT values (`base_options`), not BoxMOT's defaults (§7).
 
   CMC is on in every full-dataset trial, so every trial decodes real frames and no result depends
   on the blank-frame shortcut. The only remaining shortcut is the ReID embedding cache, verified
@@ -116,7 +157,8 @@ the one-to-one assignment.
 - **ReID embedding cache**: ReID embeddings depend only on the frame and the detection box, never
   on tracker settings. Every floor-level detection is therefore embedded once, with the trackers'
   own default ReID model (`osnet-x0-25-msmt17`, shared by BoT-SORT and StrongSORT) through
-  BoxMOT's own embedding code, and stored at full float32 precision (about 70 MB per session).
+  BoxMOT's own embedding code, and stored at full float32 precision (about 55 MB per session on
+average, 25–85 MB).
   Trials pass the cached embeddings to the tracker, which then runs no ReID model. Frames are still
   decoded whenever a trial turns camera-motion compensation (CMC) on: CMC estimates camera motion
   from consecutive frames while masking the trial's own detections, so it cannot be cached.
@@ -179,8 +221,9 @@ StrongSORT trial had CMC **on**.
 *In progress.* The configuration from §6.1 scores **IDF1 0.888** over all 52 sessions (per group:
 0.857 / 0.918 / 0.890; coverage 0.90; 0.74 ID switches and 1.27 track ids per subject). That is
 lower than its 0.950 on the quick profile's 60-second clips: full sessions are five minutes long,
-with more occlusions, more people moving and more chances to switch ids. The 40-trial search is
-running; results go here.
+with more occlusions, more people moving and more chances to switch ids. The 20-trial search is
+running; interim, as of 15 November 2026: 11 of 20 trials complete, best so far trial 6 at IDF1
+0.905 (mean over the 52 sessions, not yet a nested estimate). Final results go here.
 
 ## 7. Tracker-level experiments on the full dataset
 
@@ -190,12 +233,22 @@ in-scope sessions, scored identically:
 
 | # | Tracker | ReID | CMC | Profile | Status |
 |---|---|---|---|---|---|
-| 1 | BoT-SORT | off | on | `full` | running (in parallel with 2) |
-| 2 | StrongSORT | on (always) | on | `full_strongsort` | check passed; embedding sessions, then 20 trials |
-| 3 | BoT-SORT | on | on | `full_reid_cmc` | check passed; queued after experiment 2 |
+| 1 | BoT-SORT | off | on | `full` | running: 11 of 20 trials, best IDF1 so far 0.905 (trial 0: 0.888) |
+| 2 | StrongSORT | on (always) | on | `full_strongsort` | 6 of 20 trials done, best so far 0.853; to be restarted with the quick-tuned baseline (below), keeping trials 1–5 |
+| 3 | BoT-SORT | on | on | `full_reid_cmc` | check passed; queued |
+
+StrongSORT's old trial 0 (BoxMOT defaults) scored 0.715; that number reflects `min_conf` 0.6
+dropping students (§3), not StrongSORT's tracking.
 
 With CMC held on everywhere, experiments 1 and 3 differ only in ReID (same tracker), and 2 and 3
 compare the two trackers with ReID.
+
+**Every experiment starts from its best known settings.** Trial 0 of each search is a baseline:
+for BoT-SORT the quick-tuned configuration (§6.1); for StrongSORT, after a restart on 15 November
+2026, the quick-tuned StrongSORT values (§6.3), given to the profile as `base_options`. Before
+that, StrongSORT's trial 0 ran BoxMOT's defaults, including `min_conf` 0.6, which discards most
+weak detections (§3). Trials 1 and later sample every StrongSORT option and were unaffected, so
+their logged results were kept; only trial 0 re-ran.
 
 The quick-profile evidence so far: tuned motion-only BoT-SORT 0.950, best ReID-on BoT-SORT 0.940,
 tuned StrongSORT 0.932 (same three 60-second clips). ReID costs about 120–165 ms per frame against

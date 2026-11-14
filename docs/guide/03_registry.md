@@ -114,7 +114,8 @@ class BotSort(Tracker):
 
 Read it as plain English: "register this class as the tracker called `botsort`". The class
 itself is untouched; `BotSort` is still an ordinary class you can import and use directly (the
-tests do exactly that).
+tests do exactly that with registered classes such as `NullClusterExtractor` and
+`HandWeightedExpert`).
 
 ## 3.6 Attempt 5: one Registry class for every kind of component
 
@@ -298,7 +299,8 @@ Step by step, with the current config:
 4. **`self.extractors`**: for each of the three `bfmu` entries, `_build` looks up the class and
    constructs it: `KalmanGeometry(still_threshold=0.05, use_kalman=True)`,
    `ResidualFlow(grid=2, scale=0.5)`, `ScbBehaviour(mode="soft", min_overlap=0.5, models=[...])`.
-   The list keeps config order; the order matters only for the order of keys in Vec.
+   The list keeps config order; the order matters only for the key order in Vec and the CSV. The
+   models select columns by name (sorted), so it never affects training.
 5. **`self.scene`**: `GlobalStats(size=[64, 36], grid=3)`.
 6. **`self.aggregator`**: built directly (there is only one kind), receiving the extractors and a
    CFMU extractor built from `{"name": "null"}`, which is `NullClusterExtractor()`.
@@ -435,7 +437,7 @@ from . import kalman_geometry, residual_flow, scb, jitter  # noqa: F401  (regist
 ]
 ```
 
-**Step 4: test it** (Chapter 9 shows the pattern): build a synthetic `Tracklet` with known
+**Step 4: test it** (Chapter 10 shows the pattern): build a synthetic `Tracklet` with known
 widths and check the number.
 
 That is all. You did not touch the pipeline, the aggregator, the models or the scripts:

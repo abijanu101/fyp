@@ -30,7 +30,7 @@ def set_dotted(cfg: dict, dotted: str, value: Any) -> None:
 
 
 def config_hash(cfg: dict) -> str:
-    """SHA-256 of canonical JSON, excluding output_dir and tuning. Cache keys for the two pipeline
+    """SHA-256 of canonical JSON, excluding output_dir, tuning and benchmark. Cache keys for the two pipeline
     passes are hashes of config subsets (core.pipeline.tracking_hash / feature_hash)."""
     clean = copy.deepcopy(cfg)
     for k in HASH_EXCLUDED_KEYS:

@@ -12,7 +12,7 @@
   "ingestion": {"name": "zip", "stride": 1, "max_frames": null},
   "detector": {"name": "yolo", "weights": "models/yolo11n.pt", "conf": 0.22, "imgsz": 640, "half": true},
   "tracker": {"name": "botsort", "options": {
-    "det_thresh": 0.22, "track_high_thresh": 0.25, "track_low_thresh": 0.21, "new_track_thresh": 0.67,
+    "track_high_thresh": 0.25, "track_low_thresh": 0.21, "new_track_thresh": 0.67,
     "match_thresh": 0.80, "max_lost_frames": 17, "proximity_thresh": 0.48, "appearance_thresh": 0.55,
     "use_embeddings": false, "use_cmc": false}},
   "tracklets": {"min_visible_s": 3.0, "max_gap_s": 1.0},
@@ -44,6 +44,7 @@
     "phone_sign": {"01": 1, "02": -1, "03": -1, "04": 1, "05": 1, "06": 0}
   },
   "mixture": {"mode": "soft", "expert_scope": "per_experiment", "tau": 0.5},
+  "engagement": {"aggregate": "late", "late_context": true},
 
   "labels": {"tau_att": 4, "tau_share": 0.5, "min_labeled_students": 3,
              "exclude_self": false, "offset_s": 0.0, "students": "camera"},
@@ -63,7 +64,9 @@
         "full_reid_cmc": {"tracker": "botsort", "sessions": "all", "max_frames": null, "n_trials": 20,
                           "fixed": {"use_embeddings": true, "use_cmc": true}},
         "full_strongsort": {"tracker": "strongsort", "sessions": "all", "max_frames": null, "n_trials": 20,
-                            "fixed": {"use_cmc": true}}
+                            "fixed": {"use_cmc": true},
+                            "base_options": {"min_conf": 0.2153, "max_cos_dist": 0.3252, "max_iou_dist": 0.8583,
+                                             "max_age": 15, "n_init": 3}}
       },
       "space": {
         "botsort": {
@@ -116,7 +119,8 @@
                  "group_03/experiment_01/context_cam_01"],
     "variants": {
       "botsort_motion": {"tracker.options.use_embeddings": false, "tracker.options.use_cmc": true},
-      "strongsort": {"tracker": {"name": "strongsort", "options": {"use_cmc": true}}},
+      "strongsort": {"tracker": {"name": "strongsort", "options": {
+        "use_cmc": true, "min_conf": 0.2153, "max_cos_dist": 0.3252, "max_iou_dist": 0.8583, "max_age": 15, "n_init": 3}}},
       "botsort_reid_cmc": {"tracker.options.use_embeddings": true, "tracker.options.use_cmc": true}
     }
   },

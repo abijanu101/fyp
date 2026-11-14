@@ -57,44 +57,54 @@ For one camera ZIP, the pipeline writes three files:
 
 ## 1.4 The journey: nine stages
 
-The design document numbers the stages 1–9. Here they are as a flow, with the package that
-implements each:
+The design document numbers the stages 1–9. Here they are in order, with the package that
+implements each and, in brackets, the config key that controls it (section 1.7 shows how they are
+actually grouped and run):
 
 ```
  camera ZIP
      │
      ▼
  1  Ingestion            src/ingestion     decode frames in time order, measure fps and gaps
-     │  Frame (time, image)
+     │  Frame (time, image)                 [ingestion]
      ▼
  2  Person detection     src/detection     YOLO finds every person: boxes + confidences
-     │  Detections
+     │  Detections                          [detector]
      ▼
  3  Tracking             src/tracking      BoT-SORT links boxes over time into identities (TIDs)
-     │  TrackState per person per frame
+     │  TrackState per person per frame     [tracker]
      ▼
  4  Tracklets            src/tracking      per-person time series; drop short or broken ones
-     │  Tracklet
+     │  Tracklet                            [tracklets]
      ▼
  5  BFMU features        src/bfmu          per-person features: motion, optical flow, behaviour
-     │  per-track feature dict per window
+     │  per-student features per window     [bfmu, window]
      ▼
- 6  Window aggregation   src/aggregation   average everyone into one classroom vector, "Vec"
-     │  Vec per window                        (+ CFMU cluster features, currently empty)
+ 6  Window aggregation   src/aggregation   per window: each visible student's features, and
+     │  per-student rows + Vec              their summary over the class, "Vec" [aggregation]
+     │  (+ CFMU cluster features, currently empty) [cfmu]
      ▼
- 7  Context gate (SPU)   src/spu           which of the 6 activities is this? (probabilities)
-     │  g = [p01 .. p06]
+ 7  Context gate (SPU)   src/spu           which of the 6 activities is this? (probabilities),
+     │  g = [p01 .. p06]                    from scene features of the whole frame [scene, gate]
      ▼
- 8  Expert mixture       src/experts       one engagement model per activity, weighted by g
-     │  engagement probability per window
+ 8  Expert mixture       src/experts       one engagement model per activity, weighted by g;
+     │  engagement score per window         scores each student and averages per window (late,
+     │                                      the default) or scores Vec (early)
+     │                                      [expert, mixture, engagement.aggregate]
      ▼
- 9  Retention graph      src/output        JSON + PNG + manifest
+ 9  Retention graph      src/output        JSON + PNG + manifest, window-level only
 ```
+
+Every bracketed key is a section of `configs/deliverable3.json`. Swapping an implementation (a
+different tracker, another feature family, another classifier) or a setting (window length, label
+thresholds, early or late aggregation) is a config edit, not a code change. Chapter 3 explains how
+names in the config become objects, and Chapter 9 how to use that to run experiments.
 
 Two side branches only exist during development:
 
-- **Labels** (`src/labels`) turn the labelers' change events into one engaged / not-engaged label
-  per window, to train and evaluate the experts.
+- **Labels** (`src/labels`) turn the labelers' change events into engaged / not-engaged labels:
+  one per student per window for late aggregation, one per window for early aggregation, to train
+  and evaluate the experts [labels]. Evaluation always uses the window labels.
 - **Evaluation** (`src/evaluation`) scores tracking against our manual boxes, the gate against
   the folder structure, and the experts against the labels.
 
@@ -103,11 +113,24 @@ Two side branches only exist during development:
 Most of the pipeline works per **window**: a fixed slice of time, 8 seconds by default, with 50%
 overlap between consecutive windows. A 5-minute session gives about 73 windows.
 
-Everything before stage 6 is about individual people over time. Stage 6 is where people
-disappear: all visible people in a window are summarised into one fixed-length vector, *Vec*.
-From stage 6 on, the unit of analysis is "the classroom during this window", and no stage after
-it ever sees an individual. That is how the privacy guarantee works structurally rather than by
-promise: the output stages simply never receive per-person data.
+Everything before stage 6 is about individual people over time. Stage 6 cuts each person's time
+series into windows: per window, every visible student gets one row of features, and a summary of
+all of them, the fixed-length vector *Vec*, describes the classroom as a whole.
+
+How the engagement experts (stage 8) see a window is a configuration choice
+(`engagement.aggregate`; Chapter 7, §7.5 works through an example):
+
+- **late aggregation** (the default): the experts see each visible student's own features (plus
+  Vec as context), predict per student, and the window's score is the average over its students;
+- **early aggregation** (the design as written): the experts see only Vec, one row per window.
+
+Either way, the output stages only ever receive window-level arrays: the retention graph is built
+from one context prediction and one engagement probability per window. That is how the privacy
+guarantee works structurally rather than by promise. Per-student predictions in late aggregation
+exist only inside the window computation and are never written out. At inference nothing per
+student is written at all. During development, `run_pipeline extract` does cache tracks (`.npz`)
+and per-student feature rows (`.tracks.csv`) for training, but these never reach the retention
+graph.
 
 ## 1.6 Two kinds of learned component
 
@@ -123,19 +146,33 @@ groups, a deep model would mostly learn the rooms and the students' clothes.
 
 ## 1.7 Two passes, not nine stages
 
-The stages above describe *what* happens. For performance, the code groups them into two passes:
+The stages above describe *what* happens. For performance, the code groups them into passes, and
+inside the passes the data runs in two lanes: a **track lane** (people, stages 2–6) that feeds the
+experts, and a **scene lane** (whole frames) that feeds the context gate. The lanes meet only at the
+expert mixture, where the gate's probabilities weight the experts.
 
 ```
- ┌──────────── frame pass (slow: minutes per session) ────────────┐
- │ decode → detect → track → pixel-level features → scene features │──► SessionTrack  (cached to disk)
- └─────────────────────────────────────────────────────────────────┘
- ┌──────────── feature pass (fast: about a second per session) ───┐
- │ filter tracklets → window features → Vec → scene windows        │──► SessionFeatures (cached to CSV)
- └─────────────────────────────────────────────────────────────────┘
- ┌──────────── model pass ─────────────────────────────────────────┐
- │ gate → experts → retention graph                                │──► retention_graph.json/.png
- └─────────────────────────────────────────────────────────────────┘
+                 track lane (people)                         scene lane (whole frame)
+ ┌──────────── frame pass (slow: minutes per session) ──────────────────────────────────────┐
+ │ decode ──┬──► detect → track → pixel-level features                                      │
+ │          └────────────────────────────────────────────► scene features per frame        │
+ │                                                    ──► SessionTrack (cached to disk)     │
+ └──────────────────────────────────────────────────────────────────────────────────────────┘
+ ┌──────────── feature pass (fast: about a second per session) ─────────────────────────────┐
+ │ filter tracklets → per-student window features → Vec       scene features per window    │
+ │                    (per-student rows kept)                                               │
+ │                                                    ──► SessionFeatures (cached to CSV)   │
+ └──────────────────────────────────────────────────────────────────────────────────────────┘
+ ┌──────────── model pass ──────────────────────────────────────────────────────────────────┐
+ │ per-student rows (late) or Vec (early)                     scene features → gate → g     │
+ │                  └──────────────► experts, weighted by g ◄──────────────────┘            │
+ │                                         └──► retention graph (.json, .png)               │
+ └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+Because the gate has its own lane, tracking errors cannot mislead the activity prediction. A
+config option (`gate_uses_vec`) can also hand Vec across to the gate, to test whether track
+features help it.
 
 The frame pass touches every pixel of every frame and runs neural networks; it is the expensive
 part. The feature pass only does arithmetic on the frame pass's output. Splitting them means you
@@ -148,8 +185,9 @@ The same code produces features for training and for inference. That is a delibe
 if training used one feature function and inference another, any small difference between them
 would silently degrade the deployed model.
 
-- **Training** (`scripts/train_models.py`): run both passes on all 52 sessions, attach window
-  labels, train the gate and experts with leave-one-group-out cross-validation, save the models.
+- **Training**: `scripts/run_pipeline.py extract` runs both passes on all 52 sessions and caches
+  the features; `scripts/train_models.py` reads that cache, attaches labels, trains the gate and
+  experts with leave-one-group-out cross-validation, and saves the models.
 - **Inference** (`scripts/run_pipeline.py infer`): run both passes on one ZIP, load the saved
   models, run the model pass, write the graph.
 

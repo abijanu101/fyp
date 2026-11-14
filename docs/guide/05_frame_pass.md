@@ -37,8 +37,9 @@ def track(self, path, key=None) -> SessionTrack:
                         timing_audit(np.asarray(frame_t)), timer.report())
 ```
 
-(The real code wraps each step in `with timer.stage("..."):` so the manifest records where time
-went. Pixel-level extractors get one timer each, named after their class
+(Trimmed. The real code also initialises `frame_wh = (1, 1)` and sets it from each image's
+shape, reads frames with `next(frames, None)` inside `while True` so decoding can be timed, and
+wraps each step in `with timer.stage("..."):` so the manifest records where time went. Pixel-level extractors get one timer each, named after their class
 (`bfmu_frame.ResidualFlow`, `bfmu_frame.ScbBehaviour`), because their costs differ a lot.)
 
 Things to notice:
@@ -168,6 +169,9 @@ centre velocity (vx, vy) in pixels per frame, for both trackers in BoxMOT 26. Th
 access" the design asked us to verify (§4). If a future BoxMOT changes its internals, the
 velocity becomes `None` and the motion features fall back to finite differences automatically.
 
+Two more methods, `embed()` and `update_with_embeddings()`, let `scripts/tune_tracker.py` compute
+ReID embeddings once per session and feed them back on every trial (Chapter 8).
+
 ## 5.5 Stage 4 (first half): collecting tracklets
 
 `TrackletBuilder` (`src/tracking/tracklets.py`) accumulates `TrackState`s frame by frame, grouped
@@ -203,8 +207,9 @@ SCB is a YOLOv7 model trained by the SCB dataset authors on classroom images, wi
 anyone looking down at a desk or a device). So by default (`mode: "soft"`) we do not use its
 decisions at all; we pass its raw scores along and let our own models learn what they mean here:
 
-1. run YOLOv7 and keep **every candidate box** with its objectness and per-class probabilities,
-   before any threshold or non-maximum suppression;
+1. run YOLOv7 and keep every candidate box with objectness of at least 0.01 (`obj_floor`, which
+   only drops empty anchors) with its per-class probabilities, before any class threshold or
+   non-maximum suppression;
 2. assign each candidate to the single track it overlaps best, if it lies at least half inside
    that track's box;
 3. per track: the highest `objectness × class probability` per class, and the highest objectness
@@ -214,7 +219,7 @@ That gives four signals per person per frame: `scb.hand_raising`, `scb.read`, `s
 `scb.m0.obj`. The alternative `mode: "flags"` (thresholded detections, 0/1 per class) is kept so
 the two can be compared.
 
-Loading the checkpoint safely and the environment quirks around it are covered in Chapter 10.
+Loading the checkpoint safely and the environment quirks around it are covered in Chapter 11.
 
 ## 5.7 Scene features for the gate (`src/spu/scene.py`)
 
@@ -247,11 +252,12 @@ SCB soft mode):
 | SCB behaviour (YOLOv7, soft) | 67.1 | 46 ms | 24% |
 | Scene features | 3.5 | 2 ms | 1% |
 | Feature pass (filtering + aggregation) | 1.0 | | <1% |
-| **Total** | **294 s wall clock** | **~190 ms** | |
+| **Total (timed stages)** | **281.9 s** | **~190 ms** | |
 
 Two tracker-tuning jobs kept the CPU at about 90% during this run, so the CPU-bound stages
 (decoding, flow, tracking) are upper bounds. Even so, the pipeline runs at about real time
-(5.2 frames/s processed against a 5 fps camera): a 45-minute session would take about 43 minutes,
+(5.2 frames/s processed against a 5 fps camera; six later full-length sessions averaged 185 ms,
+range 143–211, `docs/experiments/05_six_session_run.md`): a 45-minute session would take about 43 minutes,
 roughly 14× over the design's 3-minute target. Residual flow is the largest single cost: it
 computes dense flow over the whole half-resolution frame but only uses it inside student boxes.
 

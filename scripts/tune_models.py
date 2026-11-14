@@ -24,11 +24,11 @@ from pathlib import Path
 import numpy as np
 
 from scripts.run_pipeline import parse_sets
-from scripts.train_models import expert_factory, load_table
+from scripts.train_models import engagement_rows, load_table, mixture_factory
 from src.core.config import load_config
 from src.core.pipeline import SCENE_PREFIX, VEC_PREFIX
 from src.evaluation import binary_metrics, context_metrics
-from src.experts import ExpertMixture
+from src.experts import fit_rows, predict_windows
 from src.spu import GATES, context_probs
 from src.tuning import nested_logo_search
 
@@ -43,16 +43,16 @@ def gate_scorer(cfg, Xg, exp):
     return score
 
 
-def expert_scorer(cfg, Xv, y, exp, labeled, vec_cols):
+def expert_scorer(cfg, rows, y, exp, labeled):
+    """Window AUC under oracle context; rows are early (per window) or late (per student) per config."""
     classes, mcfg = cfg["classes"], cfg["mixture"]
 
     def score(params, tr, te):
-        tr, te = tr[labeled[tr]], te[labeled[te]]
         c = copy.deepcopy(cfg)
         c["expert"]["params"] = params
-        mix = ExpertMixture(classes, expert_factory(c, vec_cols), mcfg["expert_scope"], mcfg["mode"])
-        mix.fit(Xv[tr], y[tr], exp[tr])
-        p = mix.predict_proba(Xv[te], context_probs("oracle", classes, exp[te]))
+        mix, fill = fit_rows(mixture_factory(c, rows, None, mcfg["expert_scope"], mcfg["mode"]), rows, tr)
+        te = te[labeled[te]]
+        p = predict_windows(mix, rows, te, context_probs("oracle", classes, exp[te]), fill)
         return binary_metrics(y[te], p, mcfg["tau"])["auc"]
     return score
 
@@ -82,7 +82,7 @@ def main() -> None:
         jobs.append(("gate", cfg["gate"], gate_scorer(cfg, df[gate_cols].to_numpy(float), exp)))
     if args.component in ("expert", "both"):
         jobs.append(("expert", cfg["expert"],
-                     expert_scorer(cfg, df[vec_cols].to_numpy(float), y, exp, labeled, vec_cols)))
+                     expert_scorer(cfg, engagement_rows(cfg, df, vec_cols), y, exp, labeled)))
 
     out = Path(cfg["output_dir"]) / "tuning"
     out.mkdir(parents=True, exist_ok=True)

@@ -1,9 +1,9 @@
-# Chapter 9 — Tests and recipes
+# Chapter 10 — Tests and recipes
 
 This chapter covers how the tests are organised and how to write one, then gives step-by-step
 recipes for the changes you are most likely to make.
 
-## 9.1 Running the tests
+## 10.1 Running the tests
 
 ```
 python -m unittest discover -s tests -t .
@@ -20,18 +20,19 @@ python -m unittest tests.test_labels
 python -m unittest tests.test_stages.TestTracklets.test_camera_frame_drop_is_not_a_gap
 ```
 
-## 9.2 What is tested where
+## 10.2 What is tested where
 
 | File | Covers |
 |---|---|
 | `tests/test_labels.py` | clock parsing, step functions, time-weighted means, out-of-range values, window labelling rules |
 | `tests/test_spread.py` | CFMU spread maths: within² + between² = total², edge cases |
+| `tests/test_aggregation_modes.py` | early rows reproduce the window-level mixture exactly; late rows carry window context; window scores average rows and fill empty windows; per-student labels agree with the window share; the feature pass emits one row per visible track |
 | `tests/test_mixture.py` | soft/hard/oracle mixing, shared scope, per-experiment training, hand-weighted signs, LOGO splits |
 | `tests/test_stages.py` | windows, tracklet gap filtering, SID association (including passing TAs), motion features, Vec key stability, config hashing and cache keys, track store round trip, the feature pass without video, graph privacy |
 | `tests/test_tuning.py` | Krippendorff's alpha (against the published example), tracking metrics, random and nested search |
 | `tests/test_scb.py` | SCB keys in soft and flags mode, soft score assignment (best-IoU track, max per class, one track per candidate), mean and peak window features, flags matching, per-class thresholds, the safe loader refusing bad checkpoints |
 
-## 9.3 The testing style: small synthetic inputs with known answers
+## 10.3 The testing style: small synthetic inputs with known answers
 
 Most tests build a tiny input by hand where the right answer can be worked out on paper. For
 example, from `tests/test_stages.py`:
@@ -62,7 +63,7 @@ Guidelines:
   them in a test is free) or skipped with `@unittest.skipUnless(...)`.
 - **Name tests as sentences** about behaviour: `test_walker_passing_a_student_stays_unassociated`.
 
-## 9.4 Recipe: add a BFMU feature family
+## 10.4 Recipe: add a BFMU feature family
 
 Chapter 3, section 3.14 walks through a complete example. In short:
 
@@ -79,7 +80,7 @@ Chapter 3, section 3.14 walks through a complete example. In short:
 
 Optionally add thresholds for the new keys under `aggregation.thresholds` to get `.frac` columns.
 
-## 9.5 Recipe: try a different tracker setting
+## 10.5 Recipe: try a different tracker setting
 
 For a one-off comparison, no code changes are needed:
 
@@ -90,7 +91,7 @@ python -m scripts.run_pipeline extract --set tracker.options.max_lost_frames=40
 For a systematic search, edit `tuning.tracker.space.botsort` and run `tune_tracker` (Chapter 8),
 then paste the resulting `config_patch` into the config.
 
-## 9.6 Recipe: add a tracker
+## 10.6 Recipe: add a tracker
 
 1. If it is in BoxMOT, subclass `BoxmotTracker` and set `name`:
 
@@ -103,10 +104,12 @@ then paste the resulting `config_patch` into the config.
    Check that the Kalman-velocity read in `_kalman_velocities` still applies; if the tracker's
    state layout differs, velocities may be wrong rather than missing.
 2. Otherwise, subclass `Tracker` and implement `update(frame, dets) -> list[TrackState]`.
-3. Add a search space under `tuning.tracker.space.<name>` to tune it, and extend `needs_pixels`
-   in `scripts/tune_tracker.py` if it can run without reading images.
+3. Add a search space under `tuning.tracker.space.<name>` to tune it. In `scripts/tune_tracker.py`,
+   check `needs_pixels`, `needs_embeddings` and the encoder construction, which name trackers
+   explicitly: a tracker that always uses ReID must be added to `needs_embeddings`. Then run
+   `--check` to confirm the cached-embedding path reproduces the tracker's own tracks.
 
-## 9.7 Recipe: add a gate or expert model
+## 10.7 Recipe: add a gate or expert model
 
 For another scikit-learn classifier, add one line to `CLASSIFIERS` in `src/core/classifiers.py`:
 
@@ -128,7 +131,7 @@ For something that is not scikit-learn, subclass `EngagementExpert` (`fit`, `pre
 register it. Be careful that `fit` uses only its arguments: an expert that looked at global data
 would leak across folds.
 
-## 9.8 Recipe: switch on CFMU
+## 10.8 Recipe: switch on CFMU
 
 1. Implement a `ClusterFeatureExtractor` in `src/cfmu/`, register it (for example as
    `spread_sd`), and import it in `src/cfmu/__init__.py`.
@@ -141,7 +144,7 @@ would leak across folds.
 
 Nothing else changes: Vec widens, and the experts are retrained on the wider Vec.
 
-## 9.9 Recipe: run a sensitivity sweep
+## 10.9 Recipe: run a sensitivity sweep
 
 The design suggests sweeping window length and label thresholds, each under its own config hash.
 Because of the two-level cache, a window sweep is cheap once tracks exist:
@@ -155,7 +158,26 @@ for L in 6 8 10 12:
 
 Each `train_models` run writes its own `outputs/results/<hash>.json`.
 
-## 9.10 Recipe: measure the cost of a change
+## 10.10 Recipe: compare early and late aggregation
+
+No code changes; the features already contain both kinds of row:
+
+```
+python -m scripts.train_models --set engagement.aggregate='"early"' labels.tau_att=3 labels.tau_share=0.6
+python -m scripts.train_models --set engagement.aggregate='"late"'  labels.tau_att=3 labels.tau_share=0.6
+```
+
+Each writes its own `outputs/results/<hash>.json` (the setting is part of the config hash) with the
+same window-level metrics. Also check `data.row_label_coverage` in the late results: the share of
+student rows that could be linked to a labelled student. Low coverage means association, not the
+model, is limiting late aggregation. `engagement.late_context=false` tests whether students'
+own features carry any signal without the classroom context.
+
+Compare the two on AUC and `retention_r` first. F1 and balanced accuracy depend on each mode's
+cut-off (`mixture.tau` for early, `labels.tau_share` for late, §7.5), and the late score is not a
+calibrated share.
+
+## 10.11 Recipe: measure the cost of a change
 
 Add a variant to the config's `benchmark.variants` as dotted overrides, for example a cheaper flow
 setting:
@@ -170,7 +192,7 @@ idle machine and compare the two rows of `outputs/benchmarks/flow.md`. Check wha
 to the features, not only to the time: a faster pipeline that changes Vec needs the downstream
 evaluation re-run.
 
-## 9.11 Recipe: run something that takes hours
+## 10.12 Recipe: run something that takes hours
 
 Long jobs are run in your own terminal, so their progress is visible, and are written to resume:
 they append each finished unit of work to a log as it completes and skip logged units on restart
@@ -178,7 +200,7 @@ they append each finished unit of work to a log as it completes and skip logged 
 write a new long-running script, follow the same pattern: small units, append-as-you-go, a
 fingerprint of the settings so a restart cannot mix results, and a progress line on stdout.
 
-## 9.12 Before you commit
+## 10.13 Before you commit
 
 - Tests pass.
 - If you changed a contract (a dataclass, config keys, a cache format), update the matching

@@ -62,7 +62,7 @@ blocked for exactly that reason. `load_yolov7` instead:
 
 A unit test saves a checkpoint containing a disallowed type and checks that loading raises.
 
-**Environment issues met on the way** (recorded in the contributor's guide, Chapter 10):
+**Environment issues met on the way** (recorded in the contributor's guide, Chapter 11):
 
 - importing torchvision before Pillow breaks Pillow's compiled module in this environment
   (`DLL load failed ... cannot run %1`); `src/bfmu/yolov7.py` imports Pillow first;
@@ -144,7 +144,8 @@ distinguishable from one scoring 0.8 on read alone.
    hand going up for one second.
 
 That gives 8 per-track features (`scb.hand_raising`, `scb.read`, `scb.write`, `scb.m0.obj`, each
-with `.max`), summarised across students into Vec like every other BFMU family.
+with `.max`). Like every BFMU family they reach the experts in two ways: each student's own scores
+(`trk.scb.*`, late aggregation, the default) and their mean and spread across the class (Vec).
 
 `mode: "flags"` keeps the original approach (thresholded, NMS'd detections Hungarian-matched to
 tracks, a 0/1 flag per class) so the two can be compared.
@@ -178,10 +179,24 @@ experts' coefficients will show it.
 
 ## 7. Cost
 
-About 100 ms per frame for SCB alone on the GTX 1080, measured while two tracker searches shared
-the GPU (so an upper bound). It is the single most expensive per-frame stage, ahead of person
-detection (~55 ms) and residual flow (~56 ms). A 37M-parameter detector on every frame is a
-natural target in the performance phase.
+Measured on six full-length sessions (`group_0X/experiment_0Y/context_cam_01`, one per activity,
+about 1,450 frames each) on the GTX 1080, while two tracker searches shared the machine, so upper
+bounds:
+
+| Stage | ms per frame, mean (range over sessions) |
+|---|---|
+| PNG decoding | 48.7 (24–63) |
+| Person detection (YOLO11n) | 28.7 (25–33) |
+| Tracking (BoT-SORT, no ReID, no CMC) | 2.2 |
+| Residual optical flow | 56.0 (52–61) |
+| **SCB (YOLOv7, soft mode)** | **47.3 (38–62)** |
+| Scene features | 1.9 |
+| Total | 185 (143–211) |
+
+SCB is the second most expensive stage after residual flow, and costs more than person detection.
+An earlier single-clip measurement of about 100 ms per frame was taken under heavier load. A
+37M-parameter detector on every frame is a natural target in the performance phase, and the
+feature-family ablation (§8) decides whether that cost is worth paying at all.
 
 ## 8. Open
 

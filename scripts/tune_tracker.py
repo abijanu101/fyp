@@ -1,14 +1,14 @@
 """Tune detector confidence + tracker parameters against the manual SID boxes (design §4, §11).
 
   python -m scripts.tune_tracker [--profile quick|full|full_reid_cmc|full_strongsort] [--tracker NAME]
-                                 [--trials N] [--check] [--set key=value ...]
+                                 [--trials N] [--check] [--fresh] [--set key=value ...]
 
 How it works
   1. Once per session, frames are decoded and the detector runs at a low confidence floor; the
      detections, frame timestamps and frame size are cached (outputs/cache/detections/).
   2. If any trial can use ReID, every floor-level detection is also embedded once with the tracker's
      own ReID model (BoxMOT 26 default `osnet-x0-25-msmt17`, shared by BoT-SORT and StrongSORT)
-     and cached next to the detections (<session>.reid.npz, float32). Embeddings depend only on the
+     and cached next to the detections (<session>.reid-<model>.npz, float32). Embeddings depend only on the
      frame and the box, never on tracker settings, so trials reuse them.
   3. Each trial samples parameters from tuning.tracker.space[<tracker>] (trial 0 = current config),
      re-runs only the tracker on the cached detections filtered at the trial's `det_conf` (with the
@@ -171,6 +171,33 @@ def run_tracker(name: str, options: dict, sd: SessionDetections, det_conf: float
     return builder.build()
 
 
+def profile_setup(cfg: dict, name: str, prof: dict) -> tuple[dict, dict, dict]:
+    """(base_options, fixed, space) for a profile. Trial 0 runs base_options. A profile may give its
+    own `base_options` (e.g. the best known values for a tracker other than the configured one);
+    otherwise the configured tracker starts from tracker.options and another tracker from BoxMOT's
+    defaults (BoT-SORT options are not valid StrongSORT options and vice versa)."""
+    if "base_options" in prof:
+        base_options = dict(prof["base_options"])
+    else:
+        base_options = dict(cfg["tracker"].get("options", {})) if name == cfg["tracker"]["name"] else {}
+    base_options.pop("det_thresh", None)                     # unused by BoxMOT's BoT-SORT and StrongSORT
+    fixed = prof.get("fixed", {})
+    space = {k: v for k, v in cfg["tuning"]["tracker"]["space"][name].items() if k not in fixed}
+    return base_options, fixed, space
+
+
+def run_fingerprint(cfg: dict, name: str, prof: dict) -> str:
+    """Everything that affects a profile's scores; a resumable log only resumes under the same one.
+    n_trials is left out so raising --trials continues the same seeded sequence."""
+    base_options, _, space = profile_setup(cfg, name, prof)
+    tcfg = cfg["tuning"]["tracker"]
+    return config_hash({"tracker": name, "profile": {k: v for k, v in prof.items() if k != "n_trials"},
+                        "space": space, "base_options": base_options,
+                        "default_det_conf": cfg["detector"]["conf"], "detector": cfg["detector"],
+                        "floor": tcfg["det_conf_floor"], "min_iou": cfg["association"]["min_iou"],
+                        "seed": cfg["tuning"]["seed"], "reid": REID_MODEL, "v": 2})
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="configs/deliverable3.json")
@@ -188,11 +215,7 @@ def main() -> None:
     name = args.tracker or prof.get("tracker") or cfg["tracker"]["name"]
     if prof.get("tracker", name) != name:
         raise SystemExit(f"profile '{args.profile}' is for {prof['tracker']}, not {name}")
-    # Current config options only apply when tuning the configured tracker; another tracker starts
-    # from BoxMOT defaults (BoT-SORT options are not valid StrongSORT options and vice versa).
-    base_options = cfg["tracker"].get("options", {}) if name == cfg["tracker"]["name"] else {}
-    fixed = prof.get("fixed", {})
-    space = {k: v for k, v in tcfg["space"][name].items() if k not in fixed}
+    base_options, fixed, space = profile_setup(cfg, name, prof)
     index = DipserIndex.from_config(cfg)
     min_iou = cfg["association"]["min_iou"]
 
@@ -209,9 +232,11 @@ def main() -> None:
         print(f"[{i}/{len(keys)}] {key}: {len(sd.dets)} frames, {sum(map(len, sd.dets))} detections", flush=True)
 
     def options_for(params: dict) -> tuple[dict, float]:
+        """Tracker options for a trial. det_conf filters the cached detections (it stands in for
+        detector.conf); it is not a tracker option (BoxMOT's det_thresh is unused by both trackers)."""
         params = {**dict(params), **fixed}
         det_conf = params.pop("det_conf", cfg["detector"]["conf"])
-        return {**base_options, "det_thresh": det_conf, **params}, det_conf
+        return {**base_options, **params}, det_conf
 
     baseline = {"det_conf": cfg["detector"]["conf"],
                 **{k: v for k, v in base_options.items() if k in space}}
@@ -247,10 +272,7 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     stem = f"tracker_{name}_{args.profile}"
     results_path = out / f"{stem}.sessions.jsonl"
-    fingerprint = config_hash({"tracker": name, "profile": {k: v for k, v in prof.items() if k != "n_trials"}, "space": space, "base_options": base_options,
-                               "default_det_conf": cfg["detector"]["conf"], "detector": cfg["detector"],
-                               "floor": tcfg["det_conf_floor"], "min_iou": min_iou, "seed": cfg["tuning"]["seed"],
-                               "reid": REID_MODEL, "v": 1})
+    fingerprint = run_fingerprint(cfg, name, prof)
     if args.fresh and results_path.exists():
         aside = results_path.with_name(f"{results_path.stem}.{time.strftime('%Y%m%d-%H%M%S')}.jsonl")
         results_path.rename(aside)
