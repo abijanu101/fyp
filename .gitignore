@@ -9,6 +9,16 @@ data/SCB-ST-Dataset4
 #models
 *.pt
 
+# pipeline outputs (features cache, results, models)
+outputs/
+
+# scratch space for working files that need to live for a while (tests, intermediate runs)
+tmp/
+
+
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -190,3 +200,6 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+#vscode
+.vscode

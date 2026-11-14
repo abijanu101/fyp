@@ -1,0 +1,84 @@
+import unittest
+
+import numpy as np
+
+from src.core.types import Tracklet
+from src.evaluation import krippendorff_alpha_ordinal, tracking_metrics
+from src.tuning import nested_logo_search, random_search, sample_params
+
+nan = np.nan
+
+
+class TestAlpha(unittest.TestCase):
+    def test_krippendorff_reference_example(self):
+        # Krippendorff (2011) "Computing Krippendorff's Alpha-Reliability": 4 coders x 12 units.
+        coders = [[1, 2, 3, 3, 2, 1, 4, 1, 2, nan, nan, nan],
+                  [1, 2, 3, 3, 2, 2, 4, 1, 2, 5, nan, 3],
+                  [nan, 3, 3, 3, 2, 3, 4, 2, 2, 5, 1, nan],
+                  [1, 2, 3, 3, 2, 4, 4, 1, 2, 5, 1, nan]]
+        units = [list(u) for u in zip(*coders)]
+        self.assertAlmostEqual(krippendorff_alpha_ordinal(units), 0.815, places=3)
+
+    def test_perfect_agreement(self):
+        self.assertAlmostEqual(krippendorff_alpha_ordinal([[1, 1], [2, 2, 2], [3, 3], [5, 5]]), 1.0)
+
+
+def static_track(tid, box, t):
+    t = np.asarray(t, float)
+    return Tracklet(tid, t, np.tile(box, (len(t), 1)).astype(float), np.ones(len(t)), np.full((len(t), 2), nan))
+
+
+class TestTrackingMetrics(unittest.TestCase):
+    subjects = {"a": np.array([0, 0, 100, 100.0]), "b": np.array([200, 0, 300, 100.0])}
+
+    def test_perfect_tracking(self):
+        m = tracking_metrics([static_track(1, self.subjects["a"], range(10)),
+                              static_track(2, self.subjects["b"], range(10))], self.subjects, 10)
+        self.assertAlmostEqual(m["idf1"], 1.0)
+        self.assertEqual((m["coverage"], m["id_switches_per_subject"], m["tids_per_subject"]), (1.0, 0.0, 1.0))
+
+    def test_id_switch_and_fragmentation(self):
+        m = tracking_metrics([static_track(1, self.subjects["a"], range(6)),
+                              static_track(3, self.subjects["a"], range(6, 10)),
+                              static_track(2, self.subjects["b"], range(10))], self.subjects, 10)
+        self.assertEqual(m["id_switches_per_subject"], 0.5)
+        self.assertEqual(m["tids_per_subject"], 1.5)
+        self.assertAlmostEqual(m["idf1"], 2 * 16 / (2 * 16 + 4 + 4))   # track 3's 4 frames are IDFP and IDFN
+
+    def test_missed_subject(self):
+        m = tracking_metrics([static_track(1, self.subjects["a"], range(10))], self.subjects, 10)
+        self.assertEqual((m["coverage"], m["subjects_found"]), (0.5, 0.5))
+
+
+class TestSearch(unittest.TestCase):
+    space = {"c": [1, 2, 3], "x": {"low": 0.01, "high": 1.0, "log": True}, "n": {"low": 1, "high": 9, "int": True}}
+
+    def test_sampling_is_seeded_and_in_range(self):
+        a = sample_params(self.space, np.random.default_rng(1))
+        self.assertEqual(a, sample_params(self.space, np.random.default_rng(1)))
+        self.assertIn(a["c"], [1, 2, 3])
+        self.assertTrue(0.01 <= a["x"] <= 1.0 and isinstance(a["n"], int))
+
+    def test_baseline_is_trial_zero_and_best_first(self):
+        trials = random_search(self.space, lambda p: {"score": -abs(p.get("x", 0.5) - 0.3)}, 20, seed=0,
+                               baseline={"x": 0.9})
+        self.assertEqual(next(t for t in trials if t["trial"] == 0)["params"], {"x": 0.9})
+        self.assertEqual(trials[0]["score"], max(t["score"] for t in trials))
+
+    def test_nested_search_never_scores_selection_on_outer_test(self):
+        groups = np.array(["g1"] * 4 + ["g2"] * 4 + ["g3"] * 4)
+        seen = []
+
+        def score(params, tr, te):
+            seen.append((set(groups[tr]), set(groups[te])))
+            return params["c"]
+
+        res = nested_logo_search(groups, {"c": [1, 2, 3]}, 5, 0, score, baseline={"c": 1})
+        self.assertEqual(res["selected"], {"c": 3})
+        for o in res["outer"]:
+            inner = [s for s in seen if o["held_out"] not in s[0] | s[1]]
+            self.assertTrue(inner)   # inner searches ran without the held-out group
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -33,3 +33,4 @@ dependencies:
     - fvcore
     - boxmot
     - ultralytics>=8.4.58
+    - seaborn            # YOLOv7 (lib/yolov7, SCB behaviour models) imports it at load time

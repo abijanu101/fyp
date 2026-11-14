@@ -40,21 +40,21 @@ group_01:
     experiment_06:
       context_cam_01: front_east
       context_cam_02: front_middle    # note that its not front_west
-      context_cam_03: front_east      # this was previously front_middle
+      context_cam_03: front_west      # this was previously front_middle
       context_cam_04: rear_east
       context_cam_05: rear_middle
 
     experiment_07:
       context_cam_01: front_east
       context_cam_02: front_middle    # note that its not front_west
-      context_cam_03: front_east      # this was previously front_middle
+      context_cam_03: front_west      # this was previously front_middle
       context_cam_04: rear_east
       context_cam_05: rear_middle
 
     experiment_08:
       context_cam_01: front_east
       context_cam_02: front_middle    # note that its not front_west
-      context_cam_03: front_east      # this was previously front_middle
+      context_cam_03: front_west      # this was previously front_middle
       context_cam_04: rear_east
       context_cam_05: rear_middle
 
@@ -62,7 +62,7 @@ group_01:
     experiment_09:
       context_cam_01: front_east
       context_cam_02: front_middle    # note that its not front_west
-      context_cam_03: front_east      # this was previously front_middle
+      context_cam_03: front_west      # this was previously front_middle
       context_cam_04: rear_east
       context_cam_05: rear_middle
 
@@ -102,14 +102,14 @@ group_02:
       context_cam_04: rear_east
       context_cam_05: rear_middle
 
-day_03:
+  day_03:
     experiment_06:
       context_cam_01: front_east
       context_cam_02: front_middle
       context_cam_03: front_west
       context_cam_04: rear_east
       context_cam_05: rear_middle
-      context_cam_05: rear_west
+      context_cam_06: rear_west
 
     experiment_07:
       context_cam_01: front_east
@@ -117,7 +117,7 @@ day_03:
       context_cam_03: front_west
       context_cam_04: rear_east
       context_cam_05: rear_middle
-      context_cam_05: rear_west
+      context_cam_06: rear_west
 
     experiment_08:
       context_cam_01: front_east
@@ -125,7 +125,7 @@ day_03:
       context_cam_03: front_west
       context_cam_04: rear_east
       context_cam_05: rear_middle
-      context_cam_05: rear_west
+      context_cam_06: rear_west
 
     experiment_09:
       context_cam_01: front_east
@@ -133,7 +133,7 @@ day_03:
       context_cam_03: front_west
       context_cam_04: rear_east
       context_cam_05: rear_middle
-      context_cam_05: rear_west
+      context_cam_06: rear_west
 
 group_03:
   day_01:
