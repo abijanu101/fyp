@@ -21,12 +21,12 @@ Config (bfmu entry):
     {"name": "scb", "mode": "soft", "min_overlap": 0.5,
      "models": [{"weights": "...best.pt", "classes": ["hand_raising", "read", "write"],
                  "conf": 0.25, "class_conf": {"hand_raising": 0.6}}]}
-`conf`/`class_conf` only apply in flags mode (pick values with scripts/dipser/scb_viewer.py).
+`conf`/`class_conf` only apply in flags mode (pick values with scripts/data_visualization/scb_viewer.py).
 `classes` must match the checkpoint's class order (names lower-cased, '-'/' ' -> '_'); this is
 checked when the model loads, and keeps feature keys known without loading any weights.
 With several models, give each a short "tag" (default m0, m1, ...) for its objectness key.
 
-The DIPSER domain sanity check (design §11): scripts/dipser/check_scb.py, scripts/dipser/scb_viewer.py.
+The DIPSER domain sanity check (design §11): scripts/data_visualization/check_scb.py, scripts/data_visualization/scb_viewer.py.
 """
 
 from __future__ import annotations
@@ -55,9 +55,10 @@ class ScbBehaviour(FeatureExtractor):
         self.mode, self.min_overlap, self.obj_floor, self.device = mode, min_overlap, obj_floor, device
         self.thresholds = [[m.get("class_conf", {}).get(c, m.get("conf", 0.25)) for c in m["classes"]]
                            for m in self.specs]
+        self.tags = [m.get("tag", f"m{i}") for i, m in enumerate(self.specs)]
         self.signal_keys = [f"scb.{c}" for m in self.specs for c in m["classes"]]
         if mode == "soft":
-            self.signal_keys += [f"scb.{m.get('tag', f'm{i}')}.obj" for i, m in enumerate(self.specs)]
+            self.signal_keys += [f"scb.{tag}.obj" for tag in self.tags]
             self.keys = tuple(k + suffix for k in self.signal_keys for suffix in ("", ".max"))
         else:
             self.keys = tuple(self.signal_keys)
@@ -70,8 +71,8 @@ class ScbBehaviour(FeatureExtractor):
             from .yolov7 import Yolov7Detector
             self._detectors = []
             for spec, thr in zip(self.specs, self.thresholds):
-                det = Yolov7Detector(spec["weights"], conf=min(thr), iou=spec.get("iou", 0.45),
-                                     imgsz=spec.get("imgsz", 640), device=self.device)
+                det = Yolov7Detector(spec["weights"], conf=min(thr), device=self.device,
+                                     **{k: spec[k] for k in ("iou", "imgsz", "half") if k in spec})
                 found = [normalize_class(n) for n in det.names]
                 if found != list(spec["classes"]):
                     raise ValueError(f"{spec['weights']}: config classes {spec['classes']} != checkpoint {found}")
@@ -88,7 +89,7 @@ class ScbBehaviour(FeatureExtractor):
             if self.mode == "soft":
                 xyxy, obj, probs = det.candidates(frame.image, self.obj_floor)
                 scores = np.column_stack([obj[:, None] * probs, obj])          # (N, nc + 1)
-                names = [f"scb.{c}" for c in spec["classes"]] + [f"scb.{spec.get('tag', f'm{i}')}.obj"]
+                names = [f"scb.{c}" for c in spec["classes"]] + [f"scb.{self.tags[i]}.obj"]
                 for tid, best in zip(tids, self.soft_scores(xyxy, scores, boxes)):
                     out[tid].update(zip(names, map(float, best)))
             else:

@@ -1,7 +1,7 @@
 """DIPSER label viewer: play a context camera with every student's attention labels alongside.
 
-    python scripts/dipser/label_viewer.py group_01 experiment_01 context_cam_01
-    python scripts/dipser/label_viewer.py group_02 experiment_04 context_cam_03 --start 120 --exclude-self
+    python scripts/data_visualization/label_viewer.py group_01 experiment_01 context_cam_01
+    python scripts/data_visualization/label_viewer.py group_02 experiment_04 context_cam_03 --start 120 --exclude-self
 
 Standalone (OpenCV + numpy only). Reads frames straight from the camera ZIP, labels from
 subjects/subject_XX.zip (labels/*.json), and the static boxes from abi_labels.

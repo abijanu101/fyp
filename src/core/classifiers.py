@@ -15,9 +15,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
 CLASSIFIERS = {
-    "random_forest": lambda seed, **p: RandomForestClassifier(random_state=seed, **p),
-    "svm": lambda seed, **p: SVC(probability=True, random_state=seed, **p),
-    "logreg": lambda seed, **p: LogisticRegression(max_iter=2000, random_state=seed, **p),
+    # fixed choices first, config params last: any of them can be overridden from the config
+    "random_forest": lambda seed, **p: RandomForestClassifier(**{"random_state": seed, **p}),
+    "svm": lambda seed, **p: SVC(**{"probability": True, "random_state": seed, **p}),
+    "logreg": lambda seed, **p: LogisticRegression(**{"max_iter": 2000, "random_state": seed, **p}),
     "knn": lambda seed, **p: KNeighborsClassifier(**p),
 }
 

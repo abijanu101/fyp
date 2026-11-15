@@ -32,11 +32,10 @@ class SklearnExpert(EngagementExpert):
 
     WEIGHTED = ("logreg", "random_forest", "svm")
 
-    def __init__(self, model: str, seed: int = 0, feature_names=None, exp_id=None,
-                 max_train_rows: int | None = None, **params):
+    def __init__(self, model: str, seed: int = 0, max_train_rows: int | None = None, **params):
         self.name, self.seed, self.max_train_rows = model, seed, max_train_rows
-        extra = {"class_weight": "balanced"} if model in self.WEIGHTED else {}
-        self.model = build_classifier(model, seed, **extra, **params)
+        balance = {"class_weight": "balanced"} if model in self.WEIGHTED else {}
+        self.model = build_classifier(model, seed, **{**balance, **params})     # params may override
         self._constant: float | None = None
 
     def fit(self, X, y):
@@ -72,7 +71,7 @@ class HandWeightedExpert(EngagementExpert):
     weights: {vec_key: weight}; phone_key/phone_sign apply the per-experiment phone-use sign."""
 
     def __init__(self, feature_names: list[str], weights: dict[str, float], exp_id: str | None = None,
-                 phone_key: str | None = None, phone_sign: dict[str, float] | None = None, seed: int = 0):
+                 phone_key: str | None = None, phone_sign: dict[str, float] | None = None):
         w = dict(weights)
         if phone_key and phone_sign and exp_id in phone_sign:
             w[phone_key] = w.get(phone_key, 1.0) * phone_sign[exp_id]

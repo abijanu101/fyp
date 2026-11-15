@@ -6,7 +6,7 @@ Objectives:  gate   -> 6-way macro-F1 of the configured gate model
              expert -> window AUC of the configured mixture under the ORACLE context, which isolates
                        expert quality from gate errors (design §8 oracle condition)
 Uses features cached by `run_pipeline extract` and labels from the current `labels.*` config, so
-fix the label thresholds (scripts.dipser.inspect_labels) before tuning experts.
+fix the label thresholds (scripts.data_visualization.inspect_labels) before tuning experts.
 
 Writes <output_dir>/tuning/<component>_<model>.json with the selected params (config patch), their
 plain LOGO score, and the nested-LOGO estimate (the honest number, since selection never saw the
@@ -76,7 +76,7 @@ def main() -> None:
     y = df["y"].fillna(0).to_numpy(int)
     if args.component in ("expert", "both") and len(np.unique(y[labeled])) < 2:
         raise SystemExit("Window labels have a single class under the current labels.* thresholds; "
-                         "run scripts.dipser.inspect_labels and set labels.tau_att / labels.tau_share first.")
+                         "run scripts.data_visualization.inspect_labels and set labels.tau_att / labels.tau_share first.")
 
     jobs = []
     if args.component in ("gate", "both"):

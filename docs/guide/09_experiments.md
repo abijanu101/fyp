@@ -148,7 +148,7 @@ always says "engaged"; compare it with `majority`.
 time-weighted mean rating (1–5). **`tau_att`**: a student is engaged if consensus ≥ `tau_att`.
 **Share engaged**: engaged students ÷ labelled students in a window. **`tau_share`**: the window is
 engaged if share ≥ `tau_share`. **Krippendorff's α**: agreement between labelers, from 1 (perfect)
-through 0 (no better than chance); computed by `scripts/dipser/inspect_labels.py`.
+through 0 (no better than chance); computed by `scripts/data_visualization/inspect_labels.py`.
 
 ### Tracking terms (Chapter 8, §8.6)
 
@@ -344,8 +344,6 @@ need `extract --reuse` (a frame pass per new copy), then `train_models`.
 |---|---|---|
 | `augmentation.copies` | 0 | augmented copies per session for training; 0 = off. Each copy costs a frame pass |
 | `augmentation.seed` | 0 | seed of the per-(session, copy) parameter draw |
-| `augmentation.root` | `data/DIPSER_aug` | where `augment_dataset` writes each copy as a complete dataset (not part of the copy's tag) |
-| `augmentation.jpeg_quality` | 95 | JPEG quality of the written frames |
 | `augmentation.brightness` | 35 | brightness offset drawn from ±35 grey levels |
 | `augmentation.contrast` | 0.15 | contrast factor from 1 ± 0.15 |
 | `augmentation.saturation` | 0.2 | saturation factor from 1 ± 0.2 |
@@ -381,7 +379,7 @@ The search-space syntax is in Chapter 8, §8.5: a list is a choice, `{low, high}
 | `tuning.seed` | seed of the random searches (separate from `seed`); the bisection search is deterministic and does not use it |
 | `tuning.tracker.det_conf_floor` | detections are cached once at this confidence; each trial filters them at its own `det_conf` |
 | `tuning.tracker.objective` | the tracking metric maximised (`idf1`). Only higher-is-better metrics make sense |
-| `tuning.tracker.profiles.<name>` | `tracker`, `sessions` (`"all"` or a list), `max_frames`, `n_trials` (the trial budget of either search; `--trials` overrides it), `fixed` options pinned for every trial, and optionally `base_options`, trial 0's settings (otherwise `tracker.options` for the configured tracker, BoxMOT defaults for another). The bisection search starts from the profile's random-search winner when one exists (§8.6) |
+| `tuning.tracker.profiles.<name>` | `tracker`, `sessions` (`"all"` or a list), `max_frames`, `n_trials` (the trial budget of either search; `--trials` overrides it), `fixed` options pinned for every trial, and optionally `base_options`, trial 0's settings (otherwise `tracker.options` for the configured tracker, BoxMOT defaults for another). The bisection search starts from the profile's random-search winner when one exists, or from another profile's winner named by `start_from` (`full_reid_cmc` starts from `full`) (§8.6) |
 | `tuning.tracker.space.<tracker>` | ranges per option. `det_conf` here stands in for `detector.conf`: the winning value is patched there |
 | `tuning.gate` / `tuning.expert` | `n_trials` per search, and `space.<model name>`; only the space matching `gate.name` / `expert.name` is used |
 | `benchmark.sessions` | sessions timed by `scripts/benchmark.py` |

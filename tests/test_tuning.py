@@ -33,20 +33,20 @@ class TestTrackingMetrics(unittest.TestCase):
 
     def test_perfect_tracking(self):
         m = tracking_metrics([static_track(1, self.subjects["a"], range(10)),
-                              static_track(2, self.subjects["b"], range(10))], self.subjects, 10)
+                              static_track(2, self.subjects["b"], range(10))], self.subjects, 10, 0.3)
         self.assertAlmostEqual(m["idf1"], 1.0)
         self.assertEqual((m["coverage"], m["id_switches_per_subject"], m["tids_per_subject"]), (1.0, 0.0, 1.0))
 
     def test_id_switch_and_fragmentation(self):
         m = tracking_metrics([static_track(1, self.subjects["a"], range(6)),
                               static_track(3, self.subjects["a"], range(6, 10)),
-                              static_track(2, self.subjects["b"], range(10))], self.subjects, 10)
+                              static_track(2, self.subjects["b"], range(10))], self.subjects, 10, 0.3)
         self.assertEqual(m["id_switches_per_subject"], 0.5)
         self.assertEqual(m["tids_per_subject"], 1.5)
         self.assertAlmostEqual(m["idf1"], 2 * 16 / (2 * 16 + 4 + 4))   # track 3's 4 frames are IDFP and IDFN
 
     def test_missed_subject(self):
-        m = tracking_metrics([static_track(1, self.subjects["a"], range(10))], self.subjects, 10)
+        m = tracking_metrics([static_track(1, self.subjects["a"], range(10))], self.subjects, 10, 0.3)
         self.assertEqual((m["coverage"], m["subjects_found"]), (0.5, 0.5))
 
 

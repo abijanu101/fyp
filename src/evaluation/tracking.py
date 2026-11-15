@@ -20,7 +20,7 @@ from ..tracking.association import frame_matches
 
 
 def tracking_metrics(tracklets: list[Tracklet], subjects: dict[str, np.ndarray], n_frames: int,
-                     min_iou: float = 0.3) -> dict[str, float]:
+                     min_iou: float) -> dict[str, float]:
     """tracklets: raw (unfiltered) tracker output for the evaluated frames."""
     n_subj = len(subjects)
     if n_subj == 0 or n_frames == 0:

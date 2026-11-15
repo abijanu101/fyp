@@ -39,7 +39,6 @@ from scripts.run_pipeline import cmd_extract, parse_sets
 from scripts.train_models import engagement_rows, expert_factory, load_table, retention_check, with_augmented
 from src.core.config import config_hash, load_config
 from src.core.pipeline import SCENE_PREFIX, TRACK_PREFIX, VEC_PREFIX
-from src.datasets import DipserIndex
 from src.evaluation import binary_metrics, context_metrics
 from src.experts import EXPERTS, EngagementRows, ExpertMixture, decision_threshold, fit_engagement, predict_windows
 from src.spu import GATES, context_probs
@@ -78,19 +77,14 @@ def with_copies(cfg: dict, n: int, groups: list[str] | None = None) -> dict:
     return c
 
 
-def extract(cfg: dict, workers: int) -> None:
-    """Three resumable phases; rerun the same command after an interruption."""
-    from scripts.augment_dataset import ensure_many
-    print("== phase 1/3: features of every in-scope session, clean", flush=True)
+def extract(cfg: dict) -> None:
+    """Two resumable phases; rerun the same command after an interruption."""
+    print("== phase 1/2: features of every in-scope session, clean", flush=True)
     cmd_extract(with_copies(cfg, 0), None, reuse=True)
     n = cfg["augmentation"]["copies"]
     aug = with_copies(cfg, n, DEV + [TEST])       # dev copies train; group-3 copies are a second test set
-    keys = DipserIndex.from_config(aug).sessions()
-    print(f"== phase 2/3: write {n} augmented datasets of {'/'.join(DEV + [TEST])} to "
-          f"{cfg['augmentation']['root']}", flush=True)
-    ensure_many(aug, [(k, c) for c in range(1, n + 1) for k in keys], workers,
-                log=lambda s: print(s, flush=True))
-    print(f"== phase 3/3: features of the augmented copies", flush=True)
+    print(f"== phase 2/2: features of {n} augmented copies of every {'/'.join(DEV + [TEST])} session "
+          f"(augmented on the fly)", flush=True)
     cmd_extract(aug, None, reuse=True)
 
 
@@ -244,12 +238,10 @@ def main() -> None:
     ap.add_argument("--extract", action="store_true", help="run both extraction phases first (hours, resumable)")
     ap.add_argument("--copies", nargs="*", type=int, help="training sets to evaluate (default 0..augmentation.copies)")
     ap.add_argument("--summary-only", action="store_true")
-    ap.add_argument("--workers", type=int, default=None, help="parallel writers for the augmented datasets")
     args = ap.parse_args()
     cfg = experiment_config(args)
     if args.extract:
-        from scripts.augment_dataset import DEFAULT_WORKERS
-        extract(cfg, args.workers or DEFAULT_WORKERS)
+        extract(cfg)
     copies_list = args.copies if args.copies is not None else list(range(cfg["augmentation"]["copies"] + 1))
     if args.summary_only:
         h = config_hash({**cfg, "augmentation": {**cfg["augmentation"], "copies": None}})[:12]

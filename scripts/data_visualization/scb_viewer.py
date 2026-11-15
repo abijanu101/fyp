@@ -1,7 +1,7 @@
 """SCB behaviour viewer: play a DIPSER camera with the SCB behaviour detections drawn live.
 
-    python -m scripts.dipser.scb_viewer group_01 experiment_04 context_cam_03
-    python -m scripts.dipser.scb_viewer group_02 experiment_03 context_cam_01 --start 120 --precompute
+    python -m scripts.data_visualization.scb_viewer group_01 experiment_04 context_cam_03
+    python -m scripts.data_visualization.scb_viewer group_02 experiment_03 context_cam_01 --start 120 --precompute
 
 Uses the SCB models configured in the `scb` BFMU entry (configs/deliverable3.json). Each frame is
 run once at a low confidence floor (--floor) and cached, so the per-class threshold sliders and

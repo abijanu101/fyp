@@ -19,8 +19,13 @@ from .base import FEATURE_EXTRACTORS, FeatureExtractor, signal_mean
 class ResidualFlow(FeatureExtractor):
     uses_frames = True
 
-    def __init__(self, grid: int = 2, scale: float = 0.5):
+    FARNEBACK = {"pyr_scale": 0.5, "levels": 3, "winsize": 15, "iterations": 3, "poly_n": 5,
+                 "poly_sigma": 1.2, "flags": 0}
+
+    def __init__(self, grid: int = 2, scale: float = 0.5, farneback: dict | None = None):
+        """farneback: overrides of OpenCV's dense-flow parameters (FARNEBACK holds the defaults)."""
         self.grid, self.scale = grid, scale
+        self.farneback = {**self.FARNEBACK, **(farneback or {})}
         self.keys = tuple(f"rf.mag_{i}{j}" for i in range(grid) for j in range(grid))
         self.reset()
 
@@ -34,7 +39,7 @@ class ResidualFlow(FeatureExtractor):
         self._prev_gray, self._prev_t = gray, frame.t
         if prev is None or prev.shape != gray.shape:
             return {}
-        flow = cv2.calcOpticalFlowFarneback(prev, gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+        flow = cv2.calcOpticalFlowFarneback(prev, gray, None, **self.farneback)
         dt = max(frame.t - prev_t, 1e-6)
         return {s.tid: self._pool(flow, s.xyxy * self.scale, dt) for s in tracks}
 

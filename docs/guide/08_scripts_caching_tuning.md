@@ -7,7 +7,7 @@ chapter covers each entry point, what it caches where, and how the tuning machin
 
 ```
                       ┌───────────────────────────┐
-                      │ scripts.dipser.*           │  look at the data: labels, SCB, video
+                      │ scripts.data_visualization.*           │  look at the data: labels, SCB, video
                       └───────────────────────────┘
 ┌──────────────────┐   ┌───────────────────────────┐   ┌────────────────────┐
 │ tune_tracker      │──►│ run_pipeline extract       │──►│ train_models        │──► results + models
@@ -146,7 +146,7 @@ copies of every session seen through a different, plausible camera: shifted colo
 contrast, sensor noise, a mirrored room, fixed grey occluders. It is off by default
 (`augmentation.copies: 0`).
 
-**One transformation per session copy.** `sample_params(aug_cfg, session, copy)` draws one fixed
+**One transformation per session copy.** `sample_augmentation(aug_cfg, session, copy)` draws one fixed
 parameter set per (session, copy), deterministically from `augmentation.seed`, and the same set is
 applied to every frame of that copy. Tracking and the window features therefore see a consistent
 video (another white balance, a mirrored room, an occluder that stays put), never per-frame
@@ -154,7 +154,7 @@ flicker. Only the sensor noise is redrawn each frame, at a level fixed for the c
 sensor noise behaves.
 
 ```python
-params = sample_params(cfg["augmentation"], "group_01/experiment_03/context_cam_02", copy=1)
+params = sample_augmentation(cfg["augmentation"], "group_01/experiment_03/context_cam_02", copy=1)
 src = AugmentedZipFrameSource(zip_path, params)   # a ZipFrameSource and a torch Dataset
 len(src), src[120]                                # same timestamps as the original; frame 120, augmented
 ```
@@ -162,27 +162,13 @@ len(src), src[120]                                # same timestamps as the origi
 `AugmentedZipFrameSource` subclasses `ZipFrameSource` (same timestamps, iteration and `read`) and
 `torch.utils.data.Dataset` (`len`, indexing).
 
-**Copies are materialised on disk, as datasets.** `python -m scripts.augment_dataset` writes copy
-*k* to `data/DIPSER_aug/<tag>/` (`augmentation.root`) with exactly the layout of `data/DIPSER/`:
-
-```
-data/DIPSER_aug/aug1-<settings hash>/
-├── DIPSEER/group_01/experiment_03/context_cam_02.zip   augmented frames, same timestamp names (JPEG)
-│                                  subjects/*            the label archives, hard-linked (no extra space)
-├── abi_labels/group_01/experiment_03.json               manual boxes, mirrored where the copy is flipped
-├── abi_labels/experiments.tsv, cameras.yml              copied
-└── augmentation.json                                    settings and every session's exact parameters
-```
-
-Any tool therefore runs on an augmented copy by pointing `dataset.root` at it: the viewers, the
-pipeline, and the tracker tuning and detector scan, which also take `--augment [COPY]` as a
-shortcut (§8.6), for robustness experiments on tracking. `tune_tracker` keeps a separate detection cache per
-augmented dataset (keyed by its `augmentation.json` tag), since session names are the same.
-Frames are JPEG at `augmentation.jpeg_quality` (95): noisy frames do not compress as PNG (about
-2.2 MB against 0.5 MB per frame), and two copies of groups 1–2 take roughly 50 GB as JPEG. The
-mild JPEG artefacts are of the kind real cameras add. Writing is resumable per camera ZIP and runs
-in parallel worker processes (`--workers`, default half the cores up to 6): it is CPU-bound, about
-6–8 minutes per session copy per worker.
+**Copies are never written to disk.** A copy is the original camera ZIP read through
+`AugmentedZipFrameSource`, augmenting each frame as it is decoded. The parameters are seeded by
+(`augmentation.seed`, session, copy) and the noise by frame index, so a copy is the same video every
+time it is read (`test_a_copy_is_the_same_video_every_time_it_is_read`): seeding, not storage, makes
+runs comparable. The only cost is CPU: augmenting adds roughly 0.1–0.2 s per frame to whatever reads
+the copy. (An earlier design wrote copies to disk as complete datasets; it was removed on 15
+November 2026 as not worth about 40 GB per copy.)
 
 **Transforms, in order:** horizontal flip → colour (brightness, contrast, saturation, hue, gamma) →
 noise (Gaussian or speckle) → masks (grey cutouts at fixed positions). Ranges are in the config
@@ -195,8 +181,7 @@ boxes with the frame width recorded in the copy's manifest. Time is unchanged, s
 and per-student labels are the original session's.
 
 **Extraction.** With `copies: N`, `run_pipeline extract` first does every original session as usual,
-then every session's copies 1…N, reading each from its materialised ZIP (and writing it first, via
-`augment_dataset.ensure_session`, if it does not exist yet). Their features go next to the
+then every session's copies 1…N, augmented on the fly. Their features go next to the
 originals under their own names: `<session>.aug<k>-<settings hash>.{npz,csv,tracks.csv,manifest.json}`. The originals' caches are
 untouched (augmentation is not part of the tracking or feature hash). The settings hash in the name
 means a change to the ranges never reuses stale copies, while raising `copies` keeps the existing
@@ -216,7 +201,7 @@ confirms the mirrored boxes line up). `tune_models` does not use copies.
 frame, the first copies this config produces, and two *extremes* (every range at its bright or
 dark end at once, maximum noise, maximum masks, flipped) to
 `outputs/augmentation/<settings hash>/`, as PNGs, a contact sheet and the exact parameters.
-`python -m scripts.dipser.augment_viewer` explores the same transforms interactively.
+`python -m scripts.data_visualization.augment_viewer` explores the same transforms interactively.
 
 Verified on six 100-frame sessions with one copy each: extraction wrote 6 originals and 6 copies,
 training added 52 augmented windows to the training folds and scored only the 52 originals, and
@@ -303,15 +288,18 @@ python -m scripts.tune_tracker --profile <profile> --check
 
 **Search method.** The default is the beam bisection search (§8.5), starting from the best trial of
 the same profile's random search on the original data (`tracker_<tracker>_<profile>.json`) when it
-exists, or from `--start <scan>.json`, else from the profile's baseline. `--beam` sets the beam
+exists, or of the profile named by its `start_from` (`full_reid_cmc` starts from vanilla BoT-SORT's
+`full`), or from `--start <scan>.json`, else from the profile's baseline. `start_from` does not
+affect scores and is not part of the resume fingerprint. `--beam` sets the beam
 width (2). `--randomize` runs the seeded random search, the method of the first full-dataset
 experiments; resume those with `--randomize`. Both methods read and extend the same
 `<stem>.sessions.jsonl`, so a trial computed by one is never recomputed by the other. Bisection
 results are written as `<stem>_bisect.{csv,json}`; random-search results keep the plain names.
 
 **Augmented data.** `--augment [COPY]` runs the same profile on augmented copy COPY (default 1),
-written by `augment_dataset` first if missing. Boxes are mirrored where a copy is flipped, the
-detections and ReID embeddings get their own cache, and results go to their own files
+augmented on the fly: the floor detections, ReID embeddings and CMC frames all come from the
+augmented frames. Boxes are mirrored where a copy is flipped, the detections and ReID embeddings get
+their own cache (keyed by the copy's tag), and results go to their own files
 (`<stem>_<aug tag>...`). The original data's fingerprints and caches are unchanged.
 
 **The objective.** Tracking is scored against our manual boxes (`abi_labels`) with
@@ -424,21 +412,26 @@ Runs `nested_logo_search` on cached features. The gate is scored by 6-way macro-
 are scored by AUC **under oracle context**, so expert tuning is not confused by gate errors. Fix
 the label thresholds first: the expert objective depends on them.
 
-## 8.8 The dataset tools (`scripts/dipser/`)
+## 8.8 The dataset tools (`scripts/data_visualization/`)
 
 | Tool | Run as | What it is for |
 |---|---|---|
-| `inspect_labels.py` | `python -m scripts.dipser.inspect_labels` | label distribution, labeler agreement, class balance for a grid of thresholds |
-| `check_scb.py` | `python -m scripts.dipser.check_scb` | SCB detections drawn on 12 sampled frames (the §11 sanity check) |
-| `scb_viewer.py` | `python -m scripts.dipser.scb_viewer g e c` | play a camera with SCB boxes; per-class confidence sliders |
-| `augment_viewer.py` | `python -m scripts.dipser.augment_viewer g e c` | preview data augmentations (colour, noise, hflip, masking) on a frame, with the manual boxes transformed alongside; not yet used by the pipeline |
-| `label_viewer.py` | `python scripts/dipser/label_viewer.py g e c` | play a camera with every labeler's live attention values |
-| `plot_labels.py` | `python scripts/dipser/plot_labels.py g e s` or `--scan` | attention step plots per student and per session |
-| `player.py` | `python scripts/dipser/player.py data/DIPSER/DIPSEER` | six-camera synchronised player |
+| `inspect_labels.py` | `python -m scripts.data_visualization.inspect_labels` | label distribution, labeler agreement, class balance for a grid of thresholds |
+| `check_scb.py` | `python -m scripts.data_visualization.check_scb` | SCB detections drawn on 12 sampled frames (the §11 sanity check) |
+| `scb_viewer.py` | `python -m scripts.data_visualization.scb_viewer g e c` | play a camera with SCB boxes; per-class confidence sliders |
+| `augment_viewer.py` | `python -m scripts.data_visualization.augment_viewer g e c` | preview data augmentations (colour, noise, hflip, masking) on a frame, with the manual boxes transformed alongside; not yet used by the pipeline |
+| `label_viewer.py` | `python scripts/data_visualization/label_viewer.py g e c` | play a camera with every labeler's live attention values |
+| `plot_labels.py` | `python scripts/data_visualization/plot_labels.py g e s` or `--scan` | attention step plots per student and per session |
+| `player.py` | `python scripts/data_visualization/player.py data/DIPSER/DIPSEER` | six-camera synchronised player |
 
 The first four import `src` and need `-m`; the last three are standalone files. Two more files
 are one-off helpers: `camera_previews.py` saves the first frame of each camera ZIP, and
 `annotation_helper.py` (hard-coded paths, no command line) was used while drawing the manual boxes.
+
+Next to the downloader, `python -m scripts.downloading.validate_dipser_remote [--crc]` checks the
+local copy against the FTP server without re-downloading it: Python's `zipfile` reads each server
+archive through FTP byte ranges, so only the archive directories and the label files are fetched
+(about 0.5 MB per 1 GB archive). `docs/experiments/01_dipser.md`, §7 lists the checks and results.
 
 ## 8.9 `benchmark` (`scripts/benchmark.py`)
 

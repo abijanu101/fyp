@@ -21,7 +21,7 @@
   "bfmu": [
     {"name": "kalman_geometry", "still_threshold": 0.05, "use_kalman": true},
     {"name": "residual_flow", "grid": 2, "scale": 0.5},
-    {"name": "scb", "mode": "soft", "min_overlap": 0.5, "models": [
+    {"name": "scb", "mode": "soft", "min_overlap": 0.5, "obj_floor": 0.01, "models": [
       {"weights": "data/SCB-ST-Dataset4/SCB5-Handrise-Read-write-2024-9-17/exp/weights/best.pt",
        "classes": ["hand_raising", "read", "write"], "conf": 0.25}]}
   ],
@@ -47,11 +47,13 @@
   "engagement": {"aggregate": "late", "late_context": true,
                  "labelers": "consensus", "ensemble_exclude": ["self_labeling"]},
 
-  "augmentation": {"copies": 0, "seed": 0, "root": "data/DIPSER_aug", "jpeg_quality": 95,
+  "augmentation": {"copies": 0, "seed": 0,
                    "brightness": 35, "contrast": 0.15, "saturation": 0.2, "hue_deg": 3, "gamma": 0.15,
                    "noise": {"kinds": ["gaussian", "speckle"], "max": 0.35},
                    "hflip": 0.5,
                    "mask": {"kind": "cutout (grey)", "p": 0.5, "count": [1, 3], "size": [0.04, 0.12]}},
+
+  "output": {"smooth_windows": 5},
 
   "labels": {"tau_att": 4, "tau_share": 0.5, "min_labeled_students": 3,
              "exclude_self": false, "offset_s": 0.0, "students": "camera"},
@@ -69,7 +71,7 @@
         "full": {"tracker": "botsort", "sessions": "all", "max_frames": null, "n_trials": 20,
                  "fixed": {"use_embeddings": false, "use_cmc": true}},
         "full_reid_cmc": {"tracker": "botsort", "sessions": "all", "max_frames": null, "n_trials": 20,
-                          "fixed": {"use_embeddings": true, "use_cmc": true}},
+                          "fixed": {"use_embeddings": true, "use_cmc": true}, "start_from": "full"},
         "full_strongsort": {"tracker": "strongsort", "sessions": "all", "max_frames": null, "n_trials": 20,
                             "fixed": {"use_cmc": true},
                             "base_options": {"min_conf": 0.2153, "max_cos_dist": 0.3252, "max_iou_dist": 0.8583,

@@ -1,6 +1,6 @@
 """SCB behaviour-detector sanity check on DIPSER (design §11; gates trusting BFMU (c)).
 
-  python -m scripts.dipser.check_scb [--frames 12] [--conf 0.25] [--seed 0] [--set key=value ...]
+  python -m scripts.data_visualization.check_scb [--frames 12] [--conf 0.25] [--seed 0] [--set key=value ...]
 
 Samples frames from the in-scope sessions (seeded, spread over groups/experiments/cameras), runs
 every SCB model configured in the `scb` BFMU entry, and writes one annotated image per frame to

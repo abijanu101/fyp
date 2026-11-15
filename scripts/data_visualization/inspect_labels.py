@@ -1,6 +1,6 @@
 """Inspect attention labels before choosing label thresholds (design §8.1, §11 Labels).
 
-  python -m scripts.dipser.inspect_labels [--set window.length_s=8 ...]
+  python -m scripts.data_visualization.inspect_labels [--set window.length_s=8 ...]
 
 Thresholds are chosen from the label distribution and agreement, not by optimising model scores
 (that would let the model pick its own target). Reports, over in-scope session-cameras:

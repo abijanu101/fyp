@@ -50,8 +50,7 @@ def filter_visible(tracklets: list[Tracklet], frame_t: np.ndarray, fps: float,
         missing_s = (np.diff(pos) - 1) / fps
         cuts = np.flatnonzero(missing_s > max_gap_s) + 1
         for idx in np.split(np.arange(len(tr.t)), cuts):
-            piece = Tracklet(tr.tid, tr.t[idx], tr.xyxy[idx], tr.conf[idx], tr.velocity[idx],
-                             {k: v[idx] for k, v in tr.signals.items()})
+            piece = tr.take(idx)
             if len(idx) / fps >= min_visible_s:              # cumulative visible duration
                 out.append(piece)
     return out

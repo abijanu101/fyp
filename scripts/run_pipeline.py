@@ -28,7 +28,7 @@ from src.core.pipeline import Pipeline, feature_hash, to_frame, to_track_frame, 
 from src.core.store import load_track, save_track
 from src.core.types import SessionKey
 from src.datasets import DipserIndex
-from src.ingestion import aug_tag
+from src.ingestion import aug_tag, sample_augmentation
 from src.output import write_graph_json, write_graph_png, write_manifest
 
 
@@ -49,14 +49,14 @@ def session_stem(key: SessionKey) -> str:
 
 
 def session_track(pipe: Pipeline, index: DipserIndex, key: SessionKey, reuse: bool,
-                  stem: str | None = None, zip_path: Path | None = None):
+                  stem: str | None = None, augment: dict | None = None):
     """Run the session's frame pass and cache it as <stem>.npz; with reuse, load an existing cache
-    entry instead. zip_path: read frames from there (an augmented copy) instead of the original.
+    entry instead. augment: an augmented copy's parameters, applied as frames are read (never written).
     Returns (track, was_cached)."""
     path = tracks_dir(pipe.cfg) / f"{stem or session_stem(key)}.npz"
     if reuse and path.exists():
         return load_track(path), True
-    st = pipe.track(zip_path or index.frames_zip(key), key)
+    st = pipe.track(index.frames_zip(key), key, augment)
     save_track(st, path)
     return st, False
 
@@ -79,16 +79,12 @@ def cmd_extract(cfg: dict, session: str | None, reuse: bool) -> None:
         if reuse and (out / f"{stem}.csv").exists() and (out / f"{stem}.tracks.csv").exists():
             print(f"[{i}/{len(jobs)}] {label}: features cached")
             continue
-        zip_path = params = None
-        if copy is not None:                                 # read the materialised copy (made if missing)
-            from scripts.augment_dataset import ensure_session
-            zip_path, params = ensure_session(cfg, key, copy)
-        st, cached = session_track(pipe, index, key, reuse, stem, zip_path)
+        params = None if copy is None else sample_augmentation(aug, str(key), copy)   # augmented on the fly
+        st, cached = session_track(pipe, index, key, reuse, stem, params)
         feats = pipe.features(st)
         feats.manifest["frame_pass_cached"] = cached
         if params is not None:
-            feats.manifest["augmentation"] = {**params, "tag": aug_tag(aug, copy), "frame_wh": list(st.frame_wh),
-                                              "source": str(zip_path)}
+            feats.manifest["augmentation"] = {**params, "tag": aug_tag(aug, copy), "frame_wh": list(st.frame_wh)}
         (out / f"{stem}.manifest.json").write_text(json.dumps(feats.manifest, indent=2, default=str),
                                                    encoding="utf-8")
         to_track_frame(feats).to_csv(out / f"{stem}.tracks.csv", index=False)   # per-student rows (late aggregation)
@@ -111,7 +107,7 @@ def cmd_infer(cfg: dict, zip_path: str, models_path: str, out_dir: str) -> None:
     records = pipe.predict(feats, models)
     write_graph_json(records, out)
     if records:
-        write_graph_png(records, out)
+        write_graph_png(records, out, cfg["output"]["smooth_windows"])
     write_manifest({**feats.manifest, "config": cfg, "models": models_path,
                     "label_offset_s": cfg["labels"]["offset_s"]}, out)
     print(f"wrote {len(records)} windows to {out}")

@@ -26,5 +26,3 @@ class Registry:
             raise KeyError(f"Unknown {self.kind} '{name}'. Registered: {sorted(self._items)}")
         return self._items[name]
 
-    def names(self) -> list[str]:
-        return sorted(self._items)

@@ -62,14 +62,14 @@ class TestAssociation(unittest.TestCase):
         a = moving_tracklet(1, vx=0.0, x0=100)
         b = moving_tracklet(2, vx=0.0, x0=400)
         far = moving_tracklet(3, vx=0.0, x0=900)
-        self.assertEqual(associate_sids([a, b, far], subjects), {1: "subject_01", 2: "subject_02"})
+        self.assertEqual(associate_sids([a, b, far], subjects, 0.3, 0.5), {1: "subject_01", 2: "subject_02"})
 
     def test_walker_passing_a_student_stays_unassociated(self):
         subjects = {"subject_01": np.array([100, 100, 150, 200.0])}
         student = moving_tracklet(1, vx=0.0, x0=100)
         walker = moving_tracklet(9, n=40, vx=50.0, x0=0)   # sweeps across the student's box for a few frames
-        self.assertEqual(associate_sids([student, walker], subjects), {1: "subject_01"})
-        self.assertIn(9, associate_sids([walker], subjects, min_match_share=0.0))   # the old behaviour
+        self.assertEqual(associate_sids([student, walker], subjects, 0.3, 0.5), {1: "subject_01"})
+        self.assertIn(9, associate_sids([walker], subjects, 0.3, 0.0))   # the old behaviour
 
 
 class TestKalmanGeometry(unittest.TestCase):

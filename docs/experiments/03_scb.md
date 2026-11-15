@@ -72,7 +72,7 @@ The loaded model: YOLOv7, 37.2M parameters, classes `['hand-raising', 'read', 'w
 
 ## 4. The DIPSER sanity check (§11)
 
-`python -m scripts.dipser.check_scb` samples 12 frames across the in-scope sessions (seed 0), runs
+`python -m scripts.data_visualization.check_scb` samples 12 frames across the in-scope sessions (seed 0), runs
 the model at confidence 0.25, and writes annotated images and per-frame counts to
 `outputs/scb_check/`. Person-detector boxes are drawn thin grey for reference.
 
@@ -169,8 +169,8 @@ experts' coefficients will show it.
 
 ## 6. Tools
 
-- **`python -m scripts.dipser.check_scb`**: the §11 sample check above.
-- **`python -m scripts.dipser.scb_viewer <group> <experiment> <camera>`**: plays a camera with SCB
+- **`python -m scripts.data_visualization.check_scb`**: the §11 sample check above.
+- **`python -m scripts.data_visualization.scb_viewer <group> <experiment> <camera>`**: plays a camera with SCB
   boxes drawn live, a confidence slider per class, a per-class timeline of detections, and person
   boxes on `p`. Frames are analysed once at a low confidence floor and cached, so sliders and
   scrubbing are instant. Used to pick per-class thresholds by eye.

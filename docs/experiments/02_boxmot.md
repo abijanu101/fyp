@@ -10,6 +10,16 @@ head-to-head on ID switches, fragmentation and downstream usefulness. The winner
 default; the other stays selectable. Tracks feed the per-student features (BFMU), so tracking
 errors propagate into every downstream number.
 
+**Experiments in this document** (all on the 52 in-scope sessions, every frame):
+
+| | Experiment | Status | Headline |
+|---|---|---|---|
+| D1 | Detector: full grid scan of the confidence threshold, clean data (§3) | done | 0.22 drops no student; mean recall 0.994 |
+| D2 | Detector: binary search for the optimal threshold, clean data (§3) | done | 0.166 keeps every student within 10 points of the floor |
+| D3 | Detector: binary search under on-the-fly augmentation (§3) | running | |
+| T1 | Trackers on clean data: BoT-SORT without ReID, StrongSORT; random search, 20 trials (§6) | StrongSORT done, BoT-SORT 18/20 | BoT-SORT 0.905 IDF1, StrongSORT 0.878 |
+| T2 | Trackers on augmented data: BoT-SORT, BoT-SORT + ReID + CMC, StrongSORT; beam bisection (§6) | to be run | |
+
 ## 2. Phase 1: validation notebook (`notebooks/dipser_tracking.ipynb`)
 
 The first pass ran BoxMOT's own detector and tracker on one camera, end to end, to check that the
@@ -38,67 +48,100 @@ to the person class, at 640 px input and FP16 (`src/detection/detector.py`). Usi
 directly rather than BoxMOT's detector wrapper keeps the detector independent of the tracking
 library, so both trackers see identical detections.
 
-### Is the confidence threshold dropping students? (verified: no)
+### Is the confidence threshold dropping students? Detector experiments D1–D3
 
 `detector.conf` (0.22) is the only confidence filter before tracking: BoxMOT's `det_thresh` is
 stored but never read by BoT-SORT or StrongSORT (BoxMOT 26: only `trackers/common/base.py:188`
 assigns it), so it was removed from the config and from tuning. The detector threshold is therefore
 the setting to check, and it can be checked without any tracker.
 
-`scripts/scan_detector.py` takes the detections cached for tuning (every frame of all 52 sessions,
-at a 0.05 floor), keeps those at or above each threshold, and matches them per frame one-to-one to
-the manual student boxes (Hungarian, IoU ≥ 0.3, the tracker-scoring rule). Per student, recall is
-the share of frames in which they are matched. The floor is the reference: a student missed even
-at 0.05 is not lost to the threshold.
+**Method, shared by D1–D3** (`scripts/scan_detector.py`). Detections at a 0.05 confidence floor
+are kept for every frame. For a threshold, each frame's boxes at or above it are matched one-to-one
+to the manual student boxes (Hungarian on IoU ≥ 0.3, the tracker-scoring rule). Per student,
+**recall** is the share of frames in which they are matched; the floor is the reference, since a
+student missed even at 0.05 is not lost to the threshold. Columns:
 
-| Threshold | Mean recall | 10th percentile | Lowest | Never detected | Below 50% | Lost > 10 pts vs floor | Lost > 25 pts |
-|---|---|---|---|---|---|---|---|
-| 0.05 (floor) | 0.999 | 0.995 | 0.939 | 0 | 0 | 0 | 0 |
-| 0.15 | 0.997 | 0.990 | 0.926 | 0 | 0 | 0 | 0 |
-| 0.20 | 0.995 | 0.988 | 0.770 | 0 | 0 | 2 | 0 |
-| **0.22 (config)** | **0.994** | **0.987** | **0.699** | **0** | **0** | **3** | **1** |
-| 0.25 | 0.992 | 0.982 | 0.594 | 0 | 0 | 7 | 2 |
-| 0.30 | 0.986 | 0.969 | 0.442 | 0 | 2 | 21 | 3 |
-| 0.40 | 0.952 | 0.882 | 0.090 | 0 | 15 | 68 | 38 |
-| 0.50 | 0.873 | 0.568 | 0.002 | 0 | 56 | 170 | 105 |
-| 0.60 | 0.727 | 0.118 | 0.000 | 6 | 142 | 325 | 227 |
+- *never detected*, *below 50%*: students with recall 0, and below 0.5;
+- *largest drop*: the largest loss of one student's recall against the floor;
+- *lost > 10 / 25 pts*: students losing more than 10 / 25 points against the floor;
+- *unmatched boxes*: kept boxes that match no annotated student (teachers, TAs, false positives),
+  the price of a lower threshold.
 
-621 student-sessions (each annotated student in each of the 52 sessions); full table in
-`outputs/tuning/detector_scan.csv`, per student in `detector_scan_students.csv`.
+#### D1. Full grid scan, clean data
+
+All 52 sessions, every frame, 621 student-sessions (each annotated student in each session), 12
+thresholds. `python -m scripts.scan_detector --grid`; `outputs/tuning/detector_scan.csv`, per
+student in `detector_scan_students.csv`.
+
+| Threshold | Mean recall | 10th pct | Lowest | Never detected | Below 50% | Largest drop | Lost > 10 pts | Lost > 25 pts | Unmatched boxes |
+|---|---|---|---|---|---|---|---|---|---|
+| 0.05 (floor) | 0.999 | 0.995 | 0.939 | 0 | 0 | 0.000 | 0 | 0 | 41.1% |
+| 0.10 | 0.998 | 0.992 | 0.931 | 0 | 0 | 0.038 | 0 | 0 | 29.9% |
+| 0.15 | 0.997 | 0.990 | 0.926 | 0 | 0 | 0.067 | 0 | 0 | 24.3% |
+| 0.18 | 0.996 | 0.989 | 0.845 | 0 | 0 | 0.155 | 2 | 0 | 21.9% |
+| 0.20 | 0.995 | 0.988 | 0.770 | 0 | 0 | 0.230 | 2 | 0 | 20.4% |
+| **0.22 (config)** | **0.994** | **0.987** | **0.699** | **0** | **0** | **0.301** | **3** | **1** | **19.1%** |
+| 0.25 | 0.992 | 0.982 | 0.594 | 0 | 0 | 0.406 | 7 | 2 | 17.3% |
+| 0.30 | 0.986 | 0.969 | 0.442 | 0 | 2 | 0.558 | 21 | 3 | 14.5% |
+| 0.35 | 0.973 | 0.942 | 0.215 | 0 | 4 | 0.785 | 43 | 20 | 11.9% |
+| 0.40 | 0.952 | 0.882 | 0.090 | 0 | 15 | 0.903 | 68 | 38 | 9.3% |
+| 0.50 | 0.873 | 0.568 | 0.002 | 0 | 56 | 0.996 | 170 | 105 | 5.5% |
+| 0.60 | 0.727 | 0.118 | 0.000 | 6 | 142 | 1.000 | 325 | 227 | 3.3% |
 
 **At 0.22 no student is dropped**: every one is detected, none in fewer than half the frames, and
-the mean is within 0.005 of the floor. Three students lose more than 10 percentage points against
-the floor, the largest `subject_11` in `group_02/experiment_06/context_cam_01` (0.70 against 1.0
-at the floor); these are partial losses of a hard-to-see student, not drops. Below 0.25 the curve
-is flat, so the threshold sits on the plateau and a finer search (e.g. bisection) would not change
-the conclusion. Above 0.30 losses grow quickly.
-
-**Binary search for the optimal threshold** (`python -m scripts.scan_detector`, the default mode;
-`outputs/tuning/detector_search.{csv,json}`). Criterion: no student undetected, none detected in
-fewer than half their frames, none losing more than 10 points against the floor. Eight probes:
-
-| Threshold | Keeps every student | Mean recall | Lowest | Largest drop | Unmatched boxes |
-|---|---|---|---|---|---|
-| 0.1625 | yes | 0.997 | 0.914 | 0.086 | 23.2% |
-| **0.1660 (optimal)** | **yes** | 0.997 | 0.903 | 0.097 | 23.0% |
-| 0.1695 | no | 0.997 | 0.886 | 0.114 | 22.7% |
-| 0.2188 | no | 0.995 | 0.701 | 0.299 | 19.1% |
-| 0.2750 | no | 0.990 | 0.533 | 0.467 | 15.9% |
-| 0.5000 | no | 0.873 | 0.002 | 0.996 | 5.5% |
-
-The highest threshold that keeps every student within 10 points of the floor is **0.166**. The
-configured 0.22 fails this stricter criterion because of a single student (`subject_11`,
-`group_02/experiment_06/context_cam_01`, 0.70 against 1.0 at the floor); every other student is
-within 10 points. The trade-off is visible in the last column: going from 0.22 to 0.166 keeps that
-student but adds 4 points of boxes that match no annotated student (teachers, TAs, false
-positives), which the tracker then has to handle. The tracker search chose its `det_conf` on IDF1,
-which weighs both; the detector search isolates the recall side. Whether to lower `detector.conf`
-is therefore a tracking question: the full-dataset tracker searches decide it.
+the mean is within 0.005 of the floor. Three students lose more than 10 points against the floor,
+the largest `subject_11` in `group_02/experiment_06/context_cam_01` (0.70 against 1.0 at the floor):
+partial losses of a hard-to-see student, not drops. Up to about 0.25 the mean barely moves; above
+0.30 students start to be lost quickly. The last column is the other side of the trade-off: at the
+floor 41% of boxes are not students, at 0.22 19%.
 
 The table also quantifies a hazard: StrongSORT's own `min_conf` filter defaults to **0.6**, where
 6 students are never detected and 142 are detected in under half their frames. The full StrongSORT
-experiment therefore starts from the quick-tuned values (`min_conf` 0.2153; §7), not BoxMOT's
+experiment therefore starts from the quick-tuned values (`min_conf` 0.2153; T1), not BoxMOT's
 defaults.
+
+#### D2. Binary search for the optimal threshold, clean data
+
+Same 52 sessions, every frame, 621 student-sessions. `python -m scripts.scan_detector` (the
+default mode); `outputs/tuning/detector_search.{csv,json}`. Criterion for "keeps every student":
+none undetected, none below 50%, none losing more than 10 points against the floor. Recall only
+falls as the threshold rises, so the criterion is monotone and bisection over [0.05, 0.95] finds
+the highest threshold that meets it; the search stops at a width of 0.005. Every probe:
+
+| Threshold | Keeps every student | Mean recall | Lowest | Largest drop | Lost > 10 pts | Unmatched boxes |
+|---|---|---|---|---|---|---|
+| 0.0500 (floor) | yes | 0.999 | 0.939 | 0.000 | 0 | 41.1% |
+| 0.1625 | yes | 0.997 | 0.914 | 0.086 | 0 | 23.2% |
+| **0.1660 (optimal)** | **yes** | **0.997** | **0.903** | **0.097** | **0** | **23.0%** |
+| 0.1695 | no | 0.997 | 0.886 | 0.114 | 1 | 22.7% |
+| 0.1765 | no | 0.996 | 0.856 | 0.144 | 1 | 22.1% |
+| 0.1906 | no | 0.996 | 0.808 | 0.192 | 2 | 21.1% |
+| 0.2188 | no | 0.995 | 0.701 | 0.299 | 3 | 19.1% |
+| 0.2750 | no | 0.990 | 0.533 | 0.467 | 12 | 15.9% |
+| 0.5000 | no | 0.874 | 0.002 | 0.996 | 170 | 5.5% |
+
+The highest threshold that keeps every student within 10 points of the floor is **0.166**. The
+configured 0.22 fails this stricter criterion because of the single student named in D1; every
+other student is within 10 points. Lowering `detector.conf` from 0.22 to 0.166 would keep that
+student but add 4 points of boxes that are not students, which the tracker then has to handle. The
+tracker searches choose `det_conf` on IDF1, which weighs both sides; the detector search isolates
+the recall side. Whether to lower `detector.conf` is therefore settled by the tracker experiments.
+
+#### D3. Binary search under augmentation (running)
+
+The detector is a single point of failure, so it is also tested on degraded footage: all 52
+sessions, **every frame augmented on the fly 5–10 times**, each variant with its own independently
+drawn parameters from the config's `augmentation` (brightness ±35, contrast ±15%, saturation ±20%,
+hue ±3°, gamma 1/1.15–1.15, Gaussian or speckle noise up to 0.35, horizontal flip with p 0.5, grey
+occluders with p 0.5), each detected at the floor, student boxes mirrored for flipped variants.
+About 560,000 images; only the detections are kept, per session, for resuming. The floor reference
+is the augmented variants' own floor detections. `python -m scripts.scan_detector --augment
+--workers 4`; `outputs/tuning/detector_search_augmented.{csv,json}`.
+
+| | Optimal threshold | Configured 0.22 keeps every student | Mean recall at 0.22 | Lowest at 0.22 | Unmatched boxes at 0.22 |
+|---|---|---|---|---|---|
+| D2, clean | 0.166 | no (one student) | 0.994 | 0.699 | 19.1% |
+| D3, augmented | *running* | *running* | | | |
 
 ### Tracker wrapper
 
@@ -155,7 +198,7 @@ the one-to-one assignment.
   its own `det_conf`, so detector confidence is tuned jointly with the tracker at no extra cost,
   and only the tracker re-runs.
 - **Search method.** The first scans (quick profiles and the three full-dataset experiments of
-  §7) used a **seeded random search**: trial 0 is the starting configuration, every other trial
+  T1) used a **seeded random search**: trial 0 is the starting configuration, every other trial
   draws each parameter independently from the space. From 15 November 2026 the default is a
   **beam bisection search** (guide §8.5), now run with `--randomize` to get the random search:
   - starting point: the winner of the same profile's random search;
@@ -175,8 +218,8 @@ the one-to-one assignment.
   on/off). For StrongSORT: `det_conf`, `min_conf`, `max_cos_dist`, `max_iou_dist`, `max_age` (log
   scale), `n_init`, `use_cmc`.
 - **Augmented data.** `--augment [COPY]` runs any profile on augmented copy COPY of the dataset
-  (`scripts/augment_dataset.py`: one fixed colour, brightness, noise, flip and occlusion setting per
-  session copy; boxes mirrored where flipped), with its own detection and ReID caches and result
+  (augmented on the fly: one fixed colour, brightness, noise, flip and occlusion setting per
+  session copy, reproducible from its seed; boxes mirrored where flipped), with its own detection and ReID caches and result
   files. This compares the trackers' robustness on the same sessions under worse footage.
 - **Profiles**:
   - `quick`: 3 sessions, one per group (`group_01/experiment_03/context_cam_02`,
@@ -185,13 +228,12 @@ the one-to-one assignment.
   - `full`: BoT-SORT, all 52 sessions, all frames, 20 trials, ReID fixed **off**, CMC fixed **on**;
   - `full_reid_cmc`: BoT-SORT, all 52 sessions, 20 trials, ReID and CMC fixed **on**;
   - `full_strongsort`: StrongSORT, all 52 sessions, 20 trials, CMC fixed **on**; trial 0 runs the
-    quick-tuned StrongSORT values (`base_options`), not BoxMOT's defaults (§7).
+    quick-tuned StrongSORT values (`base_options`), not BoxMOT's defaults (T1).
 
   CMC is on in every full-dataset trial, so every trial decodes real frames and no result depends
   on the blank-frame shortcut. The only remaining shortcut is the ReID embedding cache, verified
   with decoded frames and CMC on (StrongSORT 42 vs 42 tracks, BoT-SORT with ReID 16 vs 16).
-  An earlier CMC-off run of `full` was stopped at 16 of 40 trials
-  (`outputs/tuning/old/partial_botsort_full_cmc_off_16trials.log`).
+  An earlier CMC-off run of `full` was stopped at 16 of 40 trials when CMC was fixed on.
 - **Blank-frame shortcut**: BoxMOT's tracker takes the image as input, but with ReID and CMC off
   BoT-SORT never reads it. Trials therefore pass a blank frame instead of decoding PNGs, cutting a
   full-dataset trial from about 35 minutes to about 2. **Verified**: the check produced identical
@@ -209,154 +251,141 @@ average, 25–85 MB).
 
 ## 6. Results
 
-### 6.1 BoT-SORT, quick profile
+### T1. Clean data: BoT-SORT and StrongSORT, full dataset
 
-| | IDF1 | Coverage | ID switches / subject | Track ids / subject |
-|---|---|---|---|---|
-| BoxMOT defaults + detector conf 0.30 (trial 0) | 0.908 | 0.88 | 0.18 | 1.11 |
-| **Best of 25 trials** | **0.950** | 0.92 | 0.14 | 1.04 |
+Starting values for both came from earlier random searches on three 60-second clips (`quick`
+profile, 25 trials): BoT-SORT went from 0.908 to 0.950 IDF1 there, StrongSORT from 0.851 to 0.932,
+and BoT-SORT with ReID reached 0.940 at about 60× the tracking cost of motion-only BoT-SORT. The
+full-dataset searches below supersede those clips.
 
-Best parameters (now in `configs/deliverable3.json`):
+**Setup.** All 52 sessions, every frame, scored against the manual boxes (§4). Seeded random search,
+20 trials each; trial 0 is the starting configuration. CMC fixed on for both (every trial decodes
+real frames). BoT-SORT without ReID (`full`); StrongSORT, which always uses ReID
+(`full_strongsort`), starting from its quick-tuned values. Scores are means over the 52 sessions,
+per group in G01–G03; they select on the same data, so they compare configurations rather than
+estimate held-out quality.
+
+**Summary.**
+
+| | BoT-SORT, no ReID | StrongSORT |
+|---|---|---|
+| Status | 18 of 20 trials complete (final values to be filled in) | complete |
+| Trial 0 (starting values) IDF1 | 0.888 | 0.843 |
+| **Best IDF1** | **0.905** (trial 6) | **0.878** (trial 14) |
+| Best, per group G01 / G02 / G03 | 0.876 / 0.922 / 0.917 | 0.836 / 0.907 / 0.894 |
+| Best: coverage | 0.968 | 0.946 |
+| Best: ID switches per subject | 1.04 | 9.26 |
+| Best: track ids per subject | 1.40 | 1.77 |
+| Median IDF1 over trials (IQR) | 0.826 (0.783–0.877) | 0.825 (0.781–0.856) |
+| Trials within 0.01 of the best | 2 (trials 6, 17) | 4 (trials 14, 8, 13, 6) |
+| Tracking cost per frame | ~2 ms | ~120–165 ms (ReID) |
+
+**BoT-SORT without ReID, every trial** (`outputs/tuning/tracker_botsort_full.sessions.jsonl`;
+the run was restarted with `--fresh` after `det_thresh` was removed from the configuration, and its
+trials 0–10 reproduced the earlier run's numbers exactly, confirming `det_thresh` had no effect):
+
+| Trial | IDF1 | G01 | G02 | G03 | Coverage | Switches / subj | Track ids / subj | det_conf | high | low | new | match | max_lost |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0.888 | 0.857 | 0.918 | 0.890 | 0.900 | 0.736 | 1.275 | 0.220 | 0.250 | 0.210 | 0.670 | 0.800 | 17 |
+| 1 | 0.697 | 0.656 | 0.738 | 0.702 | 0.839 | 3.911 | 3.652 | 0.208 | 0.503 | 0.232 | 0.607 | 0.518 | 10 |
+| 2 | 0.726 | 0.688 | 0.753 | 0.741 | 0.813 | 1.833 | 2.570 | 0.474 | 0.565 | 0.094 | 0.629 | 0.867 | 10 |
+| 3 | 0.835 | 0.779 | 0.870 | 0.861 | 0.908 | 2.056 | 1.976 | 0.317 | 0.535 | 0.212 | 0.214 | 0.635 | 31 |
+| 4 | 0.881 | 0.849 | 0.895 | 0.902 | 0.922 | 0.975 | 1.498 | 0.254 | 0.544 | 0.147 | 0.543 | 0.949 | 142 |
+| 5 | 0.753 | 0.716 | 0.789 | 0.757 | 0.782 | 1.146 | 1.906 | 0.389 | 0.667 | 0.139 | 0.443 | 0.736 | 23 |
+| **6** | 0.905 | 0.876 | 0.922 | 0.917 | 0.968 | 1.042 | 1.404 | 0.229 | 0.314 | 0.206 | 0.396 | 0.767 | 25 |
+| 7 | 0.858 | 0.829 | 0.875 | 0.872 | 0.886 | 1.192 | 1.487 | 0.433 | 0.368 | 0.088 | 0.638 | 0.854 | 19 |
+| 8 | 0.794 | 0.740 | 0.835 | 0.813 | 0.892 | 3.226 | 2.554 | 0.418 | 0.245 | 0.195 | 0.402 | 0.604 | 12 |
+| 9 | 0.813 | 0.764 | 0.849 | 0.829 | 0.897 | 3.055 | 2.146 | 0.369 | 0.515 | 0.282 | 0.383 | 0.590 | 128 |
+| 10 | 0.719 | 0.676 | 0.758 | 0.726 | 0.727 | 1.297 | 2.043 | 0.482 | 0.674 | 0.165 | 0.510 | 0.725 | 32 |
+| 11 | 0.876 | 0.833 | 0.902 | 0.896 | 0.911 | 1.026 | 1.518 | 0.299 | 0.556 | 0.283 | 0.407 | 0.738 | 84 |
+| 12 | 0.779 | 0.739 | 0.813 | 0.789 | 0.750 | 0.743 | 1.471 | 0.392 | 0.691 | 0.289 | 0.207 | 0.917 | 138 |
+| 13 | 0.811 | 0.768 | 0.833 | 0.834 | 0.811 | 1.170 | 1.738 | 0.489 | 0.601 | 0.281 | 0.440 | 0.900 | 93 |
+| 14 | 0.878 | 0.833 | 0.908 | 0.896 | 0.923 | 1.363 | 1.565 | 0.316 | 0.507 | 0.057 | 0.220 | 0.699 | 124 |
+| 15 | 0.839 | 0.791 | 0.881 | 0.849 | 0.849 | 0.749 | 1.467 | 0.106 | 0.621 | 0.067 | 0.665 | 0.841 | 40 |
+| 16 | 0.818 | 0.768 | 0.861 | 0.828 | 0.844 | 0.974 | 1.710 | 0.272 | 0.644 | 0.106 | 0.329 | 0.935 | 46 |
+| 17 | 0.904 | 0.878 | 0.922 | 0.914 | 0.940 | 0.937 | 1.343 | 0.215 | 0.344 | 0.153 | 0.605 | 0.764 | 45 |
+
+Best parameters (trial 6): `det_conf 0.229, track_high_thresh 0.314, track_low_thresh 0.206,
+new_track_thresh 0.396, match_thresh 0.767, max_lost_frames 25`. Trial 17 (0.904) is a near tie with
+a lower `det_conf` (0.215) and longer memory (`max_lost_frames` 45).
+
+**StrongSORT, every trial** (`outputs/tuning/tracker_strongsort_full_strongsort.{csv,json}`; trial
+0 re-ran at the quick-tuned values after an earlier trial 0 at BoxMOT's defaults scored 0.715,
+because `min_conf` 0.6 drops students, D1):
+
+| Trial | IDF1 | G01 | G02 | G03 | Coverage | Switches / subj | Track ids / subj | det_conf | min_conf | max_cos | max_iou | max_age | n_init |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0.843 | 0.804 | 0.854 | 0.873 | 0.992 | 3.878 | 1.947 | 0.220 | 0.215 | 0.325 | 0.858 | 15 | 3 |
+| 1 | 0.723 | 0.669 | 0.758 | 0.745 | 0.863 | 8.228 | 5.574 | 0.355 | 0.507 | 0.120 | 0.507 | 21 | 2 |
+| 2 | 0.843 | 0.797 | 0.864 | 0.869 | 0.863 | 5.340 | 1.930 | 0.343 | 0.508 | 0.372 | 0.921 | 72 | 3 |
+| 3 | 0.816 | 0.772 | 0.831 | 0.847 | 0.996 | 10.708 | 2.959 | 0.101 | 0.188 | 0.117 | 0.828 | 102 | 1 |
+| 4 | 0.853 | 0.795 | 0.883 | 0.884 | 0.979 | 5.683 | 2.264 | 0.317 | 0.162 | 0.311 | 0.513 | 23 | 3 |
+| 5 | 0.750 | 0.695 | 0.796 | 0.764 | 0.728 | 3.652 | 2.220 | 0.368 | 0.599 | 0.408 | 0.673 | 58 | 3 |
+| 6 | 0.872 | 0.821 | 0.902 | 0.896 | 0.962 | 8.058 | 2.038 | 0.374 | 0.168 | 0.444 | 0.675 | 58 | 3 |
+| 7 | 0.783 | 0.730 | 0.818 | 0.805 | 0.821 | 7.468 | 3.550 | 0.389 | 0.545 | 0.255 | 0.719 | 41 | 1 |
+| 8 | 0.877 | 0.845 | 0.882 | 0.904 | 0.988 | 5.198 | 1.767 | 0.243 | 0.269 | 0.261 | 0.767 | 47 | 3 |
+| 9 | 0.865 | 0.826 | 0.870 | 0.900 | 0.991 | 9.676 | 1.979 | 0.257 | 0.142 | 0.214 | 0.780 | 111 | 2 |
+| 10 | 0.834 | 0.779 | 0.869 | 0.858 | 0.941 | 5.163 | 2.655 | 0.415 | 0.268 | 0.538 | 0.526 | 19 | 3 |
+| 11 | 0.804 | 0.755 | 0.830 | 0.832 | 0.996 | 11.095 | 2.557 | 0.160 | 0.126 | 0.498 | 0.604 | 34 | 2 |
+| 12 | 0.803 | 0.743 | 0.844 | 0.827 | 0.929 | 4.887 | 3.293 | 0.179 | 0.436 | 0.390 | 0.634 | 13 | 2 |
+| 13 | 0.875 | 0.834 | 0.902 | 0.891 | 0.943 | 10.331 | 1.796 | 0.180 | 0.415 | 0.283 | 0.547 | 128 | 3 |
+| **14** | 0.878 | 0.836 | 0.907 | 0.894 | 0.946 | 9.256 | 1.766 | 0.276 | 0.410 | 0.350 | 0.691 | 133 | 3 |
+| 15 | 0.850 | 0.796 | 0.887 | 0.871 | 0.877 | 9.073 | 1.868 | 0.498 | 0.349 | 0.330 | 0.841 | 131 | 2 |
+| 16 | 0.753 | 0.700 | 0.797 | 0.768 | 0.785 | 4.396 | 2.956 | 0.414 | 0.566 | 0.467 | 0.820 | 31 | 2 |
+| 17 | 0.776 | 0.724 | 0.795 | 0.810 | 0.997 | 19.663 | 3.710 | 0.146 | 0.107 | 0.564 | 0.936 | 72 | 1 |
+| 18 | 0.802 | 0.750 | 0.832 | 0.828 | 0.815 | 6.947 | 2.218 | 0.492 | 0.545 | 0.174 | 0.938 | 134 | 3 |
+| 19 | 0.766 | 0.721 | 0.789 | 0.791 | 0.789 | 3.893 | 2.656 | 0.429 | 0.562 | 0.216 | 0.861 | 37 | 3 |
+
+Best parameters (trial 14): `det_conf 0.276, min_conf 0.410, max_cos_dist 0.350, max_iou_dist
+0.691, max_age 133, n_init 3`. The best trials all keep a lost track for a long time (`max_age`
+47–133 frames, 9–27 s) and confirm a track only after 3 hits.
+
+**Reading.**
+
+- **BoT-SORT without ReID wins on IDF1** (0.905 against 0.878), in every group, at a small
+  fraction of StrongSORT's cost.
+- **StrongSORT's identities flicker.** It switches a student's matched track id 4–20 times per
+  session across trials (9.3 for its best), against about 1 for BoT-SORT, at similar or higher
+  coverage: the box stays on the right person, but the id attached to it changes back and forth.
+  IDF1 forgives part of this (the one-to-one mapping keeps the largest share); the feature pass
+  does not, since each switch cuts a student's time series.
+- **The optimum is a plateau, not a point.** The best two or four trials of each search lie
+  within 0.01 of each other with different parameters: the bisection refinement (T2) starts from
+  the winners rather than expecting large gains.
+
+### T2. Augmented data: BoT-SORT, BoT-SORT with ReID and CMC, StrongSORT (to be run)
+
+**Setup.** The same 52 sessions on augmented copy 1 (one fixed setting per session copy: colour,
+brightness ±35, gamma, sensor noise up to 0.35, horizontal flip with p 0.5, grey occluders with
+p 0.5; boxes mirrored where flipped; §5). Beam bisection search, beam 2, one level each (§5).
+Each search's trial 0 is its starting point scored on augmented data, which alone measures how much
+each tuned tracker degrades on worse footage.
+
+| Tracker | Profile | Starts from | Trials (one level) | Clean IDF1 of the start | Trial 0 on augmented | Best on augmented | Change vs clean |
+|---|---|---|---|---|---|---|---|
+| BoT-SORT, no ReID | `full` | its T1 winner | 26 | 0.905 | *to be run* | | |
+| BoT-SORT + ReID + CMC | `full_reid_cmc` | **vanilla BoT-SORT's** T1 winner | 34 | 0.905 (as vanilla) | *to be run* | | |
+| StrongSORT | `full_strongsort` | its T1 winner | 22 | 0.878 | *to be run* | | |
+
+A clean BoT-SORT + ReID search was started and stopped before its first trial completed (15
+November 2026): its only purpose was a starting point, and vanilla BoT-SORT's winner serves.
 
 ```
-detector.conf 0.22      track_high_thresh 0.25   track_low_thresh 0.21   new_track_thresh 0.67
-match_thresh 0.80       max_lost_frames 17       proximity_thresh 0.48   appearance_thresh 0.55
-use_embeddings false    use_cmc false
+python -m scripts.tune_tracker --profile full --augment 1 --trials 26
+python -m scripts.tune_tracker --profile full_reid_cmc --augment 1 --trials 34
+python -m scripts.tune_tracker --profile full_strongsort --augment 1 --trials 22
 ```
 
-97% of annotated students were found. Trials 6, 16 and 22 scored within 0.013 of the best, so
-the optimum is better described as a cluster of similar configurations than a single point.
+With CMC on, a full-dataset trial takes about an hour, so one level is about a day per tracker
+(`--beam 1` halves it). Results: `outputs/tuning/tracker_<tracker>_<profile>_<aug tag>_bisect.{csv,json}`.
 
-### 6.2 Does ReID help? (quick profile, same search)
+## 7. Tracker decision
 
-ReID was a search parameter, so trials with and without it ran on identical footage and
-detections:
-
-| | ReID off (13 trials) | ReID on (11 trials) |
-|---|---|---|
-| Mean IDF1 | 0.877 | 0.918 |
-| Best IDF1 | **0.950** | 0.940 |
-| Mean ID switches per subject | 0.68 | 0.40 |
-| Tracking cost per frame | ~2 ms | ~120–165 ms |
-
-ReID makes the tracker **more forgiving of poor settings**: averaged over random configurations it
-switches ids less and scores higher. But a **well-tuned motion-only tracker matches the best ReID
-result** (0.950 vs 0.940, within noise) at about 60× less compute. In this setting (fixed cameras,
-students seated in fixed places) position and motion are enough to keep identities apart.
-
-### 6.3 StrongSORT, quick profile
-
-StrongSORT relies on ReID throughout. Tuned on the same three sessions and frames, from BoxMOT's
-defaults:
-
-| | IDF1 | Group 01 / 02 / 03 |
-|---|---|---|
-| BoxMOT defaults (trial 0) | 0.851 | 0.832 / 0.865 / 0.858 |
-| **Best of 25 trials** | **0.932** | 0.994 / 0.887 / 0.915 |
-
-Best parameters: `det_conf 0.23, max_age 15, max_cos_dist 0.33, max_iou_dist 0.86, min_conf 0.22,
-n_init 3, use_cmc true`. Group 02 was the weakest room. Unlike BoT-SORT's quick winner, the best
-StrongSORT trial had CMC **on**.
-
-### 6.4 BoT-SORT, full profile (all 52 sessions)
-
-*In progress.* The configuration from §6.1 scores **IDF1 0.888** over all 52 sessions (per group:
-0.857 / 0.918 / 0.890; coverage 0.90; 0.74 ID switches and 1.27 track ids per subject). That is
-lower than its 0.950 on the quick profile's 60-second clips: full sessions are five minutes long,
-with more occlusions, more people moving and more chances to switch ids. The 20-trial search is
-running; interim, as of 15 November 2026: 17 of 20 trials complete, best so far trial 6 at IDF1
-0.905 (coverage 0.97, 1.04 ID switches and 1.40 track ids per subject; mean over the 52 sessions,
-not a nested estimate). Final results go here.
-
-The run was restarted with `--fresh` after `det_thresh` was removed from the configuration. Its
-trials 0–10 reproduced the earlier run's numbers exactly, in every metric and on all 52 sessions:
-direct confirmation that `det_thresh` had no effect (§3).
-
-### 6.5 StrongSORT, full profile (all 52 sessions; complete)
-
-20 trials, CMC on, trial 0 = the quick-tuned StrongSORT values (§6.3, §7). Output:
-`outputs/tuning/tracker_strongsort_full_strongsort.{csv,json}`.
-
-| | IDF1 | Group 01 / 02 / 03 | Coverage | ID switches / subject | Track ids / subject |
-|---|---|---|---|---|---|
-| Trial 0 (quick-tuned values) | 0.843 | 0.804 / 0.854 / 0.873 | 0.99 | 3.9 | 1.95 |
-| **Best, trial 14** | **0.878** | 0.836 / 0.907 / 0.894 | 0.95 | 9.3 | 1.77 |
-| Runner-up, trial 8 | 0.877 | 0.845 / 0.882 / 0.904 | 0.99 | 5.2 | 1.77 |
-| *Old trial 0, BoxMOT defaults* | *0.715* | | | | |
-
-Best parameters: `det_conf 0.28, min_conf 0.41, max_cos_dist 0.35, max_iou_dist 0.69, max_age 133,
-n_init 3`. The best trials all keep a lost track for a long time (`max_age` 47–133 frames, 9–27 s)
-and confirm a track only after 3 hits.
-
-**StrongSORT's identities flicker.** Across trials it switches a student's matched track id 4–20
-times per session, against about 1 for BoT-SORT, at similar or higher coverage. The box stays on
-the right person, but the id attached to it changes back and forth. IDF1 forgives part of this
-(the one-to-one mapping keeps the largest share); the feature pass does not, since each switch cuts
-a student's time series. StrongSORT's best IDF1 is also below BoT-SORT's without ReID (0.878 against
-0.905 so far), at about 60× the per-frame tracking cost (§6.2).
-
-## 7. Tracker-level experiments on the full dataset
-
-An earlier draft dropped StrongSORT on compute grounds after the quick comparison (§6.2, §6.3). That
-decision is withdrawn until the full-dataset comparison exists. Three experiments, all on the 52
-in-scope sessions, scored identically:
-
-| # | Tracker | ReID | CMC | Profile | Status |
-|---|---|---|---|---|---|
-| 1 | BoT-SORT | off | on | `full` | running: 17 of 20 trials, best IDF1 so far 0.905 (trial 0: 0.888) |
-| 2 | StrongSORT | on (always) | on | `full_strongsort` | **complete**: best 0.878 (trial 0: 0.843), §6.5 |
-| 3 | BoT-SORT | on | on | `full_reid_cmc` | running: started 15 November 2026 |
-
-StrongSORT's old trial 0 (BoxMOT defaults) scored 0.715; that number reflects `min_conf` 0.6
-dropping students (§3), not StrongSORT's tracking.
-
-**Interim reading (two of three complete or nearly):** BoT-SORT without ReID leads, 0.905 against
-StrongSORT's 0.878, with about a tenth of StrongSORT's ID switches and at a fraction of its cost.
-Experiment 3 decides whether ReID helps BoT-SORT; if it does not beat 0.905 clearly, motion-only
-BoT-SORT is the default tracker.
-
-With CMC held on everywhere, experiments 1 and 3 differ only in ReID (same tracker), and 2 and 3
-compare the two trackers with ReID.
-
-**Every experiment starts from its best known settings.** Trial 0 of each search is a baseline:
-for BoT-SORT the quick-tuned configuration (§6.1); for StrongSORT, after a restart on 15 November
-2026, the quick-tuned StrongSORT values (§6.3), given to the profile as `base_options`. Before
-that, StrongSORT's trial 0 ran BoxMOT's defaults, including `min_conf` 0.6, which discards most
-weak detections (§3). Trials 1 and later sample every StrongSORT option and were unaffected, so
-their logged results were kept; only trial 0 re-ran.
-
-The quick-profile evidence so far: tuned motion-only BoT-SORT 0.950, best ReID-on BoT-SORT 0.940,
-tuned StrongSORT 0.932 (same three 60-second clips). ReID costs about 120–165 ms per frame against
-about 2 ms for motion-only tracking; that cost stands regardless of accuracy and must be weighed
-against the 3-minute compute target. Results and the decision go here when the runs complete.
-
-### 7.1 Planned second scans
-
-Two follow-ups, both prepared (guide §8.6), to run once experiments 1 and 3 complete:
-
-1. **Refinement by beam bisection** on the original data, from each experiment's random-search
-   winner (picked up automatically):
-
-   ```
-   python -m scripts.tune_tracker --profile full --trials 26             # one level, BoT-SORT
-   python -m scripts.tune_tracker --profile full_strongsort --trials 22  # one level, StrongSORT
-   python -m scripts.tune_tracker --profile full_reid_cmc --trials 34    # one level, BoT-SORT + ReID
-   ```
-
-   With CMC on, a full-dataset trial takes about an hour, so one level is about a day per tracker;
-   `--beam 1` halves it.
-2. **Robustness on augmented data**: each winner scored on augmented copy 1 of the same 52 sessions,
-   then optionally refined there:
-
-   ```
-   python -m scripts.tune_tracker --profile full --augment 1 --trials 1             # the winner only
-   python -m scripts.tune_tracker --profile full_strongsort --augment 1 --trials 1
-   python -m scripts.tune_tracker --profile full_reid_cmc --augment 1 --trials 1
-   ```
-
-   Compared with each winner's score on the original data, this shows which tracker degrades least
-   on worse footage. The detector side is checked the same way with
-   `python -m scripts.scan_detector --augment 1 --detect` (§3).
+Interim, on T1: **BoT-SORT without ReID** is the default tracker (it is already configured with
+quick-tuned values; the T1 winner improves on them, 0.905 against 0.888). T2 decides whether ReID
+earns its cost on degraded footage, and whether the default's parameters should move to values
+that hold up under augmentation. Apply the final winner's `config_patch` to the config, then
+re-run the frame pass.
 
 ## 8. Engineering issues encountered
 
@@ -370,8 +399,8 @@ Recorded because each cost a failed multi-hour run:
 
 ## 9. Open
 
-- Fill in §6.4 and §7 when the runs complete, choose the default tracker, and apply the winner to
-  the config.
+- Fill in T1's final BoT-SORT values (2 trials left), run T2, choose the default tracker (§7) and
+  apply the winner to the config.
 - Check whether the winner helps all three groups or only some (per-group columns in
   `outputs/tuning/tracker_botsort_full.csv`).
 - The downstream criterion in §4 (context-prediction accuracy per tracker) has not been measured;

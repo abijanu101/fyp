@@ -41,7 +41,7 @@ def containment_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 
 
 def frame_matches(tracklets: list[Tracklet], subjects: dict[str, np.ndarray],
-                  min_iou: float = 0.3) -> Iterator[tuple[float, int, list[tuple[int, str]]]]:
+                  min_iou: float) -> Iterator[tuple[float, int, list[tuple[int, str]]]]:
     """Per frame (time order): yield (t, n_track_boxes, [(tid, sid), ...]) from Hungarian IoU
     assignment of that frame's track boxes to the subject boxes, keeping pairs with IoU >= min_iou.
 
@@ -64,7 +64,7 @@ def frame_matches(tracklets: list[Tracklet], subjects: dict[str, np.ndarray],
 
 
 def associate_sids(tracklets: list[Tracklet], subjects: dict[str, np.ndarray],
-                   min_iou: float = 0.3, min_match_share: float = 0.5) -> dict[int, str]:
+                   min_iou: float, min_match_share: float) -> dict[int, str]:
     """Return {tid: sid} by per-frame assignment plus majority vote; vote ties go to the
     lexicographically first SID.
 

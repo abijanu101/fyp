@@ -3,7 +3,7 @@
 An extractor has two hooks:
   frame_signals   called once per frame with pixels and active tracks; returns per-track
                   per-frame values that are stored on the Tracklet (for pixel-based families
-                  such as residual flow and SCB3). Most extractors leave it empty.
+                  such as residual flow and SCB scores). Most extractors leave it empty.
   window_features called per visible track per window with the tracklet sliced to that
                   window; returns {key: value} for the keys in `keys`.
 """

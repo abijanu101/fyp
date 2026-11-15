@@ -1,8 +1,6 @@
 # Datasets
 data/DIPSER/DIPSEER
 data/DIPSER/dataset.json
-# augmented copies of DIPSER written by scripts/augment_dataset.py (tens of GB, regenerable)
-data/DIPSER_aug/
 
 data/ouc-cge
 data/SCB-Dataset3

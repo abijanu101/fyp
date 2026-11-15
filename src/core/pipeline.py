@@ -23,15 +23,14 @@ from ..bfmu import FEATURE_EXTRACTORS
 from ..cfmu import CLUSTER_EXTRACTORS
 from ..detection import DETECTORS
 from ..evaluation import StageTimer
-from ..experts.levels import EngagementRows, late_rows, predict_windows
-from ..ingestion import FRAME_SOURCES, timing_audit
+from ..experts.levels import EngagementRows, early_rows, late_rows, predict_windows
+from ..ingestion import FRAME_SOURCES, AugmentedZipFrameSource, timing_audit
 from ..output import build_graph
-from ..spu import SCENE_EXTRACTORS, context_probs
+from ..spu import SCENE_EXTRACTORS
 from ..tracking import TRACKERS, TrackletBuilder, filter_visible
 from .config import config_hash
-from .types import SessionFeatures, SessionKey, SessionTrack
+from .types import SCENE_PREFIX, TRACK_PREFIX, VEC_PREFIX, SessionFeatures, SessionKey, SessionTrack
 
-VEC_PREFIX, SCENE_PREFIX, TRACK_PREFIX = "vec.", "scene.", "trk."
 
 
 def _build(registry, entry: dict):
@@ -64,11 +63,8 @@ class Pipeline:
         self._detector = None
         self.extractors = [_build(FEATURE_EXTRACTORS, e) for e in cfg["bfmu"]]
         self.scene = _build(SCENE_EXTRACTORS, cfg["scene"])
-        agg = cfg["aggregation"]
-        self.aggregator = WindowAggregator(
-            self.extractors, _build(CLUSTER_EXTRACTORS, cfg["cfmu"]),
-            thresholds=agg.get("thresholds"), heatmap_grid=agg.get("heatmap_grid", 3),
-            min_coverage=agg.get("min_coverage", 0.5))
+        self.aggregator = WindowAggregator(self.extractors, _build(CLUSTER_EXTRACTORS, cfg["cfmu"]),
+                                           **cfg["aggregation"])
 
     @property
     def detector(self):
@@ -81,10 +77,18 @@ class Pipeline:
         return TRACKERS.build(self.cfg["tracker"]["name"], **self.cfg["tracker"].get("options", {}))
 
     # ------------------------------------------------------------------ frame pass
-    def track(self, path: str | Path, key: SessionKey | None = None) -> SessionTrack:
+    def track(self, path: str | Path, key: SessionKey | None = None, augment: dict | None = None) -> SessionTrack:
+        """augment: one augmented copy's parameters (`sample_augmentation`), applied to frames as they are
+        read; None (always at inference) reads the footage as it is."""
         timer = StageTimer()
         with timer.stage("ingestion_index"):
-            source = _build(FRAME_SOURCES, {**self.cfg["ingestion"], "path": path})
+            if augment is None:
+                source = _build(FRAME_SOURCES, {**self.cfg["ingestion"], "path": path})
+            else:
+                opts = dict(self.cfg["ingestion"])
+                if opts.pop("name") != "zip":
+                    raise ValueError("augmented copies are read from camera ZIPs (ingestion.name 'zip')")
+                source = AugmentedZipFrameSource(path, augment, **opts)
         tracker = self.new_tracker()
         frame_extractors = [e for e in self.extractors if e.uses_frames]
         for e in frame_extractors:
@@ -121,12 +125,9 @@ class Pipeline:
     def features(self, st: SessionTrack) -> SessionFeatures:
         timer = StageTimer()
         fps = st.timing.get("fps") or 1.0
-        tl = self.cfg["tracklets"]
         with timer.stage("tracklets"):
-            tracklets = filter_visible(st.tracklets, st.frame_t, fps, tl["min_visible_s"], tl["max_gap_s"])
-        win = self.cfg["window"]
-        windows = make_windows(st.timing.get("t_first", 0.0), st.timing.get("t_last", 0.0),
-                               win["length_s"], win["overlap"])
+            tracklets = filter_visible(st.tracklets, st.frame_t, fps, **self.cfg["tracklets"])
+        windows = make_windows(st.timing.get("t_first", 0.0), st.timing.get("t_last", 0.0), **self.cfg["window"])
         with timer.stage("aggregation"):
             vec, track_rows = [], []
             for i, w in enumerate(windows):
@@ -151,15 +152,15 @@ class Pipeline:
         df = to_frame(feats)
         X_gate = df.reindex(columns=models["gate_cols"]).to_numpy(float)
         classes = self.cfg["classes"]
-        g = context_probs("classified", classes, gate=models["gate"], X_gate=X_gate)
-        if models.get("aggregate", "early") == "late":
+        g = models["gate"].predict_proba(X_gate)
+        if models["aggregate"] == "late":
             X, _, window = late_rows(df, to_track_frame(feats), context=False, cols=models["row_cols"])
         else:
-            X, _, window = df.reindex(columns=models["row_cols"]).to_numpy(float), None, np.arange(len(df))
+            X, _, window = early_rows(df, models["row_cols"])
         rows = EngagementRows(X, models["row_cols"], window, np.zeros(len(window)), np.zeros(len(window)))
         p = predict_windows(models["mixture"], rows, np.arange(len(df)), g, models["fill"])
         return build_graph(feats.windows, g, classes, p, df[VEC_PREFIX + "n_tracks"].to_numpy(),
-                           tau=models.get("tau", self.cfg["mixture"]["tau"]))
+                           tau=models["tau"])
 
 
 def to_track_frame(feats: SessionFeatures) -> pd.DataFrame:

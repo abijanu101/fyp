@@ -5,7 +5,7 @@
 For each session, one frame (--at seconds in) rendered through AugmentedZipFrameSource, the same
 code the training copies use, with the manual student boxes drawn (mirrored when flipped):
   original.png        the frame as recorded
-  copy_<k>.png        the parameters augmented copy k of this session gets (sample_params)
+  copy_<k>.png        the parameters augmented copy k of this session gets (sample_augmentation)
   extreme_bright.png  every setting at the bright end of its range at once, maximum noise, the
                       maximum number of the largest masks, flipped
   extreme_dark.png    the same at the dark end
@@ -26,7 +26,7 @@ from scripts.run_pipeline import parse_sets
 from src.core.config import config_hash, load_config
 from src.core.types import SessionKey
 from src.datasets import DipserIndex
-from src.ingestion import AugmentedZipFrameSource, ZipFrameSource, aug_tag, hflip_boxes, sample_params
+from src.ingestion import AugmentedZipFrameSource, ZipFrameSource, aug_tag, hflip_boxes, sample_augmentation
 
 DEFAULT_SESSIONS = ["group_01/experiment_03/context_cam_02", "group_02/experiment_05/context_cam_01",
                     "group_03/experiment_06/context_cam_03"]
@@ -85,7 +85,7 @@ def main() -> None:
         ann = index.annotations(key)
         boxes = np.stack(list(ann.values())) if ann else np.zeros((0, 4))
         width = base.read(i).image.shape[1]
-        variants = [("original", None)] + [(f"copy_{c}", sample_params(aug, str(key), c))
+        variants = [("original", None)] + [(f"copy_{c}", sample_augmentation(aug, str(key), c))
                                            for c in range(1, args.copies + 1)]
         variants += [("extreme_bright", extreme(aug, True)), ("extreme_dark", extreme(aug, False))]
         out = root / s.replace("/", "__")

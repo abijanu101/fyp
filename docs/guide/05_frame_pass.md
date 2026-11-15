@@ -92,8 +92,8 @@ Two data-quality rules live here:
 For training only, `AugmentedZipFrameSource` (`src/ingestion/augment.py`) subclasses
 `ZipFrameSource` and `torch.utils.data.Dataset`: the same frames and timestamps, each passed through
 one fixed augmentation (colour, noise, flip, masks) drawn per session copy.
-`scripts/augment_dataset.py` uses it to write augmented copies of the dataset to disk, which the
-frame pass then reads like any other camera ZIP; Chapter 8, §8.4 explains the whole scheme.
+`Pipeline.track(..., augment=params)` reads a training copy through it, augmenting frames as they
+are decoded (never written to disk); Chapter 8, §8.4 explains the whole scheme.
 
 ### The timing audit
 

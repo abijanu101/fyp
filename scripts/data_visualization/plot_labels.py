@@ -1,9 +1,9 @@
 """Plot DIPSER attention labels over time, one colour per labeler.
 
-    python scripts/dipser/plot_labels.py group_01 experiment_01 03
-    python scripts/dipser/plot_labels.py group_02 experiment_04 subject_02 --exclude-self --out s02.png
-    python scripts/dipser/plot_labels.py group_01 experiment_01 all        # every subject, one panel each
-    python scripts/dipser/plot_labels.py --scan [--scan-dir outputs/label_plots]
+    python scripts/data_visualization/plot_labels.py group_01 experiment_01 03
+    python scripts/data_visualization/plot_labels.py group_02 experiment_04 subject_02 --exclude-self --out s02.png
+    python scripts/data_visualization/plot_labels.py group_01 experiment_01 all        # every subject, one panel each
+    python scripts/data_visualization/plot_labels.py --scan [--scan-dir outputs/label_plots]
 
 --scan ignores group/experiment/subject and walks every group/experiment under DIPSEER/, saving
     <scan-dir>/<group>/<experiment>/subject_XX.png   one plot per subject

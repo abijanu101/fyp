@@ -22,12 +22,11 @@ def _students_and_labeler(index: DipserIndex, key: SessionKey, cfg: dict):
     """cfg is the config's `labels` block. students='camera' uses only subjects annotated as visible
     in this camera (abi_labels); 'all' uses every labeled subject in the session."""
     zips = index.subject_zips(key)
-    if cfg.get("students", "camera") == "camera":
+    if cfg["students"] == "camera":
         visible = set(index.annotations(key))
         zips = {sid: p for sid, p in zips.items() if sid in visible}
-    students = {sid: _load(p, float(cfg.get("offset_s", 0.0))) for sid, p in zips.items()}
-    labeler = WindowLabeler(cfg["tau_att"], cfg["tau_share"], cfg["min_labeled_students"],
-                            cfg.get("exclude_self", False))
+    students = {sid: _load(p, float(cfg["offset_s"])) for sid, p in zips.items()}
+    labeler = WindowLabeler(cfg["tau_att"], cfg["tau_share"], cfg["min_labeled_students"], cfg["exclude_self"])
     return students, labeler
 
 

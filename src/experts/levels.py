@@ -20,8 +20,7 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 
-TRACK_PREFIX = "trk."
-VEC_PREFIX = "vec."
+from ..core.types import TRACK_PREFIX, VEC_PREFIX
 
 
 def decision_threshold(aggregate: str, mixture_tau: float, tau_share: float) -> float:
@@ -53,8 +52,8 @@ class EngagementRows:
 
 
 def early_rows(windows: pd.DataFrame, vec_cols: list[str]) -> tuple[np.ndarray, list[str], np.ndarray]:
-    """(X, cols, window index): one row per window."""
-    return windows[vec_cols].to_numpy(float), list(vec_cols), np.arange(len(windows))
+    """(X, cols, window index): one row per window. Missing columns (at inference) become NaN."""
+    return windows.reindex(columns=vec_cols).to_numpy(float), list(vec_cols), np.arange(len(windows))
 
 
 def late_rows(windows: pd.DataFrame, tracks: pd.DataFrame, context: bool,

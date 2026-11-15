@@ -75,7 +75,7 @@ Stored in `data/DIPSER/abi_labels/<group>/<experiment>.json`:
 
 Coordinates are pixels in the 1280×720 frame; `x, y` is the top-left corner.
 
-The tool was `scripts/dipser/annotation_helper.py`: it opens a random frame from a camera ZIP,
+The tool was `scripts/data_visualization/annotation_helper.py`: it opens a random frame from a camera ZIP,
 draws the existing boxes for that camera with their subject ids, and prints a box in the JSON
 format above when you right-click two corners. Subject identities were established by comparing
 views across cameras and experiments of the same group.
@@ -146,7 +146,7 @@ vote ties go to the lexicographically first subject id.
 DIPSER names cameras by number (`context_cam_01` …), not by position. We wrote
 `data/DIPSER/abi_labels/cameras.yml` mapping every camera number, per group and per day, to its
 physical position (`front_east`, `front_west`, `front_middle`, `rear_*`), determined by looking
-at the footage (`scripts/dipser/camera_previews.py` extracts the first frame of every camera for
+at the footage (`scripts/data_visualization/camera_previews.py` extracts the first frame of every camera for
 this purpose).
 
 ### The finding: camera numbers are not stable positions
@@ -217,3 +217,41 @@ The label analysis (distribution, labeler agreement, threshold choice) will get 
 | Annotated subjects without label archives | several group 02/03 sessions | no labels for some visible people | they count for tracking, not labels |
 | `experiments.tsv` lists experiment 06 device use as "required"; the design document says "optional" | `abi_labels/experiments.tsv` | none (not used by the pipeline) | to reconcile |
 | `cameras.yml` structure issues (mis-indented group 02 day 3 block, duplicate `context_cam_05` key, camera 03 mapped to front_east in group 01 day 3) | `abi_labels/cameras.yml` | group 02 day 3 unreadable | fixed |
+| One zero-byte PNG | `group_01/experiment_02/context_cam_04` | none (out of scope) | dropped at indexing |
+| Recording cut short: 165 frames, 33 s instead of ~300 s | `group_02/experiment_06/context_cam_06` | none (out of scope) | — |
+| Cameras 04–06 at 10–12.5 fps in 15 recordings (others 5 fps) | e.g. `group_01/experiment_03/context_cam_04` | none (out of scope) | fps is measured per recording anyway |
+| No self-rating file | `group_01/experiment_08`, subjects 12 and 13 | none (out of scope) | — |
+| Manual boxes for a camera with no recording | `group_03/experiment_01`–`05`, `context_cam_04` | none (out of scope, never read) | — |
+
+The last five were found while preparing the validation of §7, by inspecting the local archives.
+
+## 7. Validating the local copy against the server
+
+The downloader's skip logic trusts the FTP server's file sizes, and the manifest it writes records
+the size actually downloaded whenever the server gave none, so "manifest and disk agree" proves
+little. The per-student archives on the server hold each student's labels plus their whole video
+feed and watch data (~600 GB in total); the downloader keeps only the labels, an emotion summary and
+a preview, so re-downloading to compare is not an option.
+
+`python -m scripts.downloading.validate_dipser_remote [--crc]` compares without re-downloading:
+the server file is opened with Python's own `zipfile` through a file-like object that fetches only
+the byte ranges `zipfile` asks for (FTP resume): the ZIP's directory at the end of the file, and the
+few small members actually read. Per archive:
+
+- **camera ZIPs**: present locally, same size, and the same members with the same size and CRC-32
+  as on the server;
+- **subject archives**: every label-looking file on the server is listed, and any the downloader's
+  rule would drop (no exact `labels` folder, a backslash in the path) is flagged; each label file is
+  read from the server and compared byte for byte with the local copy; for a subject missing
+  locally, it reports which of the downloader's requirements (labels, metadata JSON, PNG images)
+  the server archive fails;
+- `--crc`: also re-reads every local archive and checks its bytes against its CRCs, which proves the
+  bytes on disk match the (server-verified) index.
+
+About 0.2–0.5 MB is fetched per archive and each takes 10–30 s (connection overhead), so all 618
+archives take roughly 2–3 hours. Results go to `data/DIPSER/validation_remote.jsonl`, one line per
+archive; re-running skips the archives already checked.
+
+Trial on 15 November 2026 (`group_01/experiment_01`, two camera ZIPs and three subject archives,
+each subject ~1 GB on the server): all identical, labels byte for byte; 0.2–0.5 MB fetched per
+archive. Full run: to be done.

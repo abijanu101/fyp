@@ -14,8 +14,8 @@ Search (default: beam bisection, src/tuning/search.py beam_bisection_search)
   Both read and extend the same <stem>.sessions.jsonl, so results are shared between methods.
 
 Augmented data
-  --augment [COPY] runs the same profile on augmented copy COPY (default 1) of DIPSER, written by
-  scripts/augment_dataset.py if missing (boxes mirrored where flipped). It has its own result files
+  --augment [COPY] runs the same profile on augmented copy COPY (default 1) of every session,
+  augmented on the fly (config `augmentation`; boxes mirrored where flipped). It has its own result files
   (<stem>_<aug tag>...) and its own detection cache.
 
 How it works
@@ -74,7 +74,7 @@ from src.datasets import DipserIndex
 from src.evaluation import tracking_metrics
 from src.ingestion import ZipFrameSource
 from src.tracking import TRACKERS, TrackletBuilder
-from src.ingestion import aug_tag, augmented_root
+from src.ingestion import AugmentedZipFrameSource, aug_tag, hflip_boxes, sample_augmentation
 from src.tuning import beam_bisection_search, random_search
 
 REID_MODEL = "osnet-x0-25-msmt17"     # BoxMOT 26 default ReID model for both BoT-SORT and StrongSORT
@@ -84,19 +84,27 @@ class SessionDetections:
     """Cached floor-confidence detections (and optionally ReID embeddings) for one session."""
 
     def __init__(self, key: SessionKey, zip_path: Path, cache: Path, frame_t: np.ndarray,
-                 frame_hw: tuple[int, int], dets: list[Detections], max_frames: int | None):
+                 frame_hw: tuple[int, int], dets: list[Detections], max_frames: int | None,
+                 augment: dict | None = None):
         self.key, self.zip_path, self.cache, self.frame_t, self.frame_hw = key, zip_path, cache, frame_t, frame_hw
-        self.dets, self.max_frames = dets, max_frames
+        self.dets, self.max_frames, self.augment = dets, max_frames, augment
+
+    @staticmethod
+    def source(zip_path: Path, max_frames: int | None, augment: dict | None):
+        """The session's frames: as recorded, or augmented as they are read (never written to disk)."""
+        if augment is None:
+            return ZipFrameSource(zip_path, max_frames=max_frames)
+        return AugmentedZipFrameSource(zip_path, augment, max_frames=max_frames)
 
     @classmethod
     def load_or_detect(cls, cfg: dict, index: DipserIndex, key: SessionKey, max_frames: int | None,
-                       floor: float, detector_factory) -> "SessionDetections":
-        """detector_factory() returns the shared detector; it is only called on a cache miss."""
+                       floor: float, detector_factory, augment: dict | None = None,
+                       augment_tag: str | None = None) -> "SessionDetections":
+        """detector_factory() returns the shared detector; it is only called on a cache miss.
+        augment / augment_tag: an augmented copy's parameters and tag; its detections are cached
+        separately (the original data's cache key is unchanged)."""
         det_cfg = {**cfg["detector"], "conf": floor}
-        # An augmented dataset (scripts/augment_dataset.py) has the same session names as the
-        # original, so its detections get their own cache; the original data's key is unchanged.
-        marker = index.root / "augmentation.json"
-        source = {"dataset": json.loads(marker.read_text(encoding="utf-8"))["tag"]} if marker.exists() else {}
+        source = {"augment": augment_tag} if augment is not None else {}
         cache = (Path(cfg["output_dir"]) / "cache" / "detections" /
                  config_hash({"detector": det_cfg, "max_frames": max_frames, "v": 2, **source})[:12] /
                  f"{session_stem(key)}.npz")
@@ -104,7 +112,7 @@ class SessionDetections:
         if not cache.exists():
             detector = detector_factory()
             t, dets, hw = [], [], (0, 0)
-            for f in ZipFrameSource(zip_path, max_frames=max_frames):
+            for f in cls.source(zip_path, max_frames, augment):
                 t.append(f.t)
                 dets.append(detector.detect(f))
                 hw = f.image.shape[:2]
@@ -120,7 +128,7 @@ class SessionDetections:
             xyxy, conf = z["xyxy"], z["conf"]
         bounds = np.cumsum(np.concatenate([[0], counts]))
         dets = [Detections(xyxy[a:b], conf[a:b]) for a, b in zip(bounds[:-1], bounds[1:])]
-        return cls(key, zip_path, cache, frame_t, tuple(int(v) for v in frame_hw), dets, max_frames)
+        return cls(key, zip_path, cache, frame_t, tuple(int(v) for v in frame_hw), dets, max_frames, augment)
 
     def position(self, frame: Frame) -> int:
         """Row of this frame in the cache (by timestamp, so a frame that fails to decode cannot shift
@@ -130,7 +138,7 @@ class SessionDetections:
     def frames(self, pixels: bool):
         """Decoded frames, or blank frames with the same timestamps when the tracker ignores pixels."""
         if pixels:
-            yield from ZipFrameSource(self.zip_path, max_frames=self.max_frames)
+            yield from self.source(self.zip_path, self.max_frames, self.augment)
             return
         blank = np.zeros((*self.frame_hw, 3), np.uint8)
         for i, t in enumerate(self.frame_t):
@@ -146,7 +154,7 @@ class SessionDetections:
             return
         encoder = encoder_factory()
         parts = {}
-        for f in ZipFrameSource(self.zip_path, max_frames=self.max_frames):
+        for f in self.source(self.zip_path, self.max_frames, self.augment):
             i = self.position(f)
             if len(self.dets[i]):
                 parts[i] = encoder.embed(f.image, self.dets[i])
@@ -212,7 +220,8 @@ def run_fingerprint(cfg: dict, name: str, prof: dict, dataset_tag: str | None = 
     augmented copy the scores come from (None = the original data, whose fingerprints are unchanged)."""
     base_options, _, space = profile_setup(cfg, name, prof)
     tcfg = cfg["tuning"]["tracker"]
-    return config_hash({"tracker": name, "profile": {k: v for k, v in prof.items() if k != "n_trials"},
+    return config_hash({"tracker": name,
+                        "profile": {k: v for k, v in prof.items() if k not in ("n_trials", "start_from")},
                         "space": space, "base_options": base_options,
                         "default_det_conf": cfg["detector"]["conf"], "detector": cfg["detector"],
                         "floor": tcfg["det_conf_floor"], "min_iou": cfg["association"]["min_iou"],
@@ -247,9 +256,7 @@ def main() -> None:
     ap.add_argument("--beam", type=int, default=2, help="bisection search: nodes kept per level")
     ap.add_argument("--start", help="bisection search: start from an earlier scan's .json (its best trial)")
     ap.add_argument("--augment", nargs="?", type=int, const=1, metavar="COPY",
-                    help="run on augmented copy COPY (default 1) of the data (scripts/augment_dataset.py; "
-                         "written first if missing)")
-    ap.add_argument("--workers", type=int, default=3, help="--augment: parallel writers for missing copies")
+                    help="run on augmented copy COPY (default 1) of every session, augmented on the fly")
     ap.add_argument("--set", nargs="*", default=[])
     args = ap.parse_args()
     cfg = load_config(args.config, parse_sets(args.set))
@@ -263,23 +270,24 @@ def main() -> None:
     min_iou = cfg["association"]["min_iou"]
 
     keys = index.sessions() if prof["sessions"] == "all" else [SessionKey(*s.split("/")) for s in prof["sessions"]]
-    dataset_tag = None
-    if args.augment:                       # same sessions, read from the materialised augmented copy
-        from scripts.augment_dataset import ensure_many
-        ensure_many(cfg, [(k, args.augment) for k in keys], args.workers, log=lambda m: print(m, flush=True))
-        dataset_tag = aug_tag(cfg["augmentation"], args.augment)
-        cfg = {**cfg, "dataset": {**cfg["dataset"], "root": str(augmented_root(cfg["augmentation"], args.augment))}}
-        index = DipserIndex.from_config(cfg)
-        print(f"augmented data: {index.root} (boxes mirrored where flipped)", flush=True)
+    dataset_tag = aug_tag(cfg["augmentation"], args.augment) if args.augment else None
+    params_of = lambda key: sample_augmentation(cfg["augmentation"], str(key), args.augment) if args.augment else None
+    if args.augment:
+        print(f"augmented copy {args.augment} ({dataset_tag}), augmented on the fly; boxes mirrored where flipped",
+              flush=True)
     if args.check:
         keys = keys[:1]
     det_pipe = Pipeline({**cfg, "detector": {**cfg["detector"], "conf": tcfg["det_conf_floor"]}})
     shared_detector = lambda: det_pipe.detector              # built once, on the first cache miss
     sessions = []
     for i, key in enumerate(keys, 1):
+        p = params_of(key)
         sd = SessionDetections.load_or_detect(cfg, index, key, prof["max_frames"], tcfg["det_conf_floor"],
-                                              shared_detector)
-        sessions.append((sd, index.annotations(key)))
+                                              shared_detector, p, dataset_tag)
+        subjects = index.annotations(key)
+        if p is not None and p["hflip"]:                     # a mirrored copy: mirror the manual boxes too
+            subjects = {s: hflip_boxes(b[None], sd.frame_hw[1])[0] for s, b in subjects.items()}
+        sessions.append((sd, subjects))
         print(f"[{i}/{len(keys)}] {key}: {len(sd.dets)} frames, {sum(map(len, sd.dets))} detections", flush=True)
 
     def options_for(params: dict) -> tuple[dict, float]:
@@ -380,8 +388,9 @@ def main() -> None:
         trials = random_search(space, objective, n_trials, cfg["tuning"]["seed"], baseline=baseline, on_trial=log)
     else:
         method = "bisect"
-        # Start from the winner of this profile's random search on the original data, when there is one.
-        start = args.start or out / f"tracker_{name}_{args.profile}.json"
+        # Start from the winner of a random search on the original data: this profile's own, or the
+        # one named by the profile's `start_from` (e.g. BoT-SORT + ReID starts from vanilla BoT-SORT).
+        start = args.start or out / f"tracker_{name}_{prof.get('start_from', args.profile)}.json"
         if Path(start).exists():
             baseline = {**baseline, **start_from(start, space)}
             print(f"starting point: best trial of {Path(start).name}", flush=True)

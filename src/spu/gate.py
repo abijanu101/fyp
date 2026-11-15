@@ -29,12 +29,11 @@ class ContextGate:
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         """(n, len(classes)) probabilities in `self.classes` order; classes absent from training get 0."""
+        out = np.zeros((len(X), len(self.classes)))
         if self._only is not None:
-            out = np.zeros((len(X), len(self.classes)))
             out[:, self.classes.index(self._only)] = 1.0
             return out
         p = self.model.predict_proba(X)
-        out = np.zeros((len(X), len(self.classes)))
         for col, c in enumerate(self.model.classes_):
             out[:, self.classes.index(c)] = p[:, col]
         return out

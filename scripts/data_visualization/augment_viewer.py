@@ -1,8 +1,8 @@
 """Augmentation viewer: preview colour shifts, noise, horizontal flip and masking on a DIPSER frame,
 with the manual student boxes (abi_labels) transformed alongside.
 
-    python -m scripts.dipser.augment_viewer group_01 experiment_03 context_cam_02
-    python -m scripts.dipser.augment_viewer group_02 experiment_05 context_cam_01 --start 120
+    python -m scripts.data_visualization.augment_viewer group_01 experiment_03 context_cam_02
+    python -m scripts.data_visualization.augment_viewer group_02 experiment_05 context_cam_01 --start 120
 
 Colour and noise are the pipeline's own transforms (src/ingestion/augment.py, used for augmented
 training copies, config `augmentation`); the viewer adds student occlusion, which the pipeline does

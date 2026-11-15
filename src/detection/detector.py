@@ -22,8 +22,8 @@ class PersonDetector(ABC):
 class YoloDetector(PersonDetector):
     """Ultralytics YOLO restricted to COCO class 0 (person)."""
 
-    def __init__(self, weights: str = "yolo11n.pt", conf: float = 0.3, imgsz: int = 640,
-                 device: str | None = None, half: bool = True):
+    def __init__(self, weights: str, conf: float, imgsz: int = 640, device: str | None = None,
+                 half: bool = True):
         import torch
         from ultralytics import YOLO
 

@@ -45,7 +45,7 @@ src/
   evaluation/   metrics, tracking quality (IDF1 etc.), Krippendorff alpha, stage timer
   tuning/       seeded random search, nested leave-one-group-out search
 configs/deliverable3.json   every tunable value; stages are picked by registry name
-scripts/                    entry points (below); scripts/dipser/ holds dataset inspection tools
+scripts/                    entry points (below); scripts/data_visualization/ holds dataset inspection tools
 tests/                      unit tests (stdlib unittest, no GPU needed)
 ```
 
@@ -78,22 +78,22 @@ experiments and every config key. `docs/experiments/` records what was tried and
 Any config value can be overridden per run with `--set key.path=<json>`, e.g.
 `--set window.length_s=10 labels.tau_att=3`.
 
-Dataset tools live in `scripts/dipser/`. These use the pipeline code (run with `-m`):
+Dataset tools live in `scripts/data_visualization/`. These use the pipeline code (run with `-m`):
 
 ```
-python -m scripts.dipser.inspect_labels    # label distribution, agreement, threshold grid
-python -m scripts.dipser.check_scb         # SCB behaviour detections on a DIPSER sample (§11 gate)
-python -m scripts.dipser.augment_viewer group_01 experiment_03 context_cam_02   # preview augmentations + transformed boxes
-python -m scripts.dipser.scb_viewer group_01 experiment_04 context_cam_03   # play a camera with SCB boxes, per-class sliders
+python -m scripts.data_visualization.inspect_labels    # label distribution, agreement, threshold grid
+python -m scripts.data_visualization.check_scb         # SCB behaviour detections on a DIPSER sample (§11 gate)
+python -m scripts.data_visualization.augment_viewer group_01 experiment_03 context_cam_02   # preview augmentations + transformed boxes
+python -m scripts.data_visualization.scb_viewer group_01 experiment_04 context_cam_03   # play a camera with SCB boxes, per-class sliders
 ```
 
 The rest are standalone (OpenCV/matplotlib only, run as files):
 
 ```
-python scripts/dipser/label_viewer.py group_01 experiment_01 context_cam_01   # video + live labels
-python scripts/dipser/plot_labels.py group_01 experiment_01 03                # one student's labels
-python scripts/dipser/plot_labels.py --scan                                   # all plots to outputs/label_plots
-python scripts/dipser/player.py data/DIPSER/DIPSEER                           # multi-camera player
+python scripts/data_visualization/label_viewer.py group_01 experiment_01 context_cam_01   # video + live labels
+python scripts/data_visualization/plot_labels.py group_01 experiment_01 03                # one student's labels
+python scripts/data_visualization/plot_labels.py --scan                                   # all plots to outputs/label_plots
+python scripts/data_visualization/player.py data/DIPSER/DIPSEER                           # multi-camera player
 ```
 
 ## Caches and reproducibility

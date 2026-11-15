@@ -128,7 +128,7 @@ class OutputViewer:
         self.share = np.array([l.share_engaged for l in labels], float)
         self.wlabel = [l.engaged for l in labels]
         self.sid = associate_sids(st.tracklets, index.annotations(self.key), cfg["association"]["min_iou"],
-                                  cfg["association"].get("min_match_share", 0.5))
+                                  cfg["association"]["min_match_share"])
         self.slabel = student_labels_session(index, self.key, windows, cfg["labels"])
 
         print(f"{self.key}: {len(df)} windows, {len(kept)} kept tracklets of {len(st.tracklets)}, "

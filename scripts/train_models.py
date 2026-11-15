@@ -137,7 +137,7 @@ def engagement_rows(cfg: dict, df: pd.DataFrame, vec_cols: list[str], per_labele
         if width:                                                   # mirrored copy: mirror the manual boxes
             subjects = {s: hflip_boxes(b[None], width)[0] for s, b in subjects.items()}
         tid_to_sid = associate_sids(load_track(track_npz).tracklets, subjects,
-                                    assoc["min_iou"], assoc.get("min_match_share", 0.5))
+                                    assoc["min_iou"], assoc["min_match_share"])
         windows = [Window(a, b) for a, b in zip(sdf.t_start, sdf.t_end)]
         labels = student_labels_session(index, key, windows, cfg["labels"])
         local = t["window"].to_numpy(int)

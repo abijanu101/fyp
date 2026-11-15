@@ -61,10 +61,14 @@ class TrackState:
     velocity: np.ndarray | None = None   # Kalman centre velocity (vx, vy) in px/frame, if exposed
 
 
+# Column prefixes of the feature tables (one definition, used by the pipeline and the experts).
+VEC_PREFIX, SCENE_PREFIX, TRACK_PREFIX = "vec.", "scene.", "trk."
+
+
 @dataclass
 class Tracklet:
     """Per-track time series (design §4). `signals` holds per-frame BFMU channels
-    (e.g. residual flow, SCB3 class flags) aligned with `t`."""
+    (e.g. residual flow, SCB scores) aligned with `t`."""
 
     tid: int
     t: np.ndarray            # (T,)
@@ -73,10 +77,13 @@ class Tracklet:
     velocity: np.ndarray     # (T, 2); NaN where the tracker did not expose Kalman state
     signals: dict[str, np.ndarray] = field(default_factory=dict)
 
+    def take(self, idx) -> "Tracklet":
+        """The observations selected by `idx` (boolean mask or indices), signals included."""
+        return Tracklet(self.tid, self.t[idx], self.xyxy[idx], self.conf[idx], self.velocity[idx],
+                        {k: v[idx] for k, v in self.signals.items()})
+
     def slice(self, t0: float, t1: float) -> "Tracklet":
-        m = (self.t >= t0) & (self.t < t1)
-        return Tracklet(self.tid, self.t[m], self.xyxy[m], self.conf[m], self.velocity[m],
-                        {k: v[m] for k, v in self.signals.items()})
+        return self.take((self.t >= t0) & (self.t < t1))
 
     @property
     def centers(self) -> np.ndarray:

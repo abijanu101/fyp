@@ -227,15 +227,12 @@ StrongSORT reads it. Removed from the config and from `tune_tracker`; the detect
 (`detector.conf`) is the only confidence filter, and it was verified not to drop any student
 (`docs/experiments/02_boxmot.md`, §3).
 
-**☐ 7. On-the-fly augmentation for the final training run.** Augmented copies are currently
-written to disk (`scripts/augment_dataset.py`), which suits experiments and makes them reusable for
-tracker studies, but caps how many copies are practical (about 25 GB per copy of groups 1–2).
-For the deliverable's final training run, add a switch (e.g. `augmentation.materialise: false`)
-that augments frames in memory during the frame pass instead (`AugmentedZipFrameSource` already
-does exactly that), and raise `augmentation.copies` well beyond 2. Only extraction time then limits
-the number of copies.
+**☑ 7. On-the-fly augmentation.** Augmented copies are no longer written to disk at all (the
+materialised datasets and `scripts/augment_dataset.py` were removed on 15 November 2026): frames are
+augmented as they are read, and seeding makes every read of a copy identical. For the final
+training run, raise `augmentation.copies` as far as extraction time allows; no disk is needed.
 
 **☑ 6. StrongSORT scan restarted with its quick-tuned baseline, and complete.** Migrated (trials
 1–5 kept, trial 0 re-ran at 0.843), finished at a best IDF1 of 0.878
-(`docs/experiments/02_boxmot.md`, §6.5). The BoT-SORT scan was restarted with `--fresh` instead of
+(`docs/experiments/02_boxmot.md`, T1). The BoT-SORT scan was restarted with `--fresh` instead of
 migrated; its recomputed trials matched the old ones exactly.

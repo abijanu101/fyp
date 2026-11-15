@@ -12,7 +12,7 @@ import pandas as pd
 from torch.utils.data import Dataset
 
 from src.core.config import load_config
-from src.ingestion import AugmentedZipFrameSource, ZipFrameSource, aug_tag, hflip_boxes, sample_params
+from src.ingestion import AugmentedZipFrameSource, ZipFrameSource, aug_tag, hflip_boxes, sample_augmentation
 from src.ingestion.augment import augment_frame
 
 AUG = load_config("configs/deliverable3.json")["augmentation"]
@@ -37,13 +37,13 @@ class TestAugmentation(unittest.TestCase):
         np.testing.assert_array_equal(hflip_boxes(hflip_boxes(b, 100), 100), b)
 
     def test_parameters_are_fixed_per_session_and_copy(self):
-        a = sample_params(AUG, "group_01/experiment_01/context_cam_01", 1)
-        self.assertEqual(a, sample_params(AUG, "group_01/experiment_01/context_cam_01", 1))
-        self.assertNotEqual(a, sample_params(AUG, "group_01/experiment_01/context_cam_01", 2))
-        self.assertNotEqual(a, sample_params(AUG, "group_02/experiment_01/context_cam_01", 1))
+        a = sample_augmentation(AUG, "group_01/experiment_01/context_cam_01", 1)
+        self.assertEqual(a, sample_augmentation(AUG, "group_01/experiment_01/context_cam_01", 1))
+        self.assertNotEqual(a, sample_augmentation(AUG, "group_01/experiment_01/context_cam_01", 2))
+        self.assertNotEqual(a, sample_augmentation(AUG, "group_02/experiment_01/context_cam_01", 1))
 
     def test_hue_shift_stays_small(self):
-        hues = [sample_params(AUG, f"s{i}", c)["hue_deg"] for i in range(50) for c in (1, 2)]
+        hues = [sample_augmentation(AUG, f"s{i}", c)["hue_deg"] for i in range(50) for c in (1, 2)]
         self.assertLessEqual(max(abs(h) for h in hues), AUG["hue_deg"])
         self.assertLessEqual(AUG["hue_deg"], 5)
 
@@ -52,7 +52,7 @@ class TestAugmentation(unittest.TestCase):
         self.assertNotEqual(aug_tag(AUG, 1), aug_tag({**AUG, "hue_deg": 4}, 1))
 
     def test_same_transform_on_every_frame_noise_aside(self):
-        p = {**sample_params(AUG, "s", 1), "noise": 0.0, "hflip": True}
+        p = {**sample_augmentation(AUG, "s", 1), "noise": 0.0, "hflip": True}
         frames = [np.full((8, 8, 3), v, np.uint8) for v in (40, 40)]
         a, b = (augment_frame(f, p, i) for i, f in enumerate(frames))
         np.testing.assert_array_equal(a, b)          # identical input -> identical output across frames
@@ -60,7 +60,7 @@ class TestAugmentation(unittest.TestCase):
     def test_source_is_a_dataset_with_the_original_timestamps(self):
         with tempfile.TemporaryDirectory() as d:
             z = fake_zip(Path(d) / "cam.zip")
-            p = {**sample_params(AUG, "s", 1), "hflip": True, "noise": 0.0, "mask_kind": "none",
+            p = {**sample_augmentation(AUG, "s", 1), "hflip": True, "noise": 0.0, "mask_kind": "none",
                  "mask_rects": [], "brightness": 0.0, "contrast": 1.0, "saturation": 1.0, "hue_deg": 0.0,
                  "gamma": 1.0}
             src, orig = AugmentedZipFrameSource(z, p), ZipFrameSource(z)
@@ -70,19 +70,19 @@ class TestAugmentation(unittest.TestCase):
             np.testing.assert_array_equal(src[2].image, orig.read(2).image[:, ::-1])   # pure flip
             self.assertEqual([f.index for f in src], [0, 1, 2, 3])
 
-    def test_materialised_copy_reads_back_with_the_original_timestamps(self):
-        from src.ingestion import write_augmented_zip
+    def test_a_copy_is_the_same_video_every_time_it_is_read(self):
+        # Copies are never written to disk: seeding alone must make every read identical, noise included.
         with tempfile.TemporaryDirectory() as d:
-            z = fake_zip(Path(d) / "cam.zip", w=64, smooth=True)
-            p = {**sample_params(AUG, "s", 1), "hflip": True, "noise": 0.0, "mask_kind": "none",
-                 "mask_rects": [], "brightness": 0.0, "contrast": 1.0, "saturation": 1.0, "hue_deg": 0.0,
-                 "gamma": 1.0}
-            out = Path(d) / "copy" / "cam.zip"
-            self.assertEqual(write_augmented_zip(z, out, p, quality=100), 64)
-            copy, orig = ZipFrameSource(out), ZipFrameSource(z)
-            np.testing.assert_array_equal(copy.timestamps, orig.timestamps)
-            diff = np.abs(copy.read(1).image.astype(int) - orig.read(1).image[:, ::-1].astype(int))
-            self.assertLess(diff.mean(), 8)                   # the flipped frame, up to JPEG loss
+            z = fake_zip(Path(d) / "cam.zip")
+            p = {**sample_augmentation(AUG, "group_01/experiment_01/context_cam_01", 1), "noise": 0.3}
+            first = [f.image for f in AugmentedZipFrameSource(z, p)]
+            again = [f.image for f in AugmentedZipFrameSource(z, sample_augmentation(AUG, "group_01/experiment_01/context_cam_01", 1)
+                                                              | {"noise": 0.3})]
+            for a, b in zip(first, again):
+                np.testing.assert_array_equal(a, b)
+            other = AugmentedZipFrameSource(z, {**sample_augmentation(AUG, "group_01/experiment_01/context_cam_01", 2),
+                                                "noise": 0.3})[0].image
+            self.assertFalse(np.array_equal(first[0], other))  # another copy is a different video
 
     def test_augmented_rows_never_reach_a_test_fold(self):
         from scripts.train_models import heldout_splits
