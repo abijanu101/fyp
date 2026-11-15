@@ -2,7 +2,7 @@
 
   python -m scripts.scan_detector                      # binary search for the optimal threshold
   python -m scripts.scan_detector --grid [--thresholds 0.05 0.1 ...]   # full table instead
-  python -m scripts.scan_detector --augment [--variants 5 10]          # under augmentation (hours, resumable)
+  python -m scripts.scan_detector --augment [--variants 5 5]            # under augmentation (hours, resumable)
 
 For a threshold, each frame's boxes with conf >= threshold are matched one-to-one (Hungarian on
 IoU >= association.min_iou) to the manual student boxes, the rule the tracker is scored with. Per
@@ -21,7 +21,7 @@ Original data: uses the floor detections `tune_tracker` caches; --detect runs th
 they are missing.
 
 --augment: the detector is the single point of failure, so this mode tests it hard. Every frame of
-every in-scope session is augmented on the fly K times (K drawn per frame from --variants, 5..10),
+every in-scope session is augmented on the fly K times (K drawn per frame from --variants, default 5),
 each variant with its own independently drawn parameters from config `augmentation` (colour,
 brightness, gamma, noise, flip, masks), and each variant is detected at the floor. Student boxes
 are mirrored for flipped variants. Nothing is written but the detections themselves, one file per
@@ -175,7 +175,7 @@ def main() -> None:
     ap.add_argument("--max-drop", type=float, default=0.10, help="largest recall loss against the floor per student")
     ap.add_argument("--tolerance", type=float, default=0.005, help="binary search stops at this threshold width")
     ap.add_argument("--augment", action="store_true", help="augment every frame on the fly, K variants per frame")
-    ap.add_argument("--variants", nargs=2, type=int, default=[5, 10], metavar=("MIN", "MAX"),
+    ap.add_argument("--variants", nargs=2, type=int, default=[5, 5], metavar=("MIN", "MAX"),
                     help="--augment: variants per frame, drawn per frame from MIN..MAX")
     ap.add_argument("--stride", type=int, default=1, help="--augment: use every N-th frame")
     ap.add_argument("--workers", type=int, default=4,

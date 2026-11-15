@@ -122,6 +122,22 @@ class Pipeline:
                             timing_audit(np.asarray(frame_t, float)), timer.report())
 
     # ------------------------------------------------------------------ feature pass
+    def window_features(self, st: SessionTrack, windows: list, tracklets: list | None = None):
+        """(Vec per window, per-track rows {"window": i, "tid", trk keys...}, scene features per window)
+        for any list of windows: the regular grid (features) or windows centred on label entries
+        (training, docs/misc/targets.md §7.1 item 6). tracklets: already filtered, else filtered here."""
+        fps = st.timing.get("fps") or 1.0
+        if tracklets is None:
+            tracklets = filter_visible(st.tracklets, st.frame_t, fps, **self.cfg["tracklets"])
+        vec, track_rows = [], []
+        for i, w in enumerate(windows):
+            v, rows = self.aggregator.aggregate_with_tracks(w, tracklets, fps, st.frame_wh)
+            vec.append(v)
+            track_rows += [{"window": i, **r} for r in rows]
+        scene = [self.scene.window_features([st.scene_rows[i] for i in frames_in(st.frame_t, w)])
+                 for w in windows]
+        return vec, track_rows, scene
+
     def features(self, st: SessionTrack) -> SessionFeatures:
         timer = StageTimer()
         fps = st.timing.get("fps") or 1.0
@@ -129,13 +145,7 @@ class Pipeline:
             tracklets = filter_visible(st.tracklets, st.frame_t, fps, **self.cfg["tracklets"])
         windows = make_windows(st.timing.get("t_first", 0.0), st.timing.get("t_last", 0.0), **self.cfg["window"])
         with timer.stage("aggregation"):
-            vec, track_rows = [], []
-            for i, w in enumerate(windows):
-                v, rows = self.aggregator.aggregate_with_tracks(w, tracklets, fps, st.frame_wh)
-                vec.append(v)
-                track_rows += [{"window": i, **r} for r in rows]
-            scene = [self.scene.window_features([st.scene_rows[i] for i in frames_in(st.frame_t, w)])
-                     for w in windows]
+            vec, track_rows, scene = self.window_features(st, windows, tracklets)
         manifest = {"session": str(st.key) if st.key else None, "timing": st.timing,
                     "n_raw_tracks": len(st.tracklets), "n_tracklets": len(tracklets),
                     "frame_wh": list(st.frame_wh), "stage_seconds": {**st.stage_seconds, **timer.report()},
@@ -153,6 +163,15 @@ class Pipeline:
         X_gate = df.reindex(columns=models["gate_cols"]).to_numpy(float)
         classes = self.cfg["classes"]
         g = models["gate"].predict_proba(X_gate)
+        if models.get("kind") == "per_labeler":                  # one model per labeler (targets.md §7)
+            from ..experts.per_labeler import window_curves
+            from ..output import build_rating_graph
+            out = self.cfg["output"]
+            X, _, window = late_rows(df, to_track_frame(feats), context=False, cols=models["row_cols"])
+            final, curves = window_curves(models["model"], X, g[window], window, len(df),
+                                          out["prediction"], float(out["majority_resolution"]))
+            return build_rating_graph(feats.windows, g, classes, final, curves,
+                                      df[VEC_PREFIX + "n_tracks"].to_numpy(), models["tau_att"], out["prediction"])
         if models["aggregate"] == "late":
             X, _, window = late_rows(df, to_track_frame(feats), context=False, cols=models["row_cols"])
         else:

@@ -24,6 +24,8 @@ design document.
 | 9 | [Running experiments](09_experiments.md) | The terminology of the results, and how to experiment through the config (every key of `deliverable3.json`) |
 | 10 | [Tests and recipes](10_testing_and_recipes.md) | How to test, and how to make the common changes |
 | 11 | [Pitfalls and status](11_pitfalls_and_status.md) | Environment quirks, data quirks, what is open |
+| 12 | [Reading the results: a primer](12_reading_results.md) | The thresholds, label agreement (Krippendorff's α), evaluation set-up and metrics needed to read `docs/experiments/`, from scratch |
+| 13 | [From ratings to reported numbers](13_from_ratings_to_numbers.md) | Exactly what the code does from a labeler's rating to a results file and the inference curve, with every implementation choice listed (O1–O26) for checking against the design |
 
 ## Conventions used in this guide
 

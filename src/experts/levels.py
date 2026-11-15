@@ -163,6 +163,10 @@ def fit_engagement(engagement_cfg: dict, make_mixture: Callable[[], object], row
     mode = engagement_cfg.get("labelers", "consensus")
     if mode == "ensemble":
         return fit_ensemble(make_mixture, rows, train_windows, tuple(engagement_cfg.get("ensemble_exclude", ())))
+    if mode == "per_labeler":
+        raise ValueError("engagement.labelers = 'per_labeler' trains on label-centred windows, which only "
+                         "scripts/train_models.py implements; this script uses the window grid: run it with "
+                         "--set engagement.labelers='\"consensus\"' (or \"ensemble\")")
     if mode != "consensus":
-        raise ValueError(f"engagement.labelers must be 'consensus' or 'ensemble', got {mode!r}")
+        raise ValueError(f"engagement.labelers must be 'per_labeler', 'consensus' or 'ensemble', got {mode!r}")
     return fit_rows(make_mixture, rows, train_windows)

@@ -3,6 +3,8 @@
 On 15 November 2026 the whole pipeline ran for the first time on full-length recordings:
 extraction, training, held-out evaluation and inference on an unseen session. This document
 records the setup, what worked, what the numbers do and do not show, and what follows from it.
+The thresholds, metrics and evaluation terms it uses are explained from scratch in the
+contributor's guide, Chapter 12 (`docs/guide/12_reading_results.md`).
 
 **In short:** every stage works at full length, and per-stage costs are now measured on real
 sessions. The engagement results are at chance level, and this sample is too small, in a specific
@@ -63,6 +65,10 @@ built 4,929 student rows (about 11 per window), of which 92% were linked to a la
 
 ## 3. Results (leave-one-group-out, window level)
 
+*`retention_r`, reported in this document, was removed from the code on 16 November 2026; the
+values below are a historical record. The metric is described, with its known issues, in
+`docs/misc/proposed_metrics.md`.*
+
 Each fold trains on four sessions and is scored on the held-out group's two.
 
 | Variant | AUC | `retention_r` | F1 | Balanced accuracy |
@@ -87,6 +93,98 @@ windows above the cut-off. The gate predicted activity 04 for **all 73 windows**
 is 03.
 
 ![Retention graph of the unseen lecture](figures/05_infer_g1e3.png)
+
+### 3.1 The same predictions, scored with the benchmarks' metrics
+
+The table above is what `train_models` reports: binary metrics per held-out fold, averaged over
+the three folds. The published DIPSER works (`docs/misc/benchmarks.md`) use other metrics and
+other ways of computing them, so the run's held-out predictions were re-scored with those
+(`tmp/e2e6/benchmark_metrics.py`; it replays the leave-one-group-out loop and reproduces the stored
+per-fold AUCs exactly: 0.604, 0.614, 0.311 for the shared expert). Variants:
+
+- **train mean**: predicts the training folds' mean labelled share for every window; the trivial
+  baseline.
+- **shared expert**: one logistic-regression expert for all activities, late aggregation, Vec as
+  context (the default).
+- **shared expert, no context**: the same with `engagement.late_context=false`.
+- **hand weighted**: the configured hand-weighted experts.
+- **minus flow**: no model, the negative mean residual flow of the class, used directly as the score
+  (threshold: its median). Window level only.
+
+Terms as in `benchmarks.md` §2: *per window* counts every window; *per change* gives each run of an
+unchanged label weight 1 in total, whatever its length; *pooled* scores all held-out predictions of
+all folds together; *per session* scores each session and averages over the six (sessions with
+one class have no AUC or balanced accuracy and are skipped for those).
+
+**Window level, thresholded label** (engaged when the labelled share ≥ 0.6), per window, averaged
+per session:
+
+| Variant | AUC | Accuracy | Balanced acc. | Macro F1 | F1 not engaged | Weighted F1 |
+|---|---|---|---|---|---|---|
+| train mean | 0.50 | 0.29 | 0.50 | 0.18 | 0.04 | 0.22 |
+| shared expert | 0.56 | **0.75** | 0.55 | **0.46** | 0.45 | **0.74** |
+| shared expert, no context | **0.64** | 0.46 | 0.50 | 0.29 | **0.48** | 0.43 |
+| hand weighted | 0.55 | 0.19 | 0.50 | 0.14 | 0.21 | 0.13 |
+| minus flow | 0.63 | 0.54 | 0.52 | 0.39 | 0.32 | 0.56 |
+
+**Window level, the labelled share as a continuous target** (MAE and RMSE only for scores that
+estimate the share; *r within session* is `retention_r`):
+
+| Variant | MAE | RMSE | Pearson r, pooled | Pearson r, within session |
+|---|---|---|---|---|
+| train mean | 0.238 | 0.270 | −0.72 | 0 |
+| shared expert | **0.155** | **0.205** | **0.62** | 0.07 |
+| shared expert, no context | 0.203 | 0.244 | 0.32 | 0.24 |
+| hand weighted | – | – | −0.64 | 0.12 |
+| minus flow | – | – | 0.05 | **0.30** |
+
+**Student level, each linked student's own label** (4,537 labelled student-windows, 64% engaged;
+threshold 0.5), per window, pooled, the way §3.4 of `benchmarks.md` scores its windows:
+
+| Variant | AUC | Accuracy | Balanced acc. | Macro F1 | F1 not engaged | Weighted F1 |
+|---|---|---|---|---|---|---|
+| train mean (always "engaged") | 0.34 | **0.64** | 0.50 | 0.39 | 0 | 0.50 |
+| shared expert | **0.61** | 0.59 | **0.58** | **0.57** | **0.50** | **0.60** |
+| shared expert, no context | 0.54 | 0.55 | 0.54 | 0.53 | 0.44 | 0.56 |
+| hand weighted | 0.36 | 0.40 | 0.41 | 0.40 | 0.34 | 0.41 |
+
+**The same shared-expert predictions, computed six ways:**
+
+| Level | Metric | Per fold (as in §3) | Per window, pooled | Per window, per session | Per change, pooled | Per change, per session |
+|---|---|---|---|---|---|---|
+| Window | AUC | 0.51 | **0.85** | 0.56 | 0.51 | 0.44 |
+| Window | Macro F1 | – | 0.75 | 0.46 | 0.50 | 0.40 |
+| Window | F1 not engaged | – | 0.75 | 0.45 | 0.61 | 0.47 |
+| Student | AUC | – | 0.61 | 0.54 | 0.53 | 0.54 |
+| Student | Macro F1 | – | 0.57 | 0.46 | 0.52 | 0.44 |
+
+What this adds to §3 and §4:
+
+- **Pooling across folds rewards getting each group's level right.** The shared expert's mean
+  score per held-out group (0.35, 0.53, 0.88) ranks the groups' engaged rates (12%, 69%, 94%)
+  correctly, so pooled over all held-out windows its AUC is 0.85 and its correlation with the share
+  0.62, while within each fold and each session it is near chance. With three groups that is
+  three points in the right order, not evidence of a working model. The same choice makes the
+  train-mean baseline look *worse* than chance (pooled AUC 0.13, r −0.72): holding out a group with
+  many engaged windows lowers the training mean, so the constant is anti-correlated with the held-out
+  level by construction. Pooled numbers across leave-one-group-out folds should not be reported.
+- **On the continuous share the shared expert beats the trivial baseline**: MAE 0.155 against
+  0.238 (35% lower), RMSE 0.205 against 0.270. Almost all of it is the per-group level again; the
+  within-session correlation is 0.07. Removing the context or using residual flow alone gives the
+  better within-session shape (0.24, 0.30), as §6.4 found.
+- **Against the published floors, at student level:** the shared expert's not-engaged F1 (0.50) is
+  *below* the constant "always not engaged" on these labels (0.53 for a 36% minority;
+  `benchmarks.md` §1 explains why a minority-class F1 rewards that constant). Its AUC of 0.61 is
+  above chance; the informal desk-camera project reaches 0.79 on a filtered target with face
+  close-ups. Accuracy (0.59) is below "always engaged" (0.64). By the metrics a constant cannot
+  game, AUC and balanced accuracy, the student-level model is slightly above chance.
+- **Per change versus per window** changes the picture as much as the model choice: for the shared
+  expert, the student-level AUC falls from 0.61 to 0.53 and the window-level F1 for "not engaged"
+  rises from 0.45 to 0.61 (per session to pooled per change), because short dips weigh as much as
+  long stretches.
+- **The hand-weighted experts are worse than chance** wherever levels or students are compared
+  (window r pooled −0.64, student AUC 0.36), which confirms §6.4: its SCB signs are backwards on
+  DIPSER.
 
 ## 4. Why these numbers say little about the models
 
@@ -212,7 +310,9 @@ In rough order of expected effect per unit of work. Each is a config change or a
 testable on the full extraction (or already on these six sessions).
 
 1. **Evaluate what the graph is for.** Make `retention_r` (within-session shape) a headline metric
-   next to AUC, and add a within-session AUC. Pooled AUC on held-out groups mostly rewards guessing
+   next to AUC, and add a within-session AUC. Report the trivial baseline on every metric, per
+   session rather than pooled across folds, and per window *and* per change (§3.1;
+   `docs/misc/benchmarks.md` §1–2). Pooled AUC on held-out groups mostly rewards guessing
    each session's level, which this setup can hardly learn and the retention graph does not need.
 2. **Remove session-level offsets from the features.** The pipeline is offline and sees a whole
    session, so each feature can be expressed relative to that session (z-scored per session, or

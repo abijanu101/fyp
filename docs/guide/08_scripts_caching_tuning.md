@@ -6,9 +6,9 @@ chapter covers each entry point, what it caches where, and how the tuning machin
 ## 8.1 The workflow at a glance
 
 ```
-                      ┌───────────────────────────┐
-                      │ scripts.data_visualization.*           │  look at the data: labels, SCB, video
-                      └───────────────────────────┘
+                      ┌─────────────────────────────┐
+                      │ scripts.data_visualization.* │  look at the data: labels, SCB, video
+                      └─────────────────────────────┘
 ┌──────────────────┐   ┌───────────────────────────┐   ┌────────────────────┐
 │ tune_tracker      │──►│ run_pipeline extract       │──►│ train_models        │──► results + models
 │ (detector+tracker)│   │ (both passes, 52 sessions) │   │ (LOGO evaluation)   │
@@ -22,6 +22,7 @@ chapter covers each entry point, what it caches where, and how the tuning machin
 
  checking:  scan_detector (detector threshold vs manual boxes)   plot_results (held-out curves)
             output_viewer (a session with tracks, per-student scores and labels)
+            label_baselines (constant predictions vs the published label targets, benchmarks.md §1)
 ```
 
 Every script takes `--config` (default `configs/deliverable3.json`) and `--set key=value`
@@ -87,6 +88,28 @@ Two details matter:
 python -m scripts.train_models [--set labels.tau_att=3 labels.tau_share=0.6]
 ```
 
+**Per-labeler mode (the default, `engagement.labelers = "per_labeler"`; Chapter 7 §7.9):**
+
+1. **Load** the window table (gate features, as below) and every session's **rating entries**
+   (`label_entries`): every entry of every labeler of the camera's students, the shared
+   session-start entry excluded, with its training value (`labels.train_target`).
+2. **Label-centred windows**: one window of `window.length_s` per entry time;
+   `Pipeline.window_features` computes their features from the cached `.npz`, cached as
+   `<session>.labelwin.csv` next to the window CSVs (recomputed if an entry time is missing). Each
+   entry joins its student's linked track(s) in its window (`join_entries`).
+3. **Leave-one-group-out**: per held-out group, the gate on the window grid and one model per
+   labeler (`PerLabelerModel`) for the configured and the shared scope; every held-out entry scored
+   per label (`rating_metrics`) in two tracks (experts, self) for three predictions (own labeler,
+   median, majority) and two baselines (constant 3, training mean).
+4. **Write** the results JSON (`"mode": "per_labeler"`, an `evaluation` block keyed
+   `<track>/<variant>/<context>/<prediction>`), and the bundle with `"kind": "per_labeler"`, the
+   gate, the per-labeler model, `gate_cols`, `row_cols` and `tau_att`.
+
+Augmented copies (§8.4 below) join every training side and are never scored, as in the window-grid
+modes.
+
+**Window-grid modes** (`consensus`, `ensemble`):
+
 1. **Load** every feature CSV for the current feature hash; attach group, experiment and window
    labels (`label_session`).
 2. **Build the expert rows** (`engagement_rows`, §7.5): `vec.*` per window (early), or `trk.*`
@@ -107,9 +130,14 @@ python -m scripts.train_models [--set labels.tau_att=3 labels.tau_share=0.6]
 python -m scripts.plot_results [--set ...]        # same --set values as train_models
 ```
 
-`train_models` reports averages. `plot_results` draws, per session, the predicted engagement
-score against the labelled share of engaged students, with the engaged cut-off and the gate's
-predicted activity as background shading. Every curve is out-of-sample: it repeats the
+`train_models` reports averages. `plot_results` draws, per session, out-of-sample curves with the
+gate's predicted activity as background shading. In per-labeler mode, on the 1–5 scale: each
+labeler model's class curve (experts blue, self orange), the final curve in black (median or
+majority, `output.prediction`), every held-out rating entry as a dot at its time (experts ×, self
+●) and `tau_att` dashed; the title gives the final curve's MAE against the expert entries
+(`heldout_curves` in `train_models` computes the curves). In the window-grid modes it draws the
+predicted engagement score against the labelled share of engaged students, with the engaged
+cut-off. Every curve is out-of-sample: it repeats the
 leave-one-group-out fits (seconds) and plots each group from models that never saw it. The
 title gives the true activity, the gate's hit rate and the correlation r with the labelled
 share. Output: `<output_dir>/plots/<config hash>/`, one PNG per session plus `overview.png`.
@@ -133,6 +161,12 @@ the feature CSVs, and a model bundle), so it runs no network and scrubbing is in
   and the labelled share;
 - a timeline of the score curve and the labelled share, with the predicted and true activity as
   colour strips; click to seek.
+
+With a per-labeler bundle, ratings are drawn on the same 0–1 axis as (rating − 1) / 4: each box
+shows the student's final rating (`r2.6`: median or majority across the labeler models) and, with
+labels on, their labelled rating (`L3.0`: the median over their labelers of each one's window
+mean); the red curve is the final class rating, the grey one the labelled class rating, the dashed
+line `tau_att`.
 
 It uses the bundle trained under the same config (or `--models`), and the same `--set` values the
 session was extracted with. It is a development tool: per-student scores and identities appear
@@ -409,8 +443,11 @@ python -m scripts.tune_models [--component gate|expert|both] [--trials N]
 ```
 
 Runs `nested_logo_search` on cached features. The gate is scored by 6-way macro-F1. The experts
-are scored by AUC **under oracle context**, so expert tuning is not confused by gate errors. Fix
-the label thresholds first: the expert objective depends on them.
+are scored **under oracle context**, so expert tuning is not confused by gate errors: in
+per-labeler mode by the per-label AUC (entered rating ≥ `labels.tau_att`) of each entry's own
+labeler model over every held-out entry, with the folds over the label rows; in the window-grid
+modes by window AUC. AUC, not MAE: on these labels a constant 3 beats the models on MAE. Fix
+`labels.tau_att` first: the objective depends on it.
 
 ## 8.8 The dataset tools (`scripts/data_visualization/`)
 

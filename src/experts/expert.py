@@ -31,6 +31,11 @@ class SklearnExpert(EngagementExpert):
     (SVM with probabilities is roughly quadratic)."""
 
     WEIGHTED = ("logreg", "random_forest", "svm")
+    # Soft labels via sample weights: logistic regression and random forests. SVM is excluded: its
+    # probability calibration cross-validates internally, and the duplicated rows of _fit_soft (the
+    # same X as both classes) invert it (correlation -0.45 with the truth in a check); SVM and k-NN
+    # threshold soft labels at 0.5 instead.
+    SOFT = ("logreg", "random_forest")
 
     def __init__(self, model: str, seed: int = 0, max_train_rows: int | None = None, **params):
         self.name, self.seed, self.max_train_rows = model, seed, max_train_rows
@@ -39,7 +44,11 @@ class SklearnExpert(EngagementExpert):
         self._constant: float | None = None
 
     def fit(self, X, y):
-        y = np.asarray(y, int)
+        y = np.clip(np.asarray(y, float), 0.0, 1.0)
+        soft = not np.all((y == 0) | (y == 1))
+        if soft and self.name in self.SOFT:
+            return self._fit_soft(np.asarray(X), y)
+        y = (y >= 0.5).astype(int)                 # hard labels (k-NN and SVM: soft ones thresholded)
         if len(np.unique(y)) < 2:          # one-class training fold: predict its prior
             self._constant = float(y.mean()) if len(y) else 0.5
             return self
@@ -55,6 +64,25 @@ class SklearnExpert(EngagementExpert):
             k = self.model.get_params()["clf__n_neighbors"]
             self.model.set_params(clf__n_neighbors=min(k, len(keep)))
         self.model.fit(np.asarray(X)[keep], y[keep])
+        return self
+
+    def _fit_soft(self, X: np.ndarray, y: np.ndarray) -> "SklearnExpert":
+        """Soft labels in [0, 1] (the normalised rating, docs/misc/targets.md §7.1 item 7): each row
+        is used twice, as class 1 with weight y and as class 0 with weight 1 - y, so logistic
+        regression minimises the soft-label cross-entropy and predicts E[y]. No class balancing:
+        the output is read back as a rating and must stay calibrated."""
+        if len(y) == 0 or np.ptp(y) == 0:          # nothing to learn: predict the (single) value
+            self._constant = float(y.mean()) if len(y) else 0.5
+            return self
+        self._constant = None
+        keep = np.arange(len(y))
+        if self.max_train_rows and len(keep) > self.max_train_rows:
+            keep = np.random.default_rng(self.seed).choice(keep, self.max_train_rows, replace=False)
+        X, y = X[keep], y[keep]
+        X2, y2, w = np.vstack([X, X]), np.r_[np.ones(len(y)), np.zeros(len(y))].astype(int), np.r_[y, 1 - y]
+        nz = w > 0
+        self.model.set_params(clf__class_weight=None)
+        self.model.fit(X2[nz], y2[nz], clf__sample_weight=w[nz])
         return self
 
     def predict_proba(self, X):

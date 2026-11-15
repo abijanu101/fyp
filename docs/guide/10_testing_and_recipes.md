@@ -27,7 +27,8 @@ python -m unittest tests.test_stages.TestTracklets.test_camera_frame_drop_is_not
 | `tests/test_labels.py` | clock parsing, step functions, time-weighted means, out-of-range values, window labelling rules |
 | `tests/test_spread.py` | CFMU spread maths: within² + between² = total², edge cases |
 | `tests/test_aggregation_modes.py` | early rows reproduce the window-level mixture exactly; late rows carry window context; window scores average rows and fill empty windows; per-student labels agree with the window share; the feature pass emits one row per visible track |
-| `tests/test_augment.py` | box mirroring, parameters fixed per (session, copy), hue range, copy tags, the same transform on every frame, the augmented source as a torch Dataset with the original timestamps, a materialised copy reading back with the original timestamps, augmented rows never in a test fold |
+| `tests/test_augment.py` | box mirroring, parameters fixed per (session, copy), hue range, copy tags, the same transform on every frame, the augmented source as a torch Dataset with the original timestamps, a copy reading back as the same video every time, augmented rows never in a test fold |
+| `tests/test_label_targets.py` | per-labeler training: interpolation modes (step values, NaN before the first entry, 1–5 clipping in every mode), window means and the centred-window blend, normalising and reading back ratings with clipping, rounding halves toward 3, the majority vote's ties and resolution, rating metrics, soft labels in logistic regression (calibrated) and the SVM/k-NN fallback (sign kept), one model per labeler learning only its own labels, window curves in both prediction modes, the rating graph's records, joining entries to linked tracks |
 | `tests/test_per_labeler.py` | the labeler ensemble: a labeler who did not rate a student has no vote, opposed labelers cancel where both rated, all labelers vote without labeler information (inference), self-ratings excluded, consensus mode unchanged |
 | `tests/test_mixture.py` | soft/hard/oracle mixing, shared scope, per-experiment training, hand-weighted signs, LOGO splits |
 | `tests/test_stages.py` | windows, tracklet gap filtering, SID association (including passing TAs), motion features, Vec key stability, config hashing and cache keys, track store round trip, the feature pass without video, graph privacy |
@@ -170,13 +171,30 @@ for L in 6 8 10 12:
 
 Each `train_models` run writes its own `outputs/results/<hash>.json`.
 
-## 10.10 Recipe: compare early and late aggregation
+## 10.10 Recipe: compare per-labeler training settings
+
+All are **T** (training only; inference settings are free):
+
+```
+python -m scripts.train_models                                              # train_with_interp, step labels
+python -m scripts.train_models --set labels.train_target='"train_vanilla"'
+python -m scripts.train_models --set labels.interp.mode='"gauss"' labels.interp.sigma_s=2
+python -m scripts.run_pipeline extract --reuse --set window.length_s=4      # window length: feature pass first
+python -m scripts.train_models --set window.length_s=4
+```
+
+Each writes its own results file. Compare the `own_labeler` rows of both tracks (experts, self)
+against the `constant_3` and `train_mean` baselines on AUC, Spearman and balanced accuracy; MAE and
+accuracy flatter constants on these labels (`docs/misc/targets.md` §3). `output.prediction` and
+`output.majority_resolution` need no retraining: training evaluates both predictions every run.
+
+## 10.11 Recipe: compare early and late aggregation (window-grid modes)
 
 No code changes; the features already contain both kinds of row:
 
 ```
-python -m scripts.train_models --set engagement.aggregate='"early"' labels.tau_att=3 labels.tau_share=0.6
-python -m scripts.train_models --set engagement.aggregate='"late"'  labels.tau_att=3 labels.tau_share=0.6
+python -m scripts.train_models --set engagement.labelers='"consensus"' engagement.aggregate='"early"' labels.tau_att=3 labels.tau_share=0.6
+python -m scripts.train_models --set engagement.labelers='"consensus"' engagement.aggregate='"late"'  labels.tau_att=3 labels.tau_share=0.6
 ```
 
 Each writes its own `outputs/results/<hash>.json` (the setting is part of the config hash) with the
@@ -185,11 +203,11 @@ student rows that could be linked to a labelled student. Low coverage means asso
 model, is limiting late aggregation. `engagement.late_context=false` tests whether students'
 own features carry any signal without the classroom context.
 
-Compare the two on AUC and `retention_r` first. F1 and balanced accuracy depend on each mode's
+Compare the two on AUC first. F1 and balanced accuracy depend on each mode's
 cut-off (`mixture.tau` for early, `labels.tau_share` for late, §7.5), and the late score is not a
 calibrated share.
 
-## 10.11 Recipe: measure the cost of a change
+## 10.12 Recipe: measure the cost of a change
 
 Add a variant to the config's `benchmark.variants` as dotted overrides, for example a cheaper flow
 setting:
@@ -204,7 +222,7 @@ idle machine and compare the two rows of `outputs/benchmarks/flow.md`. Check wha
 to the features, not only to the time: a faster pipeline that changes Vec needs the downstream
 evaluation re-run.
 
-## 10.12 Recipe: run something that takes hours
+## 10.13 Recipe: run something that takes hours
 
 Long jobs are run in your own terminal, so their progress is visible, and are written to resume:
 they append each finished unit of work to a log as it completes and skip logged units on restart
@@ -212,7 +230,7 @@ they append each finished unit of work to a log as it completes and skip logged 
 write a new long-running script, follow the same pattern: small units, append-as-you-go, a
 fingerprint of the settings so a restart cannot mix results, and a progress line on stdout.
 
-## 10.13 Before you commit
+## 10.14 Before you commit
 
 - Tests pass.
 - If you changed a contract (a dataclass, config keys, a cache format), update the matching

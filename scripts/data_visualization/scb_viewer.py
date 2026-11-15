@@ -254,6 +254,13 @@ class ScbViewer:
         print("final thresholds:", {n: round(v, 2) for n, v in zip(self.classes, self.thresholds)})
 
 
+def print_controls() -> None:
+    """Print the controls section of this module's docstring to the terminal."""
+    lines = __doc__.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith(("Mouse", "Keys", "Window")))
+    print("\n".join(lines[start:]).rstrip() + "\n", flush=True)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("group", nargs="?", default="group_01")
@@ -269,6 +276,7 @@ def main() -> None:
     viewer = ScbViewer(args, load_config(args.config, parse_sets(args.set)))
     if args.precompute:
         viewer.analyse_all()
+    print_controls()
     viewer.run()
 
 

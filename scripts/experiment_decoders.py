@@ -1,5 +1,5 @@
 """Experiment 2: every classical decoder, trained on groups 1-2 clean or with augmented copies,
-tested on clean group 3.
+tested on group 3, clean and augmented (reported separately).
 
   python -m scripts.experiment_decoders --extract     # long (hours), resumable: features for every
                                                       # session, then augmented copies of groups 1-2
@@ -36,7 +36,7 @@ import numpy as np
 import pandas as pd
 
 from scripts.run_pipeline import cmd_extract, parse_sets
-from scripts.train_models import engagement_rows, expert_factory, load_table, retention_check, with_augmented
+from scripts.train_models import engagement_rows, expert_factory, load_table, with_augmented
 from src.core.config import config_hash, load_config
 from src.core.pipeline import SCENE_PREFIX, TRACK_PREFIX, VEC_PREFIX
 from src.evaluation import binary_metrics, context_metrics
@@ -168,7 +168,7 @@ def evaluate(cfg: dict, copies_list: list[int]) -> Path:
                     records.append({"copies": k, "split": split, "labelers": "-", "inputs": "-", "expert": name,
                                     "scope": "-",
                                     "context": "-", "auc": m["auc"], "f1": m["f1"], "balanced_acc": m["balanced_acc"],
-                                    "retention_r": retention_check(df.iloc[te], score), "n": m["n"],
+                                    "n": m["n"],
                                     "pos_rate": m["pos_rate"], "fit_s": 0.0})
             for labelers, experts in LABELER_MODES.items():          # config engagement.labelers
                 cm = {**ck, "engagement": {**ck["engagement"], "labelers": labelers}}
@@ -186,7 +186,7 @@ def evaluate(cfg: dict, copies_list: list[int]) -> Path:
                                 records.append({"copies": k, "split": split, "labelers": labelers, "inputs": inp,
                                                 "expert": expert, "scope": scope, "context": ctx, "auc": m["auc"],
                                                 "f1": m["f1"], "balanced_acc": m["balanced_acc"],
-                                                "retention_r": retention_check(df.iloc[te], p), "n": m["n"],
+                                                "n": m["n"],
                                                 "pos_rate": m["pos_rate"], "fit_s": fit_s})
                             pd.DataFrame(records).to_csv(eng_path, mode="a", index=False, header=not eng_path.exists())
                             records = []
@@ -207,7 +207,7 @@ def summarize(out: Path) -> None:
     lines = [f"# Experiment 2: decoders (`{out.name}`)", "",
              "Columns: set (cv = mean of the two development folds; test = group 3 as recorded; "
              "test_aug = group 3's augmented copies) and +k = augmented copies per training session. "
-             "AUC and retention_r need no cut-off; read them first.", ""]
+             "AUC needs no cut-off; read it first.", ""]
 
     def table(df, index, cols, value):
         """Markdown pivot: one row per `index` combination, one column per (set, copies)."""
@@ -224,7 +224,7 @@ def summarize(out: Path) -> None:
     lines += table(g, ["gate"], ["set", "copies"], "macro_f1") + [""]
     for ctx in ["oracle", "gate:random_forest"]:
         sub = e[(e.context == ctx) | (e.context == "-")]
-        for metric in ("auc", "retention_r"):
+        for metric in ("auc",):
             lines += [f"## Engagement {metric}, context {ctx}", ""]
             lines += table(sub, ["labelers", "inputs", "expert", "scope"], ["set", "copies"], metric) + [""]
     (out / "summary.md").write_text("\n".join(lines), encoding="utf-8")

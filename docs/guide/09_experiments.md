@@ -36,7 +36,7 @@ the hash with every number you report (Chapter 4, §4.4).
 activities. Everything about a group is shared across its sessions: the room, the lighting, the
 camera angles, the people and their clothes.
 
-**Window.** An 8-second slice of a session, with 50% overlap. The unit every engagement metric is
+**Window.** A slice of a session `window.length_s` seconds long (8 in the current config), overlapping the next by `window.overlap` (0.5). The unit every engagement metric is
 computed on.
 
 **Labelled window.** A window with a label: at least `labels.min_labeled_students` (3) students had
@@ -113,6 +113,8 @@ under the names `<variant>/<context>`:
 
 ## 9.4 Metric and label terms
 
+Chapter 12 explains these terms from scratch, with worked examples.
+
 ### Engagement metrics (per window, on labelled windows of the held-out group)
 
 | Metric | Meaning | Uses the cut-off? | Chance level |
@@ -120,13 +122,12 @@ under the names `<variant>/<context>`:
 | `auc` | ROC AUC: the probability that a random engaged window scores above a random not-engaged one | no | 0.5 |
 | `f1` | F1 of the "engaged" class: balances missed and false engaged windows | yes | depends on the class balance |
 | `balanced_acc` | mean of the hit rates on engaged and on not-engaged windows | yes | 0.5 |
-| `retention_r` | per session, the Pearson correlation between the score curve and the labelled share engaged, averaged over sessions | no | 0 |
 | `n`, `pos_rate` | labelled windows scored, and the share of them labelled engaged | | |
 
-AUC and `retention_r` are the most informative here: they do not depend on where the cut-off
-sits, and `retention_r` asks directly whether the curve goes up and down with the labels, which
-is what a retention graph is for. With a skewed class balance F1 can look good for a model that
-always says "engaged"; compare it with `majority`.
+AUC is the most informative here: it does not depend on where the cut-off sits. With a skewed
+class balance F1 can look good for a model that always says "engaged"; compare it with `majority`.
+Results files written before 16 November 2026 also contain `retention_r`, a within-session curve
+correlation since removed from the code (`docs/misc/proposed_metrics.md`).
 
 `per_experiment` repeats the metrics for each activity separately, inside each fold.
 
@@ -222,7 +223,7 @@ times on one extraction, while anything marked **F** should be batched.
   between two runs is only interpretable if one key changed.
 - **Keep a baseline run** with the current config and compare every variant with it, fold by fold
   (results files keep per-fold numbers).
-- **Read classified first**, oracle second; read AUC and `retention_r` before F1 (§9.4).
+- **Read classified first**, oracle second; read AUC before F1 (§9.4).
 - **Treat differences within the fold `std` as ties.** With three groups, a 0.01 change in mean
   AUC is noise.
 - **Check `majority` and `hand_weighted`.** A learned model that does not beat them has learned
@@ -230,8 +231,8 @@ times on one extraction, while anything marked **F** should be batched.
 - **Tune only after the labels are fixed.** The expert objective depends on `labels.*`.
 
 Chapter 10 has step-by-step recipes for common experiments: a tracker setting (§10.5), a
-sensitivity sweep (§10.9), early versus late aggregation (§10.10), and the cost of a change
-(§10.11).
+sensitivity sweep (§10.9), per-labeler training settings (§10.10), early versus late aggregation (§10.11), and the cost of a change
+(§10.12).
 
 ## 9.6 `deliverable3.json`, key by key
 
@@ -311,11 +312,14 @@ hash; the entries that read pixels (`residual_flow`, `scb`) are also in the trac
 | `kalman_geometry.use_kalman` | true | take velocity from the tracker's Kalman filter where available; false = finite differences of box centres only | P |
 | `residual_flow.grid` | 2 | grid×grid cells inside each box, one flow value each (`rf.mag_ij`) | F |
 | `residual_flow.scale` | 0.5 | frames are resized by this before optical flow. Higher = finer, slower (flow is the costliest stage) | F |
+| `residual_flow.farneback` | (not set) | optional overrides of OpenCV's dense-flow parameters (`pyr_scale` 0.5, `levels` 3, `winsize` 15, `iterations` 3, `poly_n` 5, `poly_sigma` 1.2, `flags` 0) | F |
 | `scb.mode` | `soft` | `soft`: raw detector scores per student (mean and peak per window); `flags`: thresholded 0/1 per class | F |
 | `scb.min_overlap` | 0.5 | a behaviour box is assigned to a student only if at least this share of it lies inside the student's box | F |
+| `scb.obj_floor` | 0.01 | soft mode: candidate boxes below this objectness are ignored (removes empty anchors only) | F |
 | `scb.models[].weights` | SCB YOLOv7 checkpoint | the behaviour detector | F |
 | `scb.models[].classes` | hand_raising, read, write | must equal the checkpoint's classes in order; names the `scb.*` keys | F |
 | `scb.models[].conf` | 0.25 | per-class threshold, **flags mode only**; no effect in soft mode | F |
+| `scb.models[].iou`, `.imgsz`, `.half` | (not set: 0.45, 640, true) | optional YOLOv7 settings: NMS IoU (flags mode), input size, half precision | F |
 
 ### Models
 
@@ -331,7 +335,7 @@ hash; the entries that read pixels (`residual_flow`, `scb`) are also in the trac
 | `mixture.tau` | 0.5 | engaged cut-off in **early** aggregation (unused in late) | T |
 | `engagement.aggregate` | `late` | `late`: score each student, average per window; `early`: score Vec (§7.5) | T |
 | `engagement.late_context` | true | late only: append the window's Vec to every student row | T |
-| `engagement.labelers` | `consensus` | `consensus`: train on the median-of-labelers label; `ensemble`: one model per labeler on their own labels, averaged over the labelers who rated each student (§7.5); late only | T |
+| `engagement.labelers` | `per_labeler` | `per_labeler`: one model per labeler, trained on windows centred on each rating entry and evaluated per label (§7.9, `docs/misc/targets.md` §7); `consensus`: train on the median-of-labelers window label; `ensemble`: one model per labeler on the window grid, averaged over the labelers who rated each student (§7.5). `consensus` and `ensemble` are the window-grid paths, which `plot_results`, `tune_models` and the output viewer need | T |
 | `engagement.ensemble_exclude` | `["self_labeling"]` | labelers left out of the ensemble (the self-ratings by default) | T |
 | `context_mode` | `classified` | **unused**: training always reports both, inference always uses classified | T |
 
@@ -353,6 +357,14 @@ need `extract --reuse` (a frame pass per new copy), then `train_models`.
 | `augmentation.hflip` | 0.5 | probability that a copy is mirrored (student boxes mirrored with it) |
 | `augmentation.mask` | grey cutout, p 0.5, 1–3 masks, 4–12% of the frame side | fixed occluders per copy, with probability `p` |
 
+### Output
+
+| Key | Value | What it does | Re-run |
+|---|---|---|---|
+| `output.smooth_windows` | 5 | windows averaged for the smoothed curve in `retention_graph.png` (the JSON keeps raw values) | nothing (inference only) |
+| `output.prediction` | `per_labeler` | per-labeler models only. `per_labeler`: every labeler model's class curve, final curve = their median; `majority`: per student, the most common rating across the labeler models, then averaged over students (§7.9) | nothing (inference only; training evaluates both) |
+| `output.majority_resolution` | 0.5 | `majority` only: ratings are quantised to multiples of this before the vote (0.5: 1.0, 1.5, …, 5.0) | nothing (inference only) |
+
 ### Labels
 
 All **T**, so label experiments are cheap.
@@ -361,10 +373,13 @@ All **T**, so label experiments are cheap.
 |---|---|---|
 | `labels.tau_att` | 4 | a student is engaged if their consensus attention (median over labelers of each one's time-weighted mean, 1–5) is at least this |
 | `labels.tau_share` | 0.5 | a window is engaged if the share of engaged labelled students is at least this; also the late-mode cut-off |
-| `labels.min_labeled_students` | 3 | windows with fewer labelled students get no window label (still used for `retention_r`); per-student labels ignore it |
+| `labels.min_labeled_students` | 3 | windows with fewer labelled students get no window label; per-student labels ignore it |
 | `labels.exclude_self` | false | leave each student's self-rating out of the consensus |
 | `labels.offset_s` | 0.0 | seconds added to every label timestamp, to align labels with the camera clock |
 | `labels.students` | `camera` | `camera`: only students annotated as visible in this camera; any other value (e.g. `all`): every student of the session |
+| `labels.train_target` | `train_with_interp` | per-labeler training value of a window centred on a rating entry: `train_with_interp` = that labeler's interpolated curve averaged over the window; `train_vanilla` = the entry's own rating. Either way normalised to (rating − 1) / 4 |
+| `labels.interp.mode` | `step` | how a labeler's entries become a value between entries: `step`, `ramp`, `linear`, `pchip`, `cubic`, `gauss` (Chapter 13, O25; the label viewer shows each) |
+| `labels.interp.ramp_s`, `.sigma_s` | 3.0, 2.0 | `ramp`: seconds of the ramp before each change; `gauss`: width of the Gaussian, in seconds |
 
 At the design's values (4 and 0.5) almost no window is engaged; the provisional values used so far
 are `tau_att=3`, `tau_share=0.6` (Chapter 11).

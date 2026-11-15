@@ -16,8 +16,8 @@ errors propagate into every downstream number.
 |---|---|---|---|
 | D1 | Detector: full grid scan of the confidence threshold, clean data (§3) | done | 0.22 drops no student; mean recall 0.994 |
 | D2 | Detector: binary search for the optimal threshold, clean data (§3) | done | 0.166 keeps every student within 10 points of the floor |
-| D3 | Detector: binary search under on-the-fly augmentation (§3) | running | |
-| T1 | Trackers on clean data: BoT-SORT without ReID, StrongSORT; random search, 20 trials (§6) | StrongSORT done, BoT-SORT 18/20 | BoT-SORT 0.905 IDF1, StrongSORT 0.878 |
+| D3 | Detector: binary search under on-the-fly augmentation (§3) | to be run | |
+| T1 | Trackers on clean data: BoT-SORT without ReID, StrongSORT; random search, 20 trials (§6) | done | BoT-SORT 0.905 IDF1, StrongSORT 0.878 |
 | T2 | Trackers on augmented data: BoT-SORT, BoT-SORT + ReID + CMC, StrongSORT; beam bisection (§6) | to be run | |
 
 ## 2. Phase 1: validation notebook (`notebooks/dipser_tracking.ipynb`)
@@ -130,18 +130,20 @@ the recall side. Whether to lower `detector.conf` is therefore settled by the tr
 #### D3. Binary search under augmentation (running)
 
 The detector is a single point of failure, so it is also tested on degraded footage: all 52
-sessions, **every frame augmented on the fly 5–10 times**, each variant with its own independently
+sessions, **every frame augmented on the fly 5 times**, each variant with its own independently
 drawn parameters from the config's `augmentation` (brightness ±35, contrast ±15%, saturation ±20%,
 hue ±3°, gamma 1/1.15–1.15, Gaussian or speckle noise up to 0.35, horizontal flip with p 0.5, grey
 occluders with p 0.5), each detected at the floor, student boxes mirrored for flipped variants.
-About 560,000 images; only the detections are kept, per session, for resuming. The floor reference
-is the augmented variants' own floor detections. `python -m scripts.scan_detector --augment
---workers 4`; `outputs/tuning/detector_search_augmented.{csv,json}`.
+About 375,000 images (~75,000 frames × 5); only the detections are kept, per session, for resuming.
+The floor reference is the augmented variants' own floor detections. Run in the user's terminal
+(one progress line per frame), roughly 8 hours with 4 workers; `--stride 2` halves it:
+`python -m scripts.scan_detector --augment --workers 4`;
+`outputs/tuning/detector_search_augmented.{csv,json}`.
 
 | | Optimal threshold | Configured 0.22 keeps every student | Mean recall at 0.22 | Lowest at 0.22 | Unmatched boxes at 0.22 |
 |---|---|---|---|---|---|
 | D2, clean | 0.166 | no (one student) | 0.994 | 0.699 | 19.1% |
-| D3, augmented | *running* | *running* | | | |
+| D3, augmented | *to be run* | *to be run* | | | |
 
 ### Tracker wrapper
 
@@ -269,14 +271,14 @@ estimate held-out quality.
 
 | | BoT-SORT, no ReID | StrongSORT |
 |---|---|---|
-| Status | 18 of 20 trials complete (final values to be filled in) | complete |
+| Status | complete (20 trials) | complete (20 trials) |
 | Trial 0 (starting values) IDF1 | 0.888 | 0.843 |
 | **Best IDF1** | **0.905** (trial 6) | **0.878** (trial 14) |
 | Best, per group G01 / G02 / G03 | 0.876 / 0.922 / 0.917 | 0.836 / 0.907 / 0.894 |
 | Best: coverage | 0.968 | 0.946 |
 | Best: ID switches per subject | 1.04 | 9.26 |
 | Best: track ids per subject | 1.40 | 1.77 |
-| Median IDF1 over trials (IQR) | 0.826 (0.783–0.877) | 0.825 (0.781–0.856) |
+| Median IDF1 over trials (IQR) | 0.815 (0.773–0.876) | 0.825 (0.781–0.856) |
 | Trials within 0.01 of the best | 2 (trials 6, 17) | 4 (trials 14, 8, 13, 6) |
 | Tracking cost per frame | ~2 ms | ~120–165 ms (ReID) |
 
@@ -304,6 +306,8 @@ trials 0–10 reproduced the earlier run's numbers exactly, confirming `det_thre
 | 15 | 0.839 | 0.791 | 0.881 | 0.849 | 0.849 | 0.749 | 1.467 | 0.106 | 0.621 | 0.067 | 0.665 | 0.841 | 40 |
 | 16 | 0.818 | 0.768 | 0.861 | 0.828 | 0.844 | 0.974 | 1.710 | 0.272 | 0.644 | 0.106 | 0.329 | 0.935 | 46 |
 | 17 | 0.904 | 0.878 | 0.922 | 0.914 | 0.940 | 0.937 | 1.343 | 0.215 | 0.344 | 0.153 | 0.605 | 0.764 | 45 |
+| 18 | 0.789 | 0.741 | 0.822 | 0.807 | 0.850 | 1.275 | 1.992 | 0.351 | 0.624 | 0.086 | 0.476 | 0.932 | 27 |
+| 19 | 0.733 | 0.691 | 0.778 | 0.734 | 0.834 | 5.848 | 3.352 | 0.464 | 0.205 | 0.141 | 0.408 | 0.519 | 93 |
 
 Best parameters (trial 6): `det_conf 0.229, track_high_thresh 0.314, track_low_thresh 0.206,
 new_track_thresh 0.396, match_thresh 0.767, max_lost_frames 25`. Trial 17 (0.904) is a near tie with

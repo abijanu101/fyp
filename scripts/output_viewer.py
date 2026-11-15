@@ -8,7 +8,13 @@ the feature pass (`features/<hash>/<session>.csv` and `.tracks.csv`, from `run_p
 and a model bundle from `train_models` (default: the one trained under this exact config, else the
 newest). Use the same --set values the session was extracted and trained with.
 
-What you see
+Per-labeler bundles (engagement.labelers = "per_labeler", the default): ratings 1-5 are drawn on the
+0-1 axis as (rating - 1) / 4. Boxes show each student's final rating (median or majority across the
+labeler models, output.prediction) and, with labels on, their labelled rating (median over their
+labelers of each one's window mean); red = final class rating, grey = labelled class rating (mean
+over the camera's students), dashed = labels.tau_att.
+
+What you see (window-grid bundles)
   video     every track in this frame. Coloured red -> green by that student's predicted engagement
             in the current window (late aggregation); white = tracked but not scored in this window
             (visible < aggregation.min_coverage of it); thin grey = dropped by the tracklet filter.
@@ -109,27 +115,35 @@ class OutputViewer:
             print(f"WARNING: {path.name} was trained under a different config than the one given")
         self.classes = cfg["classes"]
         self.g = m["gate"].predict_proba(df.reindex(columns=m["gate_cols"]).to_numpy(float))
-        self.late = m.get("aggregate", "early") == "late"
-        if self.late:
+        self.rated = m.get("kind") == "per_labeler"
+        self.late = self.rated or m.get("aggregate", "early") == "late"
+        if self.rated:
+            self.load_per_labeler(cfg, m, df, tracks, index)
+        elif self.late:
             X, _, w = late_rows(df, tracks, context=False, cols=m["row_cols"])
         else:
             X, w = df.reindex(columns=m["row_cols"]).to_numpy(float), np.arange(len(df))
-        p_rows = m["mixture"].predict_proba(X, self.g[w]) if len(w) else np.zeros(0)
-        self.score = window_scores(p_rows, w, len(df), m["fill"])
-        self.tau = m.get("tau", cfg["mixture"]["tau"])
-        self.p_student = ({(int(wi), int(tid)): float(p) for wi, tid, p in zip(w, tracks["tid"], p_rows)}
-                          if self.late else {})
+        if not self.rated:
+            p_rows = m["mixture"].predict_proba(X, self.g[w]) if len(w) else np.zeros(0)
+            self.score = window_scores(p_rows, w, len(df), m["fill"])
+            self.tau = m.get("tau", cfg["mixture"]["tau"])
+            self.p_student = ({(int(wi), int(tid)): float(p) for wi, tid, p in zip(w, tracks["tid"], p_rows)}
+                              if self.late else {})
         self.t0w, self.t1w = df["t_start"].to_numpy(), df["t_end"].to_numpy()
         self.mid = (self.t0w + self.t1w) / 2
 
         # labels and identities (development only)
         windows = [Window(a, b) for a, b in zip(self.t0w, self.t1w)]
-        labels = label_session(index, self.key, windows, cfg["labels"])
-        self.share = np.array([l.share_engaged for l in labels], float)
-        self.wlabel = [l.engaged for l in labels]
         self.sid = associate_sids(st.tracklets, index.annotations(self.key), cfg["association"]["min_iou"],
                                   cfg["association"]["min_match_share"])
-        self.slabel = student_labels_session(index, self.key, windows, cfg["labels"])
+        if self.rated:                                  # labelled class rating, on the same 0-1 axis
+            self.slabel, self.share = self.labelled_ratings(index, windows, cfg["labels"])
+            self.wlabel = [None if not np.isfinite(v) else bool(v >= self.tau) for v in self.share]
+        else:
+            labels = label_session(index, self.key, windows, cfg["labels"])
+            self.share = np.array([l.share_engaged for l in labels], float)
+            self.wlabel = [l.engaged for l in labels]
+            self.slabel = student_labels_session(index, self.key, windows, cfg["labels"])
 
         print(f"{self.key}: {len(df)} windows, {len(kept)} kept tracklets of {len(st.tracklets)}, "
               f"aggregate={'late' if self.late else 'early'}, cut-off {self.tau:g}, models {path.name[:12]}")
@@ -142,6 +156,36 @@ class OutputViewer:
         self.idx = min(int(np.searchsorted(self.t, self.t[0] + args.start)), len(self.t) - 1)
         self.playing, self.speed = False, 1.0
         self._restart_clock()
+
+    # -- per-labeler bundles (engagement.labelers = "per_labeler"; ratings shown as (r - 1) / 4 on 0-1)
+    def load_per_labeler(self, cfg: dict, m: dict, df: pd.DataFrame, tracks: pd.DataFrame, index) -> None:
+        from src.experts import window_curves
+        from src.labels.interp import majority_rating, to_rating
+
+        out = cfg["output"]
+        X, _, w = late_rows(df, tracks, context=False, cols=m["row_cols"])
+        final, _ = window_curves(m["model"], X, self.g[w], w, len(df), out["prediction"],
+                                 float(out["majority_resolution"]))
+        ratings = np.column_stack([to_rating(p) for p in m["model"].predict(X, self.g[w]).values()]) \
+            if len(w) else np.zeros((0, 1))
+        student = (np.median(ratings, axis=1) if out["prediction"] == "per_labeler"
+                   else majority_rating(ratings, float(out["majority_resolution"])))
+        self.score = (final - 1) / 4
+        self.tau = (float(m["tau_att"]) - 1) / 4
+        self.p_student = {(int(wi), int(tid)): float((r - 1) / 4) for wi, tid, r in zip(w, tracks["tid"], student)}
+        self.mode = out["prediction"]
+
+    def labelled_ratings(self, index, windows: list, lcfg: dict) -> tuple[dict, np.ndarray]:
+        """Per student, the median over labelers of each one's window mean (normalised to 0-1); per
+        window, its mean over the camera's students."""
+        from src.labels.session import _students_and_labeler
+
+        students, labeler = _students_and_labeler(index, self.key, lcfg)
+        per = {sid: np.array([(labeler.consensus(labs, w) - 1) / 4 for w in windows]) for sid, labs in students.items()}
+        stack = np.stack(list(per.values())) if per else np.full((1, len(windows)), np.nan)
+        with np.errstate(all="ignore"):
+            share = np.nanmean(stack, axis=0) if np.isfinite(stack).any() else np.full(len(windows), np.nan)
+        return per, share
 
     # -- data
     def frame_image(self, i: int) -> np.ndarray:
@@ -178,11 +222,15 @@ class OutputViewer:
             p = self.p_student.get((wi, tid)) if wi is not None else None
             col = engagement_colour(p) if p is not None else (235, 235, 235)
             cv2.rectangle(img, p1, p2, col, 2)
-            text = f"{tid}" + (f" p{p:.2f}" if p is not None else "")
+            if self.rated:
+                text = f"{tid}" + (f" r{1 + 4 * p:.1f}" if p is not None else "")
+            else:
+                text = f"{tid}" + (f" p{p:.2f}" if p is not None else "")
             sid = self.sid.get(tid)
             if self.show_labels and sid:
                 lab = self.slabel.get(sid, np.full(len(self.mid), np.nan))[wi] if wi is not None else np.nan
-                text += f" {sid.replace('subject_', 'S')} L{'-' if not np.isfinite(lab) else int(lab)}"
+                shown = "-" if not np.isfinite(lab) else (f"{1 + 4 * lab:.1f}" if self.rated else str(int(lab)))
+                text += f" {sid.replace('subject_', 'S')} L{shown}"
             (tw, th), _ = cv2.getTextSize(text, FONT, 0.42, 1)
             cv2.rectangle(img, (p1[0], p1[1] - th - 6), (p1[0] + tw + 6, p1[1]), col, -1)
             cv2.putText(img, text, (p1[0] + 3, p1[1] - 4), FONT, 0.42, (0, 0, 0), 1, cv2.LINE_AA)
@@ -202,10 +250,18 @@ class OutputViewer:
             engaged = self.score[wi] >= self.tau
             lab = self.wlabel[wi]
             share = f"{self.share[wi]:.2f}" if np.isfinite(self.share[wi]) else "-"
-            line2 = (f"window {wi + 1}/{len(self.mid)}  "
-                     f"activity {ctx} ({self.g[wi, k]:.2f}) true {self.key.exp_id}{'' if ctx == self.key.exp_id else ' WRONG'}  |  "
-                     f"score {self.score[wi]:.2f} {'>=' if engaged else '<'} {self.tau:g} -> {'ENGAGED' if engaged else 'not'}  |  "
-                     f"labelled share {share}, label {'-' if lab is None else ('engaged' if lab else 'not')}")
+            if self.rated:
+                r, ta = 1 + 4 * self.score[wi], 1 + 4 * self.tau
+                lr = f"{1 + 4 * self.share[wi]:.2f}" if np.isfinite(self.share[wi]) else "-"
+                line2 = (f"window {wi + 1}/{len(self.mid)}  "
+                         f"activity {ctx} ({self.g[wi, k]:.2f}) true {self.key.exp_id}{'' if ctx == self.key.exp_id else ' WRONG'}  |  "
+                         f"{self.mode} rating {r:.2f} {'>=' if engaged else '<'} {ta:g} -> {'ENGAGED' if engaged else 'not'}  |  "
+                         f"labelled rating {lr}")
+            else:
+                line2 = (f"window {wi + 1}/{len(self.mid)}  "
+                         f"activity {ctx} ({self.g[wi, k]:.2f}) true {self.key.exp_id}{'' if ctx == self.key.exp_id else ' WRONG'}  |  "
+                         f"score {self.score[wi]:.2f} {'>=' if engaged else '<'} {self.tau:g} -> {'ENGAGED' if engaged else 'not'}  |  "
+                         f"labelled share {share}, label {'-' if lab is None else ('engaged' if lab else 'not')}")
             col = (120, 230, 120) if (lab is None or bool(lab) == engaged) else (90, 140, 255)
         cv2.putText(img, line2, (8, 38), FONT, 0.42, col, 1, cv2.LINE_AA)
         return img
@@ -245,7 +301,9 @@ class OutputViewer:
             cv2.rectangle(img, (x0, y + 2 * STRIP_H + 4), (x0 + 10, y + 2 * STRIP_H + 13), ACTIVITY[k % len(ACTIVITY)], -1)
             cv2.putText(img, c, (x0 + 13, y + 2 * STRIP_H + 13), FONT, 0.35, (200, 200, 200), 1, cv2.LINE_AA)
             x0 += 40
-        cv2.putText(img, "red: score  grey: labelled share  dashed: cut-off", (x0 + 10, y + 2 * STRIP_H + 13),
+        legend = ("red: final rating  grey: labelled rating  dashed: tau_att  (axis: (rating-1)/4)" if self.rated
+                  else "red: score  grey: labelled share  dashed: cut-off")
+        cv2.putText(img, legend, (x0 + 10, y + 2 * STRIP_H + 13),
                     FONT, 0.35, (200, 200, 200), 1, cv2.LINE_AA)
         x = self.x_of(float(self.t[self.idx]))
         cv2.line(img, (x, 2), (x, y + 2 * STRIP_H), (255, 255, 255), 1)
@@ -311,6 +369,13 @@ class OutputViewer:
         cv2.destroyAllWindows()
 
 
+def print_controls() -> None:
+    """Print the controls section of this module's docstring to the terminal."""
+    lines = __doc__.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith(("Mouse", "Keys", "Window")))
+    print("\n".join(lines[start:]).rstrip() + "\n", flush=True)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("group", nargs="?", default="group_01")
@@ -328,6 +393,7 @@ def main() -> None:
         cv2.imwrite(args.snapshot, viewer.render())
         print(f"wrote {args.snapshot}")
         return
+    print_controls()
     viewer.run()
 
 

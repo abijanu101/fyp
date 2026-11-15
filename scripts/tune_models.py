@@ -3,8 +3,11 @@
   python -m scripts.tune_models [--component gate|expert|both] [--trials N] [--set key=value ...]
 
 Objectives:  gate   -> 6-way macro-F1 of the configured gate model
-             expert -> window AUC of the configured mixture under the ORACLE context, which isolates
-                       expert quality from gate errors (design §8 oracle condition)
+             expert -> under the ORACLE context, which isolates expert quality from gate errors:
+                       engagement.labelers = "per_labeler" (default): per-label AUC (entered rating
+                       >= labels.tau_att) of each entry's own labeler model, over every held-out
+                       entry (AUC, not MAE: a constant 3 beats the models on MAE, docs/misc/targets.md);
+                       "consensus" / "ensemble": window AUC of the configured mixture
 Uses features cached by `run_pipeline extract` and labels from the current `labels.*` config, so
 fix the label thresholds (scripts.data_visualization.inspect_labels) before tuning experts.
 
@@ -58,6 +61,29 @@ def expert_scorer(cfg, rows, y, exp, labeled):
     return score
 
 
+def per_labeler_expert_scorer(cfg, rows, row_cols):
+    """Per-label AUC of the own-labeler prediction under oracle context; tr/te index `rows`."""
+    from scripts.train_models import per_entry, per_labeler_factory
+    from src.evaluation import rating_metrics
+    from src.experts import PerLabelerModel
+    from src.labels.interp import to_rating
+
+    classes, mcfg, tau_att = cfg["classes"], cfg["mixture"], float(cfg["labels"]["tau_att"])
+    X = rows.reindex(columns=row_cols).to_numpy(float)
+    target, labeler, exp = rows["target"].to_numpy(float), rows["labeler"].to_numpy(), rows["exp"].to_numpy()
+
+    def score(params, tr, te):
+        c = copy.deepcopy(cfg)
+        c["expert"]["params"] = params
+        model = PerLabelerModel.fit(per_labeler_factory(c, row_cols, mcfg["expert_scope"]),
+                                    X[tr], target[tr], exp[tr], labeler[tr])
+        preds = model.predict(X[te], context_probs("oracle", classes, exp[te]))
+        own = np.array([to_rating(preds[l][i]) if l in preds else np.nan for i, l in enumerate(labeler[te])])
+        y, pr = per_entry(rows.iloc[te], own)
+        return rating_metrics(y, pr, tau_att)["auc"]
+    return score
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="configs/deliverable3.json")
@@ -74,27 +100,36 @@ def main() -> None:
     groups, exp = df["group"].to_numpy(), df["exp"].to_numpy()
     labeled = df["y"].notna().to_numpy()
     y = df["y"].fillna(0).to_numpy(int)
-    if args.component in ("expert", "both") and len(np.unique(y[labeled])) < 2:
+    per_labeler = cfg["engagement"].get("labelers") == "per_labeler"
+    if args.component in ("expert", "both") and not per_labeler and len(np.unique(y[labeled])) < 2:
         raise SystemExit("Window labels have a single class under the current labels.* thresholds; "
                          "run scripts.data_visualization.inspect_labels and set labels.tau_att / labels.tau_share first.")
 
-    jobs = []
+    jobs = []                                          # (component, model config, scorer, groups of its rows)
     if args.component in ("gate", "both"):
-        jobs.append(("gate", cfg["gate"], gate_scorer(cfg, df[gate_cols].to_numpy(float), exp)))
+        jobs.append(("gate", cfg["gate"], gate_scorer(cfg, df[gate_cols].to_numpy(float), exp), groups))
     if args.component in ("expert", "both"):
-        jobs.append(("expert", cfg["expert"],
-                     expert_scorer(cfg, engagement_rows(cfg, df, vec_cols), y, exp, labeled)))
+        if per_labeler:
+            from scripts.train_models import label_rows
+            rows = label_rows(cfg, df)
+            row_cols = sorted(c for c in rows if c.startswith("trk.")) + \
+                (vec_cols if cfg["engagement"].get("late_context", True) else [])
+            jobs.append(("expert", cfg["expert"], per_labeler_expert_scorer(cfg, rows, row_cols),
+                         rows["group"].to_numpy()))
+        else:
+            jobs.append(("expert", cfg["expert"],
+                         expert_scorer(cfg, engagement_rows(cfg, df, vec_cols), y, exp, labeled), groups))
 
     out = Path(cfg["output_dir"]) / "tuning"
     out.mkdir(parents=True, exist_ok=True)
-    for component, model_cfg, score in jobs:
+    for component, model_cfg, score, job_groups in jobs:
         name = model_cfg["name"]
         space = tune[component]["space"].get(name)
         if not space:
             print(f"{component}: no search space for '{name}', skipping")
             continue
         print(f"{component} ({name}): nested LOGO search, {args.trials or tune[component]['n_trials']} trials ...")
-        res = nested_logo_search(groups, space, args.trials or tune[component]["n_trials"], tune["seed"],
+        res = nested_logo_search(job_groups, space, args.trials or tune[component]["n_trials"], tune["seed"],
                                  score, baseline=model_cfg.get("params", {}))
         res["config_patch"] = {f"{component}.params": res["selected"]}
         (out / f"{component}_{name}.json").write_text(json.dumps(res, indent=2, default=float), encoding="utf-8")

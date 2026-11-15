@@ -13,7 +13,7 @@ from .attention import SELF_LABELER, AttentionTrack
 @dataclass
 class WindowLabel:
     engaged: int | None        # 1/0, or None when too few students are labeled (window dropped)
-    share_engaged: float       # soft target for the retention-curve check; NaN if no labeled students
+    share_engaged: float       # share of labelled students engaged; NaN if no labeled students
     n_labeled: int
 
 

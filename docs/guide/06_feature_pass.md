@@ -7,10 +7,8 @@ why it is separate from the frame pass.
 ```python
 def features(self, st: SessionTrack) -> SessionFeatures:
     fps = st.timing.get("fps") or 1.0
-    tl = self.cfg["tracklets"]
-    tracklets = filter_visible(st.tracklets, st.frame_t, fps, tl["min_visible_s"], tl["max_gap_s"])
-    win = self.cfg["window"]
-    windows = make_windows(st.timing["t_first"], st.timing["t_last"], win["length_s"], win["overlap"])
+    tracklets = filter_visible(st.tracklets, st.frame_t, fps, **self.cfg["tracklets"])
+    windows = make_windows(st.timing["t_first"], st.timing["t_last"], **self.cfg["window"])
     vec, track_rows = [], []
     for i, w in enumerate(windows):
         v, rows = self.aggregator.aggregate_with_tracks(w, tracklets, fps, st.frame_wh)

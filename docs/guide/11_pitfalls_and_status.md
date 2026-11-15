@@ -124,6 +124,14 @@ These wait on the full extraction of all 52 sessions, which is best run once the
 
 ### Decisions taken (and to explain in the write-up)
 
+- **Per-labeler training is the default** (`engagement.labelers = "per_labeler"`, 16 November 2026;
+  `docs/misc/targets.md` §7, Chapter 7 §7.9): one model per labeler (experts and self), trained on
+  windows centred on each rating entry with a soft normalised-rating target, evaluated per label
+  against the entries as made; the final curve is the median of the labeler models or their
+  majority (`output.prediction`). Labeler disagreement (ordinal α ≈ 0) is kept visible instead of
+  being averaged into one label. The window-grid paths (`consensus`, `ensemble`) remain for
+  comparison.
+
 - **Tracker choice pending** the three full-dataset experiments. On the quick clips, ReID made
   tracking more forgiving of bad settings but did not beat a tuned motion-only tracker, at about
   60× the per-frame tracking cost.
@@ -236,3 +244,63 @@ training run, raise `augmentation.copies` as far as extraction time allows; no d
 1–5 kept, trial 0 re-ran at 0.843), finished at a best IDF1 of 0.878
 (`docs/experiments/02_boxmot.md`, T1). The BoT-SORT scan was restarted with `--fresh` instead of
 migrated; its recomputed trials matched the old ones exactly.
+
+## 11.7 Change log: 15–16 November 2026
+
+What changed in the code and the documents over these two days, in the order it happened. Each item
+names where the details are.
+
+**Tracking and detection**
+
+- `scan_detector --augment` defaults to 5 variants per frame (was 5–10) and prints every frame; the
+  augmented detector scan D3 and the augmented tracker scans T2 are ready to run
+  (`docs/experiments/02_boxmot.md`). T1 is complete: BoT-SORT 0.905 vs StrongSORT 0.878 IDF1.
+
+**Analysis and reference documents**
+
+- `docs/misc/benchmarks.md` reorganised: trivial baselines first (§1), how numbers are computed
+  (§2), published works ranked against the constant (§3), methods explained (sensor GRU,
+  fairness-aware training, the GitHub project's filtering).
+- `scripts/label_baselines.py`: the constant baseline on every published target, per second / per
+  change and pooled / per subject; `--grid` for every target of `docs/misc/targets.md`, with the
+  window length from the config.
+- `docs/experiments/05_six_session_run.md` §3.1: the run re-scored with the benchmarks' metrics
+  (pooling across folds inflates AUC from 0.51 to 0.85; the shared expert is below the constant
+  "not engaged" on not-engaged F1).
+- Guide Chapter 12 (reading results, from scratch) and Chapter 13 (the implementation from rating to
+  number, observations O1–O26, including that 49.5% of student consensus values sit exactly on
+  `tau_att = 3` and that ratings were entered offline, frame by frame).
+- `docs/misc/targets.md`: the target taxonomy (unit × aggregation × labelers, 36 distinct targets),
+  the constant baseline of each, where each work sits, and the decisions of §7.
+- `docs/misc/proposed_metrics.md`: `retention_r`, removed from the code, documented for review.
+
+**Labels and training (Chapter 7 §7.9, Chapter 9)**
+
+- `src/labels/interp.py`: label interpolation (step, ramp, linear, pchip, cubic, gauss; config
+  `labels.interp`), normalising, clipping, rounding halves toward 3, quantising and the majority
+  vote. The label viewer uses it, and can also show decay and a stale rule (exploration only).
+- `label_entries`: every rating entry, session-start entry excluded, with its training value
+  (`labels.train_target`: `train_with_interp` or `train_vanilla`).
+- `Pipeline.window_features`: features for any windows (the grid, or windows centred on entries).
+- `SklearnExpert` learns soft labels (logistic regression, random forest); SVM and k-NN threshold
+  them at 0.5 (SVM's probability calibration inverts on duplicated soft rows).
+- `src/experts/per_labeler.py`: `PerLabelerModel` (one mixture per labeler), `window_curves`
+  (`per_labeler` median or `majority` at `output.majority_resolution`).
+- `rating_metrics`: per-label MAE, RMSE, Spearman, rounded accuracy, within ±1, macro F1, AUC and
+  balanced accuracy at `tau_att`.
+- `train_models` per-labeler mode (default), `heldout_curves`; `plot_results`, `output_viewer` and
+  `tune_models` ported; inference (`Pipeline.predict`) writes rating graphs with per-labeler curves
+  (`build_rating_graph`).
+- `retention_r` removed from `train_models` and `experiment_decoders`.
+
+**Viewers**
+
+- Every viewer prints its controls to the terminal at start; the label viewer's header is two lines.
+
+**Open**
+
+- Window length k (`window.length_s`, still 8; `docs/misc/targets.md` §7.2).
+- A curve-shape metric (`docs/misc/proposed_metrics.md`).
+- Whether augmented copies help per-labeler training: a first six-session check is in
+  `docs/experiments/06_per_labeler.md`; the real answer needs the full extraction.
+

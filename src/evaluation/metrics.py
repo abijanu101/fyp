@@ -32,3 +32,35 @@ def context_metrics(y: np.ndarray, pred: np.ndarray, classes: list[str]) -> dict
         "per_class": {c: {"precision": float(a), "recall": float(b), "f1": float(f), "support": int(s)}
                       for c, a, b, f, s in zip(classes, pr, rc, f1, sup)},
     }
+
+
+def rating_metrics(rating: np.ndarray, pred: np.ndarray, tau_att: float) -> dict:
+    """Per-label scores (docs/misc/targets.md §7.1 items 2 and 7): `rating` = the entries as made
+    (1-5), `pred` = predicted ratings (1-5, continuous or already discrete). Regression view on the
+    raw prediction; classification views on the prediction rounded to a whole rating (halves toward
+    3); binary view at tau_att (engaged = rating >= tau_att), with AUC ranking the raw prediction."""
+    from scipy.stats import spearmanr
+
+    from ..labels.interp import round_rating
+
+    y = np.clip(np.asarray(rating, float), 1, 5)
+    p = np.clip(np.asarray(pred, float), 1, 5)
+    if len(y) == 0:
+        return {"n": 0}
+    cls = round_rating(p).astype(int)
+    yi = np.rint(y).astype(int)
+    yb, pb = (y >= tau_att).astype(int), (cls >= tau_att).astype(int)
+    both = len(np.unique(yb)) == 2
+    varied = np.ptp(p) > 0 and np.ptp(y) > 0
+    return {
+        "n": int(len(y)),
+        "mae": float(np.mean(np.abs(p - y))),
+        "rmse": float(np.sqrt(np.mean((p - y) ** 2))),
+        "spearman": float(spearmanr(p, y).statistic) if varied else np.nan,
+        "accuracy": float(np.mean(cls == yi)),
+        "within_1": float(np.mean(np.abs(cls - yi) <= 1)),
+        "macro_f1": float(f1_score(yi, cls, labels=[1, 2, 3, 4, 5], average="macro", zero_division=0)),
+        "auc": float(roc_auc_score(yb, p)) if both else np.nan,
+        "balanced_acc": float(balanced_accuracy_score(yb, pb)) if both else np.nan,
+        "engaged_rate": float(yb.mean()),
+    }

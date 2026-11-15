@@ -149,14 +149,13 @@ class Registry:
         return sorted(self._items)
 ```
 
-Four methods, about twenty lines:
+Three methods, about twenty lines:
 
 | Method | What it does |
 |---|---|
 | `register(name)` | Returns a decorator that stores a class under `name`. Refuses duplicates. |
 | `get(name)` | Returns the stored class (not an instance). Lists known names on a typo. |
 | `build(name, **kwargs)` | `get(name)(**kwargs)`: looks up the class and constructs it. |
-| `names()` | Lists what is registered, for error messages and debugging. |
 
 Each stage package creates its own registry:
 
@@ -281,11 +280,8 @@ class Pipeline:
         self._detector = None
         self.extractors = [_build(FEATURE_EXTRACTORS, e) for e in cfg["bfmu"]]
         self.scene = _build(SCENE_EXTRACTORS, cfg["scene"])
-        agg = cfg["aggregation"]
-        self.aggregator = WindowAggregator(
-            self.extractors, _build(CLUSTER_EXTRACTORS, cfg["cfmu"]),
-            thresholds=agg.get("thresholds"), heatmap_grid=agg.get("heatmap_grid", 3),
-            min_coverage=agg.get("min_coverage", 0.5))
+        self.aggregator = WindowAggregator(self.extractors, _build(CLUSTER_EXTRACTORS, cfg["cfmu"]),
+                                           **cfg["aggregation"])
 ```
 
 Step by step, with the current config:

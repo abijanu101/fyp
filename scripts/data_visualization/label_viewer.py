@@ -3,7 +3,7 @@
     python scripts/data_visualization/label_viewer.py group_01 experiment_01 context_cam_01
     python scripts/data_visualization/label_viewer.py group_02 experiment_04 context_cam_03 --start 120 --exclude-self
 
-Standalone (OpenCV + numpy only). Reads frames straight from the camera ZIP, labels from
+OpenCV + numpy, plus the pipeline's own label interpolation (src/labels/interp.py). Reads frames straight from the camera ZIP, labels from
 subjects/subject_XX.zip (labels/*.json), and the static boxes from abi_labels.
 
 What you see
@@ -17,7 +17,28 @@ Mouse     click a box or a timeline row label to select a student; click a strip
 Keys      space play/pause      left/right  -/+1 frame     , .  -/+5 s     [ ]  -/+30 s
           + -   playback speed  n p  next/prev student      x  include/exclude self-report
           l     colour by: median -> each labeler in turn  v  labeler values on every box
+          i     interpolation: step -> ramp -> linear -> pchip -> cubic -> gauss
+          ; '   gauss: sigma -/+ 0.5 s
+          d     decay toward --rest on/off     { }  decay half-life halve/double
+          s     stale rule on/off (a labeler silent for > --stale s counts as --rest)
           b     toggle boxes    q / Esc quit
+
+Interpolation (how a labeler's change events become a value at every instant; `i` or --interp)
+  step      the value holds from its event until the next one (the pipeline's default; config labels.interp)
+  ramp      step, but each change is a linear ramp over the --ramp seconds before the event
+  linear    a straight line between consecutive events
+  pchip     a monotone cubic between events (smooth, never overshoots)
+  cubic     a natural cubic spline through the events (smooth, overshoots; clipped to 1-5)
+  gauss     the step blurred by a Gaussian of width --sigma s, centred on each event: every change
+            becomes an S-curve, half of it before the event; to centre it earlier (a rating as a
+            look back), shift all labels with a negative --offset
+Two ways for a rating to fade (on top of any mode; both toward --rest, default 3):
+  decay     (--decay, key d) the curve relaxes toward --rest after each event, halving its distance
+            every --decay seconds
+  stale     (--stale, key s) once a labeler has entered nothing for more than --stale seconds
+            (default 4: half of an 8-second window, the current config.window.length_s), their value is --rest until their next
+            event
+White ticks on a labeler's strip mark their actual events in every mode.
 """
 
 from __future__ import annotations
@@ -30,8 +51,13 @@ import warnings
 import zipfile
 from pathlib import Path, PurePosixPath
 
+import sys
+
 import cv2
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))        # run as a file: find src/
+from src.labels.interp import INTERP_MODES, interpolate  # noqa: E402
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[2] / "data" / "DIPSER"
 CLOCK = re.compile(r"(\d{1,2})[_:](\d{2})[_:](\d{2})[_:](\d+)")
@@ -42,7 +68,7 @@ PALETTE = np.array([(60, 60, 220), (40, 140, 245), (40, 215, 235), (100, 205, 12
 NO_LABEL = (90, 90, 90)
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 
-HEADER_H, ROW_H, SUB_ROW_H, AXIS_H, LEGEND_H, LEFT = 30, 16, 12, 18, 22, 120
+HEADER_H, ROW_H, SUB_ROW_H, AXIS_H, LEGEND_H, LEFT = 46, 16, 12, 18, 22, 120
 
 KEY_LEFT, KEY_RIGHT = (2424832, 65361), (2555904, 65363)   # Windows, X11
 
@@ -94,14 +120,45 @@ def load_labels(exp_dir: Path, offset: float) -> dict[str, dict[str, tuple[np.nd
     return out
 
 
-def value_at(track: tuple[np.ndarray, np.ndarray], t: np.ndarray | float) -> np.ndarray:
+# How a labeler's events become a value at any time (key `i` cycles, --interp picks the start).
+# Every mode is NaN before the labeler's first event and holds the last value after the last one.
+INTERP = {
+    "step":     "value holds from its event until the next (the pipeline's default labels.interp.mode)",
+    "ramp":     "step, but each change is a linear ramp over the --ramp seconds before the event",
+    "linear":   "straight line between consecutive events",
+    "pchip":    "monotone cubic between events (no overshoot)",
+    "cubic":    "natural cubic spline through the events (overshoots, clipped to 1-5)",
+    "gauss":    "the step blurred by a Gaussian of width --sigma seconds, centred on each event",
+}
+assert tuple(INTERP) == INTERP_MODES, "viewer modes must match src/labels/interp.py"
+
+
+def value_at(track: tuple[np.ndarray, np.ndarray], t: np.ndarray | float, mode: str = "step",
+             ramp_s: float = 3.0, sigma_s: float = 2.0, decay: float = 0.0, stale_s: float = 0.0,
+             rest: float = 3.0) -> np.ndarray:
+    """decay: half-life in seconds of a relaxation toward `rest` after each event (0 = off).
+    stale_s: after this many seconds without an event the value is `rest` until the next event (0 = off)."""
     times, vals = track
-    i = np.searchsorted(times, t, side="right") - 1
-    return np.where(i >= 0, vals[np.clip(i, 0, max(len(vals) - 1, 0))] if len(vals) else np.nan, np.nan)
+    t = np.asarray(t, float)
+    if not len(vals):
+        return np.full(t.shape, np.nan)
+    out = interpolate(times, vals, t, mode, ramp_s, sigma_s)        # the pipeline's own (labels.interp)
+    before = ~np.isfinite(out)
+    if len(times) > 1:                                               # several entries at one instant
+        keep = np.r_[np.diff(times) > 1e-9, True]
+        times = times[keep]
+    if decay > 0 or stale_s > 0:
+        since = np.maximum(t - times[np.clip(np.searchsorted(times, t, side="right") - 1, 0, len(times) - 1)], 0)
+        if decay > 0:
+            out = rest + (out - rest) * np.exp2(-since / decay)
+        if stale_s > 0:
+            out = np.where(since > stale_s, rest, out)
+    return np.where(before, np.nan, out)
 
 
-def consensus(labs: dict, t: np.ndarray | float, exclude_self: bool) -> np.ndarray:
-    vals = [value_at(tr, t) for name, tr in labs.items() if not (exclude_self and name == SELF)]
+def consensus(labs: dict, t: np.ndarray | float, exclude_self: bool, **opts) -> np.ndarray:
+    """Median over labelers; opts are value_at's keyword options (mode, sigma_s, decay, ...)."""
+    vals = [value_at(tr, t, **opts) for name, tr in labs.items() if not (exclude_self and name == SELF)]
     if not vals:
         return np.full(np.shape(t), np.nan)
     with warnings.catch_warnings():
@@ -143,6 +200,10 @@ class Viewer:
         names = {n for labs in self.labels.values() for n in labs}
         self.sources = [None] + sorted(names, key=lambda n: (n == SELF, n))
         self.source = None
+        self.interp, self.ramp_s, self.sigma_s = args.interp, args.ramp, args.sigma
+        self.half_life, self.rest = args.decay, args.rest      # 0 = no decay
+        self._last_half_life = args.decay or 30.0
+        self.stale_on, self.stale_s = args.stale > 0, args.stale if args.stale > 0 else 4.0
 
         self.scale = args.scale
         h, w = self.frames.read(0).shape[:2]
@@ -162,19 +223,26 @@ class Viewer:
         self.rows: list[tuple[int, int, str]] = []   # (y0, y1, subject) of timeline rows, for clicks
         self.timeline_y0 = 0
 
+    @property
+    def opts(self) -> dict:
+        """value_at's keyword options for the current view."""
+        return {"mode": self.interp, "ramp_s": self.ramp_s, "sigma_s": self.sigma_s, "decay": self.half_life,
+                "stale_s": self.stale_s if self.stale_on else 0.0, "rest": self.rest}
+
     def coloured_value(self, labs: dict, t):
         """Median of labelers, or the chosen single labeler (NaN if they did not rate this student)."""
         if self.source is None:
-            return consensus(labs, t, self.exclude_self)
-        return value_at(labs[self.source], t) if self.source in labs else np.full(np.shape(t), np.nan)
+            return consensus(labs, t, self.exclude_self, **self.opts)
+        return (value_at(labs[self.source], t, **self.opts) if self.source in labs
+                else np.full(np.shape(t), np.nan))
 
     # -- timeline strips (precomputed per subject/labeler/mode)
     def strip(self, subject: str, labeler: str | None, height: int) -> np.ndarray:
-        key = (subject, labeler, height, self.exclude_self, self.source)
+        key = (subject, labeler, height, self.exclude_self, self.source, tuple(self.opts.values()))
         if key not in self._strip_cache:
             t = self.t0 + (np.arange(self.strip_w) + 0.5) / self.strip_w * (self.t1 - self.t0)
             labs = self.labels[subject]
-            v = self.coloured_value(labs, t) if labeler is None else value_at(labs[labeler], t)
+            v = self.coloured_value(labs, t) if labeler is None else value_at(labs[labeler], t, **self.opts)
             row = colours(v)[None].repeat(height - 2, axis=0)
             if labeler is not None:     # tick marks where this labeler actually changed the value
                 for tc in labs[labeler][0]:
@@ -202,10 +270,19 @@ class Viewer:
         timeline = self.draw_timeline(t)
         header = np.full((HEADER_H, self.vw, 3), 30, np.uint8)
         mode = ("median, no self" if self.exclude_self else "median, with self") if self.source is None             else f"labeler {self.source} only"
-        txt = (f"{self.title.replace(' / ', '/')}  {fmt_clock(t)} (+{t - self.t0:.1f}s)  "
-               f"{self.idx + 1}/{len(self.frames.t)}  {'PLAY' if self.playing else 'PAUSE'} x{self.speed:g}  "
-               f"colour: {mode}")
-        cv2.putText(header, txt, (8, 20), FONT, 0.42, (235, 235, 235), 1, cv2.LINE_AA)
+        playback = (f"{self.title.replace(' / ', '/')}  {fmt_clock(t)} (+{t - self.t0:.1f}s)  "
+                    f"{self.idx + 1}/{len(self.frames.t)}  {'PLAY' if self.playing else 'PAUSE'} x{self.speed:g}")
+        settings = (f"colour: {mode}  |  interp: {self.interp}"
+                    + (f" {self.ramp_s:g}s" if self.interp == "ramp" else "")
+                    + (f" sigma {self.sigma_s:g}s" if self.interp == "gauss" else "")
+                    + f"  |  decay: {f'half-life {self.half_life:g}s' if self.half_life else 'off'}"
+                    + f"  |  stale: {f'> {self.stale_s:g}s -> {self.rest:g}' if self.stale_on else 'off'}")
+        for k, line in enumerate((playback, settings)):
+            size = 0.42
+            while size > 0.3 and cv2.getTextSize(line, FONT, size, 1)[0][0] > self.vw - 16:   # shrink to fit
+                size -= 0.02
+            cv2.putText(header, line, (8, 18 + 20 * k), FONT, size, (235, 235, 235) if k == 0 else (170, 220, 255),
+                        1, cv2.LINE_AA)
         self.timeline_y0 = HEADER_H + self.vh
         self.rows = [(y0 + self.timeline_y0, y1 + self.timeline_y0, s) for y0, y1, s in self.rows]
         return np.vstack([header, video, timeline])
@@ -218,11 +295,12 @@ class Viewer:
             sel = subj == self.selected
             p1, p2 = (int(x1 * s), int(y1 * s)), (int(x2 * s), int(y2 * s))
             cv2.rectangle(img, p1, p2, colour(med), 4 if sel else 2)
-            head = f"{subj.replace('subject_', 's')} {'-' if np.isnan(med) else f'{med:g}'}"
+            head = f"{subj.replace('subject_', 's')} {'-' if np.isnan(med) else f'{med:.2f}'.rstrip('0').rstrip('.')}"
             lines = [head]
             if sel or self.verbose:
-                lines.append(" ".join(f"{n}:{'-' if np.isnan(v) else int(v)}"
-                                      for n, v in ((n, float(value_at(tr, t))) for n, tr in labs.items())))
+                lines.append(" ".join(f"{n}:{'-' if np.isnan(v) else f'{v:.1f}'.rstrip('0').rstrip('.')}"
+                                      for n, v in ((n, float(value_at(tr, t, **self.opts)))
+                                                   for n, tr in labs.items())))
             for k, line in enumerate(lines):
                 (tw, th), _ = cv2.getTextSize(line, FONT, 0.45, 1)
                 y = p1[1] + 4 + (k + 1) * (th + 6)
@@ -350,11 +428,32 @@ class Viewer:
                 self.exclude_self = not self.exclude_self
             elif key == ord("l"):
                 self.source = self.sources[(self.sources.index(self.source) + 1) % len(self.sources)]
+            elif key == ord("i"):
+                modes = list(INTERP)
+                self.interp = modes[(modes.index(self.interp) + 1) % len(modes)]
+            elif key in (ord(";"), ord("'")):
+                self.sigma_s = max(0.5, self.sigma_s + (-0.5 if key == ord(";") else 0.5))
+            elif key == ord("d"):                              # decay on/off (keeps the last half-life)
+                if self.half_life:
+                    self._last_half_life, self.half_life = self.half_life, 0.0
+                else:
+                    self.half_life = self._last_half_life
+            elif key == ord("s"):
+                self.stale_on = not self.stale_on
+            elif key in (ord("{"), ord("}")) and self.half_life:
+                self.half_life = max(1.0, self.half_life * (0.5 if key == ord("{") else 2.0))
             elif key == ord("v"):
                 self.verbose = not self.verbose
             elif key == ord("b"):
                 self.show_boxes = not self.show_boxes
         cv2.destroyAllWindows()
+
+
+def print_controls() -> None:
+    """Print the controls section of this module's docstring to the terminal."""
+    lines = __doc__.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith(("Mouse", "Keys", "Window")))
+    print("\n".join(lines[start:]).rstrip() + "\n", flush=True)
 
 
 def main() -> None:
@@ -367,7 +466,18 @@ def main() -> None:
     ap.add_argument("--start", type=float, default=0.0, help="start this many seconds into the session")
     ap.add_argument("--scale", type=float, default=0.75, help="video display scale")
     ap.add_argument("--exclude-self", action="store_true", help="median over external labelers only")
-    Viewer(ap.parse_args()).run()
+    ap.add_argument("--interp", choices=list(INTERP), default="step",
+                    help="how events become values (key i cycles): " + "; ".join(f"{k}: {v}" for k, v in INTERP.items()))
+    ap.add_argument("--ramp", type=float, default=3.0, help="seconds of the ramp before each change (--interp ramp)")
+    ap.add_argument("--sigma", type=float, default=2.0, help="Gaussian width in seconds (--interp gauss; keys ; ' change it)")
+    ap.add_argument("--decay", type=float, default=0.0,
+                    help="half-life in seconds of the relaxation toward --rest after each event (0 = off; key d toggles, { } halve/double)")
+    ap.add_argument("--rest", type=float, default=3.0, help="neutral value used by --decay and --stale")
+    ap.add_argument("--stale", type=float, default=0.0,
+                    help="seconds without a new event after which a labeler counts as --rest (0 = off; key s toggles, at 4 s if unset)")
+    viewer = Viewer(ap.parse_args())
+    print_controls()
+    viewer.run()
 
 
 if __name__ == "__main__":

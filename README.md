@@ -73,7 +73,10 @@ python -m scripts.run_pipeline infer --zip <camera.zip> --models outputs/models/
 
 The contributor's guide (`docs/guide/`) explains how all of this works; Chapter 9 covers running
 experiments and every config key. `docs/experiments/` records what was tried and found;
-`docs/misc/benchmarks.md` surveys published results on DIPSER.
+`docs/misc/benchmarks.md` surveys published results on DIPSER; `docs/misc/targets.md` lays out the
+possible attention targets (unit × aggregation × self-report) and where each work sits.
+`docs/misc/proposed_metrics.md` holds metrics proposed for review but not computed (currently
+`retention_r`, removed from the code).
 
 Any config value can be overridden per run with `--set key.path=<json>`, e.g.
 `--set window.length_s=10 labels.tau_att=3`.

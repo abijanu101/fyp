@@ -12,9 +12,10 @@ recipe:
 
 ```python
 CLASSIFIERS = {
-    "random_forest": lambda seed, **p: RandomForestClassifier(random_state=seed, **p),
-    "svm":           lambda seed, **p: SVC(probability=True, random_state=seed, **p),
-    "logreg":        lambda seed, **p: LogisticRegression(max_iter=2000, random_state=seed, **p),
+    # fixed choices first, config params last: any of them can be overridden from the config
+    "random_forest": lambda seed, **p: RandomForestClassifier(**{"random_state": seed, **p}),
+    "svm":           lambda seed, **p: SVC(**{"probability": True, "random_state": seed, **p}),
+    "logreg":        lambda seed, **p: LogisticRegression(**{"max_iter": 2000, "random_state": seed, **p}),
     "knn":           lambda seed, **p: KNeighborsClassifier(**p),
 }
 
@@ -312,13 +313,13 @@ probabilities exist only inside `predict_windows`. Nothing per student is writte
 
 `decision_threshold(aggregate, mixture_tau, tau_share)` picks the cut-off. `train_models` uses it
 for F1 and balanced accuracy and saves it in the model bundle as `tau`;
-`Pipeline.predict` reads it from there for the graph's `engaged` column. AUC and `retention_r` do
-not use a cut-off, so they are unaffected.
+`Pipeline.predict` reads it from there for the graph's `engaged` column. AUC does not use a
+cut-off, so it is unaffected.
 
 One caveat: `SklearnExpert` trains with `class_weight="balanced"`, which pushes each student's
 probability toward 0.5 when classes are imbalanced. The mean is then not an exact share, only a
 score that rises with it, so the `tau_share` cut is the principled default, not a tuned optimum.
-Compare modes on AUC and `retention_r` first.
+Compare modes on AUC first.
 
 **The hand-weighted baseline.** Its weights name window columns (`vec.kg.stillness.mean`, ...).
 In late mode, `train_models.expert_factory` maps each one to the student's own feature with
@@ -400,8 +401,8 @@ seconds and 4 for 5 seconds of an 8-second window, the mean is (2×3 + 4×5)/8 =
 4. the window is engaged if at least `tau_share` of its labelled students are engaged;
 5. windows with fewer than `min_labeled_students` labelled students get no label (dropped).
 
-It returns a `WindowLabel(engaged, share_engaged, n_labeled)`. `share_engaged` is kept as a soft
-target for the retention-curve check.
+It returns a `WindowLabel(engaged, share_engaged, n_labeled)`: the window label, the labelled share
+of engaged students, and how many students were labelled.
 
 `label_session` (`src/labels/session.py`) applies this to one session-camera, and
 `student_labels_session` returns each student's own label per window (for late aggregation). With
@@ -446,8 +447,8 @@ Metrics come from `src/evaluation/metrics.py`: F1, AUC and balanced accuracy for
 accuracy, macro-F1 and per-class precision/recall for the gate. AUC and balanced accuracy are NaN
 on a fold whose test set has only one class, because they are undefined there.
 
-The `retention_r` metric is the retention-curve check from §11: per session, the correlation
-between the predicted engagement curve and the share of labelled students engaged.
+A within-session curve correlation (`retention_r`) was computed until 16 November 2026 and has
+been removed; it is documented as a proposal for review in `docs/misc/proposed_metrics.md`.
 
 ## 7.8 The output graph (`src/output/graph.py`)
 
@@ -462,3 +463,54 @@ track counts), so per-student data cannot reach the output even by mistake. Each
 
 `write_graph_png` smooths `engagement_prob` with a 5-window moving average and shades the
 background by predicted activity.
+
+## 7.9 Per-labeler training (the default; `src/experts/per_labeler.py`)
+
+`engagement.labelers = "per_labeler"` replaces the window-label pipeline of §7.5–7.7 with the
+decisions of `docs/misc/targets.md` §7. Sections 7.5–7.7 still describe the `consensus` and
+`ensemble` paths, which `plot_results`, `tune_models` and the output viewer use.
+
+**Training rows: windows centred on label entries.** Every rating entry of every labeler (expert or
+self), except the shared session-start entry, gets a window of `window.length_s` centred on its
+time. `Pipeline.window_features` computes the same features for those windows as for the regular
+grid; the table is cached per session as `<stem>.labelwin.csv` next to the window CSVs. A training
+row is the rated student's own linked track in that window (`trk.*`, plus the window's Vec when
+`engagement.late_context` is on); entries whose student has no linked visible track are dropped.
+
+**Targets: soft, per labeler** (`src/labels/session.py`, `label_entries`; `src/labels/interp.py`):
+
+| `labels.train_target` | Training value |
+|---|---|
+| `train_with_interp` | that labeler's curve (`labels.interp`) averaged over the window: for a 2 → 3 entry under `step`, 2.5 |
+| `train_vanilla` | the entry's own rating |
+
+Either value is normalised to (rating − 1) / 4 in [0, 1] and clipped. The sklearn experts learn
+soft labels by using each row twice, as class 1 with weight *y* and class 0 with weight 1 − *y*
+(logistic regression then minimises the soft cross-entropy), with no class balancing. SVM and k-NN
+cannot do this reliably and threshold soft labels at 0.5 (`SklearnExpert.SOFT`).
+
+**One model per labeler, no averaging in training** (`PerLabelerModel`): a mixture (gate-weighted
+experts, as §7.4) for each of `labeler_01`–`05` and `self_labeling`, each fitted only on its own
+rows. A model's output *p* reads back as the rating **1 + 4p**, clipped to 1–5.
+
+**Evaluation per label** (`scripts/train_models.py`, `main_per_labeler`): leave-one-group-out as in
+§7.7; every held-out entry is scored against the prediction for its window, as two tracks (expert
+entries, self entries). An entry seen by several cameras is scored once, on the mean of its rows'
+predictions. Three predictions are scored: the entry's own labeler's model (`own_labeler`), the
+median over all labeler models, and the majority (see below); and two baselines: the constant 3 and
+the training mean. `rating_metrics` reports MAE, RMSE and Spearman on the 1–5 scale; accuracy,
+within ±1 and macro F1 on the prediction rounded to a whole rating (halves toward 3); AUC and
+balanced accuracy for "rating ≥ `labels.tau_att`". The results JSON has `"mode": "per_labeler"` and
+an `evaluation` block keyed `<track>/<variant>/<context>/<prediction>`.
+
+**Prediction modes** (`output.prediction`, `window_curves`):
+
+- `per_labeler`: each labeler model's class curve (the mean over the window's students of its
+  rating), and their median as the final curve;
+- `majority`: per student, the labeler models' ratings quantised to `output.majority_resolution`
+  (0.5) and the most common value taken (ties: closest to 3, then lower), then averaged over the
+  window's students.
+
+`build_rating_graph` writes `rating`, `engaged` (rating ≥ `tau_att`), `prediction` and
+`labeler_ratings` per window; `retention_graph.png` draws the expert curves in blue, the self curve
+in orange and the final curve in thick black, on the 1–5 scale.

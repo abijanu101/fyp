@@ -45,7 +45,7 @@
   },
   "mixture": {"mode": "soft", "expert_scope": "per_experiment", "tau": 0.5},
   "engagement": {"aggregate": "late", "late_context": true,
-                 "labelers": "consensus", "ensemble_exclude": ["self_labeling"]},
+                 "labelers": "per_labeler", "ensemble_exclude": ["self_labeling"]},
 
   "augmentation": {"copies": 0, "seed": 0,
                    "brightness": 35, "contrast": 0.15, "saturation": 0.2, "hue_deg": 3, "gamma": 0.15,
@@ -53,10 +53,12 @@
                    "hflip": 0.5,
                    "mask": {"kind": "cutout (grey)", "p": 0.5, "count": [1, 3], "size": [0.04, 0.12]}},
 
-  "output": {"smooth_windows": 5},
+  "output": {"smooth_windows": 5, "prediction": "per_labeler", "majority_resolution": 0.5},
 
   "labels": {"tau_att": 4, "tau_share": 0.5, "min_labeled_students": 3,
-             "exclude_self": false, "offset_s": 0.0, "students": "camera"},
+             "exclude_self": false, "offset_s": 0.0, "students": "camera",
+             "train_target": "train_with_interp",
+             "interp": {"mode": "step", "ramp_s": 3.0, "sigma_s": 2.0}},
 
   "tuning": {
     "seed": 0,

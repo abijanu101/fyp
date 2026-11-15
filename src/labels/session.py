@@ -56,3 +56,47 @@ def labeler_labels_session(index: DipserIndex, key: SessionKey, windows: list[Wi
             m = np.array([tr.mean_over(w.t_start, w.t_end) for w in windows], float)
             out.setdefault(name, {})[sid] = np.where(np.isfinite(m), (m >= labeler.tau_att).astype(float), np.nan)
     return out
+
+
+TRAIN_TARGETS = ("train_with_interp", "train_vanilla")
+
+
+def label_entries(index: DipserIndex, key: SessionKey, cfg: dict) -> "pd.DataFrame":
+    """Every rating entry of every labeler for the students of this session-camera's label pool, one
+    row each: sid, labeler, t (seconds, camera clock), rating (as entered, clipped to 1-5), target.
+
+    The shared session-start entry (every labeler's first rating, at the same instant) is excluded:
+    it is a judgement, but not a moment the labeler chose (docs/misc/targets.md §7.1 item 3).
+    `target` is the training value of the window of length window.length_s centred on the entry,
+    as a soft label in [0, 1] (config labels.train_target):
+      train_with_interp  that labeler's interpolated curve (labels.interp) averaged over the window
+      train_vanilla      the entry's own rating
+    """
+    import pandas as pd
+
+    from .interp import normalise, window_mean
+
+    lcfg = cfg["labels"]
+    mode = lcfg["train_target"]
+    if mode not in TRAIN_TARGETS:
+        raise ValueError(f"labels.train_target must be one of {TRAIN_TARGETS}, got {mode!r}")
+    interp = lcfg["interp"]
+    half = float(cfg["window"]["length_s"]) / 2
+    students, _ = _students_and_labeler(index, key, lcfg)
+    rows = []
+    for sid, labelers in students.items():
+        tracks = {n: tr for n, tr in labelers.items() if len(tr.t)}
+        if not tracks:
+            continue
+        start = min(tr.t[0] for tr in tracks.values())
+        for name, tr in tracks.items():
+            for t, v in zip(tr.t, tr.value):
+                if abs(t - start) < 0.5:                          # the shared session-start entry
+                    continue
+                rating = float(np.clip(v, 1, 5))
+                value = rating if mode == "train_vanilla" else window_mean(
+                    tr.t, tr.value, t - half, t + half, interp["mode"],
+                    interp.get("ramp_s", 3.0), interp.get("sigma_s", 2.0))
+                rows.append({"sid": sid, "labeler": name, "t": float(t), "rating": rating,
+                             "target": float(normalise(value))})
+    return pd.DataFrame(rows, columns=["sid", "labeler", "t", "rating", "target"])
