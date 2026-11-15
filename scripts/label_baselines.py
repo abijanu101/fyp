@@ -31,15 +31,12 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
 
 from src.labels.attention import SELF_LABELER, load_subject_labels
+from src.labels.interp import majority_rating, round_rating
 
 
 def majority(M: np.ndarray) -> np.ndarray:
-    out = []
-    for col in M.T.astype(int):
-        c = np.bincount(col, minlength=6)[1:]
-        best = np.flatnonzero(c == c.max()) + 1
-        out.append(best[np.argmin(np.abs(best - 3) * 10 + best)])
-    return np.array(out, float)
+    """M: (labelers, samples) -> majority per sample (ties toward 3, then lower)."""
+    return majority_rating(M.T)
 
 
 def runs(y: np.ndarray) -> np.ndarray:
@@ -95,7 +92,7 @@ AGGS = ("median", "mean", "majority", "all")
 
 def aggregate(M: np.ndarray, agg: str) -> np.ndarray:
     """M: (labelers, samples). 'all' keeps every labeler's value as its own sample (NaNs dropped);
-    majority rounds non-integer values (window means) first."""
+    majority rounds non-integer values (window means) first, halves toward 3."""
     with np.errstate(all="ignore"):
         if agg == "all":
             return M[np.isfinite(M)]
@@ -105,13 +102,7 @@ def aggregate(M: np.ndarray, agg: str) -> np.ndarray:
             return np.nanmedian(M, 0)
         if agg == "mean":
             return np.nanmean(M, 0)
-    out = []
-    for col in np.round(M.T):
-        col = col[np.isfinite(col)].astype(int)
-        c = np.bincount(col, minlength=6)[1:]
-        best = np.flatnonzero(c == c.max()) + 1
-        out.append(best[np.argmin(np.abs(best - 3) * 10 + best)])
-    return np.array(out, float)
+    return majority_rating(M.T)
 
 
 def unit_matrix(L: dict, names: list[str], unit: str, frame_t: np.ndarray, window: dict) -> np.ndarray:
@@ -136,7 +127,6 @@ def camera_frames(group: str, experiment: str, subject: str, cache: dict) -> np.
     """Frame times of the first context camera (01-03) that annotates this subject, else camera 01."""
     from src.datasets import DipserIndex
     from src.ingestion import ZipFrameSource
-    from src.core.types import SessionKey
     index = DipserIndex("data/DIPSER", [group], [experiment], ["context_cam_01", "context_cam_02", "context_cam_03"])
     keys = index.sessions()
     key = next((k for k in keys if subject in index.annotations(k)), keys[0] if keys else None)
@@ -174,8 +164,7 @@ def grid(window: dict) -> None:
         y = np.concatenate(parts)
         integer = np.allclose(y, np.round(y))
         # classes: non-integer targets are rounded to the nearest rating, halves toward 3 (marked *)
-        half = np.isclose(y % 1, 0.5)
-        r = np.where(half, np.where(y < 3, np.ceil(y), np.floor(y)), np.round(y)).astype(int)
+        r = round_rating(y).astype(int)
         mark = "" if integer else "*"
         acc = f"{np.mean(r == 3):.3f}{mark}"
         mf1 = f"{f1_score(r, np.full(len(r), 3), average='macro', labels=[1, 2, 3, 4, 5], zero_division=0):.3f}{mark}"

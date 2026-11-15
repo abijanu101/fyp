@@ -173,14 +173,14 @@ Each `train_models` run writes its own `outputs/results/<hash>.json`.
 
 ## 10.10 Recipe: compare per-labeler training settings
 
-All are **T** (training only; inference settings are free):
+All are **T** except the window length, which is **P** (training only; inference settings are free):
 
 ```
 python -m scripts.train_models                                              # train_with_interp, step labels
 python -m scripts.train_models --set labels.train_target='"train_vanilla"'
 python -m scripts.train_models --set labels.interp.mode='"gauss"' labels.interp.sigma_s=2
-python -m scripts.run_pipeline extract --reuse --set window.length_s=4      # window length: feature pass first
-python -m scripts.train_models --set window.length_s=4
+python -m scripts.run_pipeline extract --reuse --set window.length_s=8      # another window length (P): feature pass first
+python -m scripts.train_models --set window.length_s=8
 ```
 
 Each writes its own results file. Compare the `own_labeler` rows of both tracks (experts, self)

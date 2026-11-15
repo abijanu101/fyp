@@ -36,10 +36,14 @@ the hash with every number you report (Chapter 4, §4.4).
 activities. Everything about a group is shared across its sessions: the room, the lighting, the
 camera angles, the people and their clothes.
 
-**Window.** A slice of a session `window.length_s` seconds long (8 in the current config), overlapping the next by `window.overlap` (0.5). The unit every engagement metric is
-computed on.
+**Window.** A slice of a session `window.length_s` seconds long (4 in the current config; 8 before 16 November 2026), overlapping the next by `window.overlap` (0.5). The unit of the feature tables and of
+inference. Window-grid metrics are computed per window; per-labeler metrics per rating entry.
 
-**Labelled window.** A window with a label: at least `labels.min_labeled_students` (3) students had
+**Rating entry.** One rating a labeler entered for one student at one moment. The per-labeler path
+trains on a window centred on each entry (the shared session-start entry excluded) and scores each
+held-out entry once (§7.9).
+
+**Labelled window** (window-grid paths). A window with a label: at least `labels.min_labeled_students` (3) students had
 a labeler's rating in it. Unlabelled windows are still predicted but not scored.
 
 **Leave-one-group-out (LOGO).** The evaluation protocol. With three groups there are three
@@ -91,15 +95,30 @@ combines the six (§7.4):
 - `mixture.expert_scope = "per_experiment"`: six experts, each trained only on its own activity;
   `"shared"`: one expert trained on everything, used for all six.
 
-**Aggregation, rows, cut-off.** Late (default) or early aggregation, explained in §7.5: whether the
-experts score each student and average per window, or score the class summary Vec. The **cut-off**
-is the window score above which a window counts as engaged: `labels.tau_share` in late mode,
-`mixture.tau` in early mode.
+**Aggregation, rows, cut-off** (window-grid paths). Late (configured) or early aggregation,
+explained in §7.5: whether the experts score each student and average per window, or score the
+class summary Vec. The **cut-off** is the window score above which a window counts as engaged:
+`labels.tau_share` in late mode, `mixture.tau` in early mode. Per-labeler models always score each
+student, and a window or entry counts as engaged if its rating is at least `labels.tau_att`.
 
-### The variants in a results file
+### The variants in a results file: per-labeler mode (the default)
 
-`train_models` evaluates five engagement predictors, each with classified and oracle context,
-under the names `<variant>/<context>`:
+`train_models` fits one model per labeler for each variant, and scores every held-out entry in two
+**tracks**, `experts` (entries of `labeler_01`–`05`) and `self` (`self_labeling` entries). Keys are
+`<track>/<variant>/<context>/<prediction>` for the models and `<track>/<baseline>` for the
+baselines:
+
+| Part | Values | What it is |
+|---|---|---|
+| variant | `configured`, `shared_expert` | the mixture as configured; one expert for all activities |
+| context | `classified`, `oracle` | the gate's prediction; the true activity |
+| prediction | `own_labeler`, `median`, `majority` | the entry's own labeler's model; the median over all labeler models; their majority at `output.majority_resolution` |
+| baseline | `constant_3`, `train_mean` | always 3; always the training folds' mean rating of that track |
+
+### The variants in a results file: window-grid modes
+
+With `engagement.labelers` = `consensus` or `ensemble`, `train_models` evaluates five engagement
+predictors, each with classified and oracle context, under the names `<variant>/<context>`:
 
 | Variant | What it is | The question it answers |
 |---|---|---|
@@ -115,7 +134,23 @@ under the names `<variant>/<context>`:
 
 Chapter 12 explains these terms from scratch, with worked examples.
 
-### Engagement metrics (per window, on labelled windows of the held-out group)
+### Per-labeler metrics (per held-out rating entry; `rating_metrics`)
+
+An entry seen by several cameras or tracks is scored once, on the mean of its rows' predictions.
+
+| Metric | Meaning | Chance or baseline |
+|---|---|---|
+| `mae`, `rmse` | mean absolute and root mean squared error on the 1–5 scale | flatter constants: compare with `constant_3` |
+| `spearman` | rank correlation of prediction and entered rating | 0 |
+| `accuracy`, `within_1` | the prediction rounded to a whole rating (halves toward 3) equals the entry, or is within ±1 | flatter constants |
+| `macro_f1` | F1 over the five ratings, averaged with equal weight | |
+| `auc`, `balanced_acc` | for "rating ≥ `labels.tau_att`"; AUC ranks the raw prediction | 0.5 |
+| `n`, `engaged_rate` | entries scored, and the share of them at or above `tau_att` | |
+
+Read AUC, Spearman and balanced accuracy first: on these labels a constant 3 has the lowest MAE
+(`docs/experiments/05_per_labeler.md`).
+
+### Window-grid metrics (per window, on labelled windows of the held-out group)
 
 | Metric | Meaning | Uses the cut-off? | Chance level |
 |---|---|---|---|
@@ -131,7 +166,16 @@ correlation since removed from the code (`docs/misc/proposed_metrics.md`).
 
 `per_experiment` repeats the metrics for each activity separately, inside each fold.
 
-### The `data` block
+### The `data` block: per-labeler mode
+
+| Key | Meaning |
+|---|---|
+| `n_entry_rows`, `n_entries` | rows (entry × linked track) and distinct entries on the original sessions |
+| `entries_by_labeler` | entries per labeler; shows how much each labeler's model has to learn from |
+| `augmented_rows_for_training` | rows from augmented copies, used only for training |
+| `window_length_s`, `train_target`, `interp` | the window length and training-value settings of the run |
+
+### The `data` block: window-grid modes
 
 | Key | Meaning |
 |---|---|
@@ -143,7 +187,7 @@ correlation since removed from the code (`docs/misc/proposed_metrics.md`).
 | `row_label_coverage` | late: share of student rows linked to a labelled student; low means association, not the model, is the limit |
 | `row_pos_rate` | late: share of labelled student rows that are engaged |
 
-### Label terms (§7.6)
+### Label terms (§7.6; window-grid paths)
 
 **Consensus.** A student's attention in a window: the median over labelers of each labeler's
 time-weighted mean rating (1–5). **`tau_att`**: a student is engaged if consensus ≥ `tau_att`.
@@ -226,7 +270,8 @@ times on one extraction, while anything marked **F** should be batched.
 - **Read classified first**, oracle second; read AUC before F1 (§9.4).
 - **Treat differences within the fold `std` as ties.** With three groups, a 0.01 change in mean
   AUC is noise.
-- **Check `majority` and `hand_weighted`.** A learned model that does not beat them has learned
+- **Check the baselines**: `constant_3` and `train_mean` in per-labeler mode, `majority` and
+  `hand_weighted` in the window-grid modes. A learned model that does not beat them has learned
   nothing usable.
 - **Tune only after the labels are fixed.** The expert objective depends on `labels.*`.
 
@@ -295,7 +340,7 @@ hits confirm a new track. StrongSORT always uses ReID.
 |---|---|---|---|
 | `tracklets.min_visible_s` | 3.0 | drop track pieces visible for less than this many seconds in total | P |
 | `tracklets.max_gap_s` | 1.0 | split a track where it is missing for longer than this (counted in frames that exist, so camera dropouts do not split tracks) | P |
-| `window.length_s` | 8 | window length in seconds | P |
+| `window.length_s` | 4 | window length in seconds (8 until 16 November 2026; `docs/misc/targets.md` §7.2) | P |
 | `window.overlap` | 0.5 | overlap of consecutive windows (step = length × (1 − overlap) = 4 s) | P |
 | `aggregation.min_coverage` | 0.5 | a track counts as visible in a window if it spans at least this share of it; decides `n_tracks`, Vec and the per-student rows | P |
 | `aggregation.heatmap_grid` | 3 | grid×grid occupancy columns `occ_ij`: share of visible students whose centre is in each cell | P |
@@ -310,7 +355,7 @@ hash; the entries that read pixels (`residual_flow`, `scb`) are also in the trac
 |---|---|---|---|
 | `kalman_geometry.still_threshold` | 0.05 | speed (box diagonals per second) below which a frame counts as still, for `kg.stillness` | P |
 | `kalman_geometry.use_kalman` | true | take velocity from the tracker's Kalman filter where available; false = finite differences of box centres only | P |
-| `residual_flow.grid` | 2 | grid×grid cells inside each box, one flow value each (`rf.mag_ij`) | F |
+| `residual_flow.grid` | 3 | grid×grid cells inside each box, one flow value each (`rf.mag_ij`); 2 until 16 November 2026. Free to raise, but cells should stay above Farneback's 15 px window at `scale` (Chapter 5) | F |
 | `residual_flow.scale` | 0.5 | frames are resized by this before optical flow. Higher = finer, slower (flow is the costliest stage) | F |
 | `residual_flow.farneback` | (not set) | optional overrides of OpenCV's dense-flow parameters (`pyr_scale` 0.5, `levels` 3, `winsize` 15, `iterations` 3, `poly_n` 5, `poly_sigma` 1.2, `flags` 0) | F |
 | `scb.mode` | `soft` | `soft`: raw detector scores per student (mean and peak per window); `flags`: thresholded 0/1 per class | F |
@@ -321,6 +366,44 @@ hash; the entries that read pixels (`residual_flow`, `scb`) are also in the trac
 | `scb.models[].conf` | 0.25 | per-class threshold, **flags mode only**; no effect in soft mode | F |
 | `scb.models[].iou`, `.imgsz`, `.half` | (not set: 0.45, 640, true) | optional YOLOv7 settings: NMS IoU (flags mode), input size, half precision | F |
 
+### The three grids
+
+Three settings cut an image region into `grid × grid` cells and report one number per cell. They
+are independent: each divides something different, feeds a different model, and costs and caches
+differently.
+
+| Key | Value | What is divided | Per cell | Keys produced (g = the grid) | Feeds | Re-run |
+|---|---|---|---|---|---|---|
+| `residual_flow.grid` (BFMU entry) | 3 | each **student's box**, in the flow image (frame scaled by `residual_flow.scale`) | mean residual-flow magnitude in box diagonals per second: body-part motion after the box's own drift is removed (Chapter 5) | g² per student per frame (`rf.mag_ij`, row i, column j); per window `trk.rf.mag_ij` per student and `vec.rf.mag_ij.mean` / `.std` | the engagement experts | F |
+| `scene.grid` | 3 | the **whole frame**, after shrinking to `scene.size` (64 × 36) | mean grey level of the cell | g² per frame (`int_ij`); per window `scene.int_ij.mean` / `.std` | the activity gate | F |
+| `aggregation.heatmap_grid` | 3 | the **whole frame** (full resolution) | share of the window's visible students whose mean centre falls in the cell (sums to 1) | g² per window (`vec.occ_ij`) | the experts (as class context, with `late_context`) | P |
+
+**Cost.** None of the three changes the expensive work. The flow is computed once per frame
+whatever its grid (the grid only pools it; `residual_flow.scale` is what costs), the scene image is
+64 × 36 pixels, and the heatmap is a count per window. What grows is the number of features: g² per
+grid, doubled by mean and standard deviation where windows summarise frames (flow 3 → 4 adds 7 flow
+features per student and 14 Vec columns).
+
+**Limits.**
+
+- `residual_flow.grid`: cells should stay larger than the flow's smoothing window (Farneback
+  `winsize`, 15 px at the flow's scale), or neighbouring cells repeat each other. At `scale` 0.5 the
+  median student box is about 78 × 83 px and the smallest tenth about 48 × 59 px: grid 3 gives
+  cells of about 26 × 28 px (16 × 20 for small boxes); grid 4 drops small boxes' cells to about
+  12 × 15 px. A finer grid needs a larger `scale` (about 0.75 for grid 4, roughly doubling the
+  flow's cost). 2 until 16 November 2026.
+- `scene.grid`: at 64 × 36 pixels, grid 3 cells are about 21 × 12 px of the shrunken image; more
+  cells mostly add noise for the gate, whose job (telling activities apart) depends on the room's
+  overall layout and lighting.
+- `aggregation.heatmap_grid`: with about 10–15 visible students per camera, more than 3 × 3 cells
+  leaves most cells empty in most windows.
+- All three name cells with one digit per index (`_ij`), so keep every grid at 9 or below.
+
+**Changing one.** The flow and scene grids are frame-pass settings (in the tracking hash): change
+them before an extraction, or pay a new frame pass. The heatmap grid is a feature-pass setting
+(`extract --reuse`, seconds per session). Models must be retrained either way, since the feature
+columns change.
+
 ### Models
 
 | Key | Value | What it does | Re-run |
@@ -328,14 +411,14 @@ hash; the entries that read pixels (`residual_flow`, `scb`) are also in the trac
 | `gate.name`, `gate.params` | `random_forest`, 300 trees, `min_samples_leaf` 5 | the context gate. Names: `random_forest`, `svm`, `logreg`, `knn`; params go to the scikit-learn constructor | T |
 | `gate_uses_vec` | false | also give the gate Vec, not only scene features | T |
 | `expert.name`, `expert.params` | `logreg`, `C` 0.1 | the engagement expert. Names: `logreg`, `random_forest`, `hand_weighted`. `C` is inverse regularisation: lower = simpler model | T |
-| `hand_weighted.weights` | stillness 1.0, write 1.0, read 0.5, hand raising 0.5 | the label-free baseline: a weighted sum of standardised features, reported as `hand_weighted` in every run | T |
+| `hand_weighted.weights` | stillness 1.0, write 1.0, read 0.5, hand raising 0.5 | the label-free baseline: a weighted sum of standardised features, reported as `hand_weighted` in every window-grid run (not used in per-labeler mode) | T |
 | `hand_weighted.phone_key`, `.phone_sign` | `vec.scb.using_phone.mean`, signs per activity | flip the phone feature's sign per activity. **No effect now**: the SCB model has no phone class | T |
 | `mixture.mode` | `soft` | `soft` weights all experts by the gate; `hard` uses the top activity's expert | T |
 | `mixture.expert_scope` | `per_experiment` | six experts, one per activity; `shared` = one for all | T |
 | `mixture.tau` | 0.5 | engaged cut-off in **early** aggregation (unused in late) | T |
 | `engagement.aggregate` | `late` | `late`: score each student, average per window; `early`: score Vec (§7.5) | T |
 | `engagement.late_context` | true | late only: append the window's Vec to every student row | T |
-| `engagement.labelers` | `per_labeler` | `per_labeler`: one model per labeler, trained on windows centred on each rating entry and evaluated per label (§7.9, `docs/misc/targets.md` §7); `consensus`: train on the median-of-labelers window label; `ensemble`: one model per labeler on the window grid, averaged over the labelers who rated each student (§7.5). `consensus` and `ensemble` are the window-grid paths, which `plot_results`, `tune_models` and the output viewer need | T |
+| `engagement.labelers` | `per_labeler` | `per_labeler`: one model per labeler, trained on windows centred on each rating entry and evaluated per label (§7.9, `docs/misc/targets.md` §7); `consensus`: train on the median-of-labelers window label; `ensemble`: one model per labeler on the window grid, averaged over the labelers who rated each student (§7.5). `consensus` and `ensemble` are the window-grid paths. `plot_results`, `tune_models` and the output viewer support all three | T |
 | `engagement.ensemble_exclude` | `["self_labeling"]` | labelers left out of the ensemble (the self-ratings by default) | T |
 | `context_mode` | `classified` | **unused**: training always reports both, inference always uses classified | T |
 
@@ -371,18 +454,18 @@ All **T**, so label experiments are cheap.
 
 | Key | Value | What it does |
 |---|---|---|
-| `labels.tau_att` | 4 | a student is engaged if their consensus attention (median over labelers of each one's time-weighted mean, 1–5) is at least this |
-| `labels.tau_share` | 0.5 | a window is engaged if the share of engaged labelled students is at least this; also the late-mode cut-off |
-| `labels.min_labeled_students` | 3 | windows with fewer labelled students get no window label; per-student labels ignore it |
-| `labels.exclude_self` | false | leave each student's self-rating out of the consensus |
+| `labels.tau_att` | 4 | per-labeler: a rating at or above this counts as engaged (per-label AUC and balanced accuracy, and the graph's `engaged`). Window-grid: a student is engaged if their consensus attention (median over labelers of each one's time-weighted mean, 1–5) is at least this |
+| `labels.tau_share` | 0.5 | window-grid only: a window is engaged if the share of engaged labelled students is at least this; also the late-mode cut-off |
+| `labels.min_labeled_students` | 3 | window-grid only: windows with fewer labelled students get no window label; per-student labels ignore it |
+| `labels.exclude_self` | false | window-grid only: leave each student's self-rating out of the consensus (per-labeler mode trains a separate self model instead) |
 | `labels.offset_s` | 0.0 | seconds added to every label timestamp, to align labels with the camera clock |
 | `labels.students` | `camera` | `camera`: only students annotated as visible in this camera; any other value (e.g. `all`): every student of the session |
 | `labels.train_target` | `train_with_interp` | per-labeler training value of a window centred on a rating entry: `train_with_interp` = that labeler's interpolated curve averaged over the window; `train_vanilla` = the entry's own rating. Either way normalised to (rating − 1) / 4 |
 | `labels.interp.mode` | `step` | how a labeler's entries become a value between entries: `step`, `ramp`, `linear`, `pchip`, `cubic`, `gauss` (Chapter 13, O25; the label viewer shows each) |
 | `labels.interp.ramp_s`, `.sigma_s` | 3.0, 2.0 | `ramp`: seconds of the ramp before each change; `gauss`: width of the Gaussian, in seconds |
 
-At the design's values (4 and 0.5) almost no window is engaged; the provisional values used so far
-are `tau_att=3`, `tau_share=0.6` (Chapter 11).
+At the design's values (4 and 0.5) almost no window is engaged; the provisional values used in the
+window-grid runs (04) are `tau_att=3`, `tau_share=0.6` (Chapter 11).
 
 ### Tuning and benchmarking (excluded from every hash)
 
@@ -414,6 +497,10 @@ Collected here so they are not mistaken for working knobs:
   `scb.models[].conf` in soft mode: inactive, but in the tracking hash, so changing them forces a
   needless frame pass.
 - `mixture.tau`: unused while `engagement.aggregate` is `late`.
+- Under `engagement.labelers = "per_labeler"` (the default): `mixture.tau`, `labels.tau_share`,
+  `labels.min_labeled_students`, `labels.exclude_self`, `engagement.aggregate`,
+  `engagement.ensemble_exclude` and `hand_weighted` have no effect. They still change the config
+  hash.
 - StrongSORT's `min_conf` defaults to 0.6 when not set, which drops whole students (see
   `detector.conf` above); anything that runs StrongSORT should set it.
 - `--set` cannot reach list elements or keys that contain dots (§9.5).

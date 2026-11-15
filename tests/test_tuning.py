@@ -100,3 +100,40 @@ class TestSearch(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSharedFrames(unittest.TestCase):
+    """scripts/parallel_runs.py feeds one pass of frames to many trackers (run_trackers); it must give
+    each tracker exactly the tracks it gets alone (run_tracker), and the search's prefetch hook must
+    not change the search."""
+
+    def test_several_trackers_on_one_pass_match_each_run_alone(self):
+        from pathlib import Path
+
+        from scripts.tune_tracker import SessionDetections, run_tracker, run_trackers
+        from src.core.types import Detections, SessionKey
+        rng = np.random.default_rng(0)
+        dets = []
+        for f in range(60):                          # four people walking right, with jittered confidence
+            xyxy = np.array([[50 + 120 * k + 3 * f, 100, 110 + 120 * k + 3 * f, 260] for k in range(4)], float)
+            dets.append(Detections(xyxy + rng.normal(0, 1.5, xyxy.shape), rng.uniform(0.2, 0.9, 4)))
+        sd = SessionDetections(SessionKey("g", "e", "c"), Path("none.zip"), Path("none.npz"),
+                               np.arange(60) * 0.2, (480, 640), dets, None)
+        specs = [("botsort", {"use_cmc": False, "use_embeddings": False, "track_high_thresh": 0.5}, 0.3),
+                 ("botsort", {"use_cmc": False, "use_embeddings": False, "match_thresh": 0.6}, 0.5),
+                 ("botsort", {"use_cmc": False, "use_embeddings": False, "max_lost_frames": 5}, 0.2)]
+        shared = run_trackers(sd, specs)
+        for (name, opts, conf), got in zip(specs, shared):
+            alone = run_tracker(name, opts, sd, conf)
+            self.assertEqual([(t.tid, t.t.tolist(), t.xyxy.tolist()) for t in got],
+                             [(t.tid, t.t.tolist(), t.xyxy.tolist()) for t in alone])
+
+    def test_prefetch_does_not_change_the_search(self):
+        space = {"a": {"low": 0, "high": 1}, "b": {"low": 0, "high": 1}}
+        f = lambda p: {"score": -(p["a"] - 0.3) ** 2 - (p["b"] - 0.8) ** 2}
+        asked, seen = [], []
+        plain = beam_bisection_search(space, f, 20, {"a": 0.5, "b": 0.5})
+        hooked = beam_bisection_search(space, lambda p: (seen.append(p), f(p))[1], 20, {"a": 0.5, "b": 0.5},
+                                       prefetch=asked.extend)
+        self.assertEqual([t["params"] for t in plain], [t["params"] for t in hooked])
+        self.assertTrue(asked and all(p in seen for p in asked))    # nothing prefetched is wasted

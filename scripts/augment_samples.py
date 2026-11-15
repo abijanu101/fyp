@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 
 from scripts.run_pipeline import parse_sets
-from src.core.config import config_hash, load_config
+from src.core.config import load_config
 from src.core.types import SessionKey
 from src.datasets import DipserIndex
 from src.ingestion import AugmentedZipFrameSource, ZipFrameSource, aug_tag, hflip_boxes, sample_augmentation

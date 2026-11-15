@@ -48,12 +48,14 @@ observations ÷ fps, are dropped (§4: "a track is dropped below ~3 s cumulative
 ## 6.2 Windows
 
 ```python
-make_windows(t_first, t_last, length_s=8, overlap=0.5)
-# -> [Window(t0, t0+8), Window(t0+4, t0+12), Window(t0+8, t0+16), ...]
+make_windows(t_first, t_last, **cfg["window"])     # current config: length_s=4, overlap=0.5
+# -> [Window(t0, t0+4), Window(t0+2, t0+6), Window(t0+4, t0+8), ...]
 ```
 
-The step is `length × (1 − overlap)`: 4 s for 8-second windows at 50% overlap. A trailing partial
-window is dropped, so every window has the full length. A 5-minute session yields 73 windows.
+`make_windows` has no defaults: the length and overlap always come from the config's `window`
+section. The step is `length × (1 − overlap)`: 2 s for 4-second windows at 50% overlap. A trailing
+partial window is dropped, so every window has the full length. A 5-minute session yields 149
+windows (73 at the 8 s used before 16 November 2026).
 
 Overlapping windows mean consecutive rows of the feature table share half their data. That is
 one reason the evaluation never splits windows randomly into train and test (Chapter 7).
@@ -150,11 +152,13 @@ this (`test_vec_keys_stable_and_nan_when_empty`).
 
 ### The width of Vec
 
-With the current config: 10 motion keys, 4 flow keys and 8 SCB keys make 22 per-track features;
-each gets `.mean` and `.std` (44 columns), plus 4 `.frac` columns, 9 occupancy cells and
-`n_tracks`, for 58 columns. With early aggregation the experts see these 58 numbers per window;
-with late aggregation they see each student's 22 per-track features (as `trk.*` columns), plus
-these 58 as context if `engagement.late_context` is on.
+With the current config: 10 motion keys, 9 flow keys (a 3 × 3 grid) and 8 SCB keys make 27
+per-track features; each gets `.mean` and `.std` (54 columns), plus 4 `.frac` columns, 9 occupancy
+cells and `n_tracks`, for 68 columns. With early aggregation the experts see these 68 numbers per
+window; with late aggregation (and per-labeler training) they see each student's 27 per-track
+features (as `trk.*` columns), plus these 68 as context if `engagement.late_context` is on. (Before
+16 November 2026 the flow grid was 2 × 2: 22 per-track features and 58 columns, the widths of the
+six-session runs.)
 
 ## 6.5 Scene windows
 
@@ -202,5 +206,6 @@ A second file per session, `<session>.tracks.csv`, holds the per-student rows: `
 index in the window CSV), `tid`, and `trk.*` per-track features.
 
 `scripts/train_models.py` reads all these CSVs, adds group, experiment and label columns, and
-trains on them (Chapter 7). The window CSV is written **last**, after the session's manifest
+trains on them (Chapter 7). In the default per-labeler mode it also computes and caches
+`<session>.labelwin.csv`: the features of windows centred on each rating entry (Chapter 7, §7.9). The window CSV is written **last**, after the session's manifest
 and its `.tracks.csv`, so its existence marks a completed session.

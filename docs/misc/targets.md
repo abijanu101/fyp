@@ -39,7 +39,7 @@ Numbers: all 483 labelled student-sessions, step labels (Chapter 13 of the guide
 | **per label** | a moment at which **any** included labeler entered a rating | every included labeler's value in force at that moment | 31,686 moments |
 | **per second** | one second on a 1 Hz clock (the annotation rate: labelers saw 1 frame per second) | each labeler's value in force at that second | 140,198 s |
 | **per frame** | one context-camera frame (5 fps, real timestamps, so camera dropouts are skipped) | each labeler's value in force at that frame | 650,530 frames |
-| **per window** | one window of `window.length_s` seconds with `window.overlap` (the pipeline's windows; 8 s every 4 s in the current config and in §3) | each labeler's **time-weighted mean** over the window | 34,191 windows |
+| **per window** | one window of `window.length_s` seconds with `window.overlap` (the pipeline's windows; §3 uses 8 s every 4 s, the config until 16 November 2026, now 4 s) | each labeler's **time-weighted mean** over the window | 34,191 windows |
 
 Per label weights every *entry* equally: a stretch of rapid changes contributes many samples, a long
 hold during which nobody entered anything contributes one. Per second and per frame weight every
@@ -99,7 +99,7 @@ does not move the combined value.
 |---|---|---|
 | **experts** | the student's 4 expert labelers (`labeler_01`–`03` always, plus `04` or `05`) | |
 | **self** | the student's own rating | one labeler, so the aggregation is redundant: median = mean = majority = all = the student's rating; one target per unit, shown as "n/a" |
-| **experts + self** | all 5, mixed | the pipeline's current default (`labels.exclude_self = false`) and the dataset authors' majority vote |
+| **experts + self** | all 5, mixed | the window-grid paths' target (`labels.exclude_self = false`; the default before 16 November 2026) and the dataset authors' majority vote |
 
 Keeping experts and self apart treats them as two different measurements: what observers saw, and
 what the student reports. Mixing them makes the self-report one vote of five, which moves the
@@ -191,7 +191,7 @@ point of 3" and is much higher than the exact share: per second × median × exp
    self-report often supplies the middle 3; with the four experts alone, the median is often an
    x.5.
 4. **Windows shrink the spread.** Per-window SDs are 0.41–0.59 for the combined expert targets
-   against 0.44–0.64 per second: an 8-second (current config) time-weighted mean already smooths short episodes
+   against 0.44–0.64 per second: an 8-second (the config at the time) time-weighted mean already smooths short episodes
    away. This lowers the RMSE of a constant (0.41 for per window × mean × experts), so per-window
    numbers are not comparable with per-second ones.
 5. **"All" is the noisiest expert target** (SD 0.75–0.84): it keeps every labeler's disagreement.
@@ -234,7 +234,7 @@ Four roles:
 
 | Unit | Aggregation | Proposed role | Reasoning | Your decision |
 |---|---|---|---|---|
-| per window | mean | **Train / evaluate (proposed)** | continuous; only 8% exactly 3, so thresholds are stable; the same aggregation as Fragkiadakis, over our windows; supports a continuous target (05 §7, direction 3) | |
+| per window | mean | **Train / evaluate (proposed)** | continuous; only 8% exactly 3, so thresholds are stable; the same aggregation as Fragkiadakis, over our windows; supports a continuous target (04 §7, direction 3) | |
 | per window | median | Train / evaluate (candidate) | the current target without the self-report; 24% exactly 3; robust to one extreme expert | |
 | per window | all | Train / evaluate (labeler ensemble) | what `engagement.labelers = "ensemble"` trains on | |
 | per window | majority | Drop | needs rounding of window means; 67% exactly 3 | |
@@ -263,7 +263,7 @@ One row per unit: the aggregation is redundant for a single labeler (§2.3).
 | Unit | Aggregation | Proposed role | Reasoning | Your decision |
 |---|---|---|---|---|
 | per second | majority | **Literature** (IEEE Access) | the dataset authors' target; the only reason to keep a mixed target | |
-| per window | median | Drop after the switch | the current pipeline target; replaced by an experts target if §6.1 is accepted (config `labels.exclude_self = true` covers the median; the mean would need a code change) | |
+| per window | median | Drop after the switch | the window-grid paths' target (the default before 16 November 2026); replaced by an experts target if §6.1 is accepted (config `labels.exclude_self = true` covers the median; the mean would need a code change) | |
 | all others | | Drop | mixing two different measurements; no published use | |
 
 ### 6.4 On per label
@@ -278,8 +278,9 @@ literature, per window for training.
 
 ## 7. Decision (16 November 2026)
 
-- **Training: per frame, with the interpolation chosen in the config** (step, Gaussian, ...;
-  Chapter 13 O25 and the label viewer show the candidates).
+- **Training: per window centred on each entry, on the labeler's interpolated curve** (the
+  interpolation chosen in the config: step, Gaussian, ...; Chapter 13 O25 and the label viewer show
+  the candidates; details in §7.1 items 1 and 6).
 - **Evaluation metrics: per label.** Every metric is computed at the moments labelers actually
   entered a rating, so no interpolation enters the score.
 
@@ -291,8 +292,8 @@ or evaluation.
 1. **Training: per window, on interpolated labels.** A labeler's value for a window is the mean of
    that labeler's interpolated per-frame values over the window's frames (interpolation from the
    config). The model keeps its window features. The window length k is a config parameter
-   (`window.length_s`, with `window.overlap`), not a property of the design; the current 8 s is
-   one value of it, and too long for this target (§7.2).
+   (`window.length_s`, with `window.overlap`), not a property of the design; 8 s (the value until 16 November 2026)
+   was one value of it, and too long for this target; it is now 4 s (§7.2).
 2. **Evaluation: per label × all, for the experts and for self, equally weighted.** Each entry as a
    labeler made it (no aggregation, no interpolation), scored against the prediction for that
    student. Expert entries and self entries are two separate evaluation tracks.
@@ -346,12 +347,12 @@ or evaluation.
    | Value | Final prediction |
    |---|---|
    | `per_labeler` | every labeler model's own prediction, shown as separate curves with their median (item 8) |
-   | `majority` | per student and window, each labeler model's prediction rounded to a rating, then the most common rating across the models (ties: the value closest to 3, then the lower one); one curve |
+   | `majority` | per student and window, each labeler model's prediction quantised to `output.majority_resolution` (0.5: 1.0, 1.5, …, 5.0), then the most common value across the models (ties: the value closest to 3, then the lower one), averaged over the window's students; one final curve (the labeler curves are still drawn) |
 
    Both keep the labelers' disagreement visible instead of averaging it away in training. Evaluation
    scores both modes every run; the setting only chooses what inference outputs.
 
-### 7.2 Open: the window length (k)
+### 7.2 The window length (k): 4 s (decided 16 November 2026)
 
 How much of a labeler's moment-to-moment variation survives averaging over a window (each
 labeler's step curve at 5 fps, non-overlapping windows, all labelers of all 483 student-sessions):
@@ -361,9 +362,9 @@ labeler's step curve at 5 fps, non-overlapping windows, all labelers of all 483 
 | 1 s | 95.9% |
 | 2 s | 87.7% |
 | 3 s | 82.1% |
-| 4 s | 77.7% |
+| 4 s (current) | 77.7% |
 | 6 s | 70.7% |
-| 8 s (current) | 65.6% |
+| 8 s (previous config) | 65.6% |
 
 Labels have 1-second resolution, so 1–2 s is the floor on the label side. On the feature side a
 shorter window means fewer frames per feature (20 frames at 4 s, 10 at 2 s, at 5 fps), a track
@@ -371,7 +372,7 @@ needs `aggregation.min_coverage` (50%) of the window to be scored, and the numbe
 in proportion (overlap 50%). The feature pass reruns from cached tracks in about a second per
 session, so trying several lengths is cheap.
 
-### 7.3 Still to settle before implementing
+### 7.3 Questions raised before implementing
 
 - **Matching an entry to a prediction.** Settled by item 6: a window centred on the entry, with
   features computed for that window (the feature pass runs from cached tracks in about a second
@@ -385,9 +386,8 @@ session, so trying several lengths is cheap.
 
 Items 1–9 are implemented and are the default (`engagement.labelers = "per_labeler"`); the guide's
 §7.9 describes the code. `plot_results`, `output_viewer` and `tune_models` support it (Chapter 8). Config keys: `labels.train_target`, `labels.interp.{mode,ramp_s,sigma_s}`,
-`output.prediction`, `output.majority_resolution` (Chapter 9). Still open: the window length k
-(`window.length_s`, currently 8; §7.2) and a curve-shape metric (`docs/misc/proposed_metrics.md`).
+`output.prediction`, `output.majority_resolution` (Chapter 9). The window length is 4 s (`window.length_s`, §7.2). Still open: a curve-shape metric (`docs/misc/proposed_metrics.md`).
 A first run on the six-session caches (`tmp/e2e6/run_per_labeler.py`, 8 s windows, step labels,
 `train_with_interp`) works end to end: 4,769 entries with a linked track, every prediction at chance
-level, as expected from one session per activity (05 §4).
+level, as expected from one session per activity (04 §4).
 

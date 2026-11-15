@@ -334,9 +334,9 @@ version found. Code: <https://bitbucket.org/rovitlib/dipser/>.
 1. **The task is hard everywhere.** Labelers agree with their own majority at F1 0.41–0.61; the
    best close-up face model beats predicting the mean by 9% in MAE; across students, a 34B
    multimodal model scores below a constant. Our near-chance six-session result
-   (`docs/experiments/05_six_session_run.md`) is in line with this, not an outlier.
+   (`docs/experiments/04_six_session_run.md`) is in line with this, not an outlier.
 2. **Always report the trivial baseline**, computed on the same target, sampling and pooling (§1).
-   We already report `majority`; for a continuous target (direction 3 of `05_six_session_run.md`
+   We already report `majority`; for a continuous target (direction 3 of `04_six_session_run.md`
    §7) add a predict-the-mean MAE. Prefer metrics a constant cannot game: macro F1, minority-class
    F1, AUC or correlation over weighted F1 and accuracy.
 3. **State how the metric was computed**: target, per second or per change, pooled or per subject,

@@ -14,7 +14,7 @@ evaluation described here; observations O3–O7, O10–O17 and O22 concern the w
 **Nothing here has been changed in the code.** The observations (O1, O2, …) are neutral: they say
 what happens and what it implies, not what it should be. §13.17 collects them in one table.
 
-Measured figures come from the six-session run (`docs/experiments/05_six_session_run.md`, cached
+Measured figures come from the six-session run (`docs/experiments/04_six_session_run.md`, cached
 in `tmp/e2e6/`) with its settings: `tau_att = 3`, `tau_share = 0.6`, late aggregation, Vec as
 context, logistic-regression experts (`C = 0.1`), random-forest gate.
 
@@ -215,7 +215,7 @@ mean ≥ `tau_att`, no median.
 > **O6.** The window label is a *threshold of a threshold*: attention → student (at `tau_att`) →
 > share → window (at `tau_share`). Information is lost twice: a student at consensus 2.9 and one at
 > 1.0 are both "not engaged", and a window at share 0.59 and one at 0.0 are both "not engaged".
-> 05 §6.1 shows the result: the window label changes 0–18 times in 73 windows per session.
+> 04 §6.1 shows the result: the window label changes 0–18 times in 73 windows per session.
 
 > **O7.** Windows with fewer than 3 labelled students have no label but keep their share, so they
 > are excluded from AUC/F1. (The removed `retention_r` still counted them; `docs/misc/proposed_metrics.md`.) On the six
@@ -258,7 +258,7 @@ their box) get a NaN label and are left out of training.
 
 > **O9.** In late mode with context, every student in a window carries the same 58 Vec numbers next
 > to their own 22. Vec differs mainly *between sessions* (room, camera, activity), so the expert can
-> learn session-level offsets from it. 05 §6.4 measured that turning context off improved held-out
+> learn session-level offsets from it. 04 §6.4 measured that turning context off improved held-out
 > AUC and `retention_r`.
 
 ## 13.8 The experts
@@ -268,11 +268,11 @@ their box) get a NaN label and are left out of training.
 **Learned experts** (`SklearnExpert`, line 25): logistic regression, random forest, SVM or k-NN on
 the row features, inside a pipeline that fills missing values with the training median and standardises every feature (`src/core/classifiers.py`). The hand-weighted expert instead treats a missing feature as average (z = 0).
 
-- **Class balancing (line 37):** logistic regression, random forest and SVM are built with
+- **Class balancing (line 42):** logistic regression, random forest and SVM are built with
   `class_weight = "balanced"` unless the config overrides it: during training, each class's
   errors are weighted inversely to its frequency, as if the classes were 50/50. k-NN is balanced
   by undersampling the larger class instead.
-- **Degenerate training sets (line 44):** if the training rows contain only one class, or none at
+- **Degenerate training sets (line 52):** if the training rows contain only one class, or none at
   all, the expert predicts a **constant**: the training label rate, or **0.5 when it has no rows**.
 
 > **O10.** Balanced class weights change what the predicted probability means. A balanced model's
@@ -281,9 +281,9 @@ the row features, inside a pipeline that fills missing values with the training 
 > engaged, but the mean predicted probability is **0.524**. This matters for §13.10, where the
 > mean probability is read as an estimate of the share, and for §13.11, where it is cut at 0.6.
 
-**Hand-weighted expert** (`HandWeightedExpert`, line 69): never sees labels.
+**Hand-weighted expert** (`HandWeightedExpert`, line 95): never sees labels.
 `fit` only learns each feature's mean and standard deviation on the training rows; prediction is
-the sigmoid of a fixed weighted sum of standardised features (line 89):
+the sigmoid of a fixed weighted sum of standardised features (line 115):
 
   P = 1 / (1 + exp(−Σ wᵢ · (xᵢ − μᵢ) / σᵢ))
 
@@ -293,11 +293,11 @@ weight's sign is set per activity (`phone_sign`).
 
 > **O11.** Standardised features average 0 on the training rows, so the hand-weighted score
 > averages about 0.5 by construction, whatever the engaged rate. Cut at 0.6 (§13.11), most
-> windows are predicted "not engaged" (05 §3: F1 0.09).
+> windows are predicted "not engaged" (04 §3: F1 0.09).
 
 > **O12.** An expert whose activity has no training rows learns μ = 0, σ = 1 (hand-weighted: raw
 > feature values go into the sigmoid) or predicts the constant 0.5 (learned). Under
-> leave-one-group-out with one session per activity (05), every held-out activity is in this
+> leave-one-group-out with one session per activity (04), every held-out activity is in this
 > situation.
 
 ## 13.9 The gate and the mixture
@@ -319,10 +319,10 @@ probabilities in class order; **classes absent from training get probability 0**
 **Context source.** *Classified*: the gate's probabilities. *Oracle*: a one-hot vector on the true
 activity (`context_probs`). Every row of a window uses its window's probabilities.
 
-> **O13.** Combining O12 with this: in 05, the held-out group's activities are absent from training,
+> **O13.** Combining O12 with this: in 04, the held-out group's activities are absent from training,
 > so the gate gives them probability 0 and the *classified* score is made entirely by **other**
 > activities' experts; the *oracle* score uses only the held-out activity's expert, which predicts
-> the constant 0.5 for every row. That is why the oracle rows in 05 §3 show AUC 0.50 and F1 0
+> the constant 0.5 for every row. That is why the oracle rows in 04 §3 show AUC 0.50 and F1 0
 > (0.5 is below the 0.6 cut-off): they are the constant, not a measurement.
 
 ## 13.10 The window score
@@ -368,7 +368,7 @@ whenever more than half the training windows were engaged.
 
 ## 13.12 The evaluation loop
 
-**Code:** `scripts/train_models.py`, `main` (line 187), `heldout_splits` (line 102),
+**Code:** `scripts/train_models.py`, `main` (line 396), `heldout_splits` (line 102),
 `src/spu/splits.py` (`logo_splits`).
 
 For each group `g` (three folds, groups in sorted order):
@@ -445,7 +445,7 @@ How `inspect_labels` builds the items:
 
 ## 13.15 At inference
 
-**Code:** `src/core/pipeline.py`, `Pipeline.predict` (line 150).
+**Code:** `src/core/pipeline.py`, `Pipeline.predict` (line 160; the window-grid branch from line 175).
 
 1. The gate predicts activity probabilities per window from the scene features.
 2. Rows are built as in training (late: every visible track, Vec appended if the trained model
@@ -462,12 +462,12 @@ nothing says which labelers would have rated whom.
 > *evaluated* window score (§13.10); at inference they are included in the score. The trained
 > experts have never been trained on a non-student, but score them.
 
-## 13.16 Trace: what produced each row of 05 §3
+## 13.16 Trace: what produced each row of 04 §3
 
 Putting the above together for the six-session run (one session per activity, each activity in
 one group):
 
-| Row of 05 §3 | What actually happened |
+| Row of 04 §3 | What actually happened |
 |---|---|
 | `majority` | constant = training windows' engaged rate, cut at 0.5. F1 varies by fold with the held-out group's balance (12%, 69%, 94% engaged). |
 | `configured/classified` | the held-out group's two activities have no training rows → their experts are constant 0.5 (O12), but the gate gives them probability 0 (absent classes), so each window is scored by the *four training activities'* experts, weighted by how much the room looks like theirs. |
@@ -490,20 +490,20 @@ one group):
 | O7 | `window_labels.py:43` | windows with < 3 labelled students: no label, but a share | metric populations differ |
 | O8 | `association.py:66` | static boxes, IoU ≥ 0.3, ≥ 50% of frames; 8% of rows unlinked | who gets a training label |
 | O9 | config `late_context` | every student's row carries the same class Vec | session-level offsets |
-| O10 | `expert.py:37` | experts trained class-balanced; mean P 0.52 vs 64% engaged | score scale |
-| O11 | `expert.py:89` | hand-weighted score centred near 0.5 by construction | score scale |
-| O12 | `expert.py:44`, `expert.py:81` | an expert with no rows: constant 0.5 (learned) or raw features (hand-weighted) | held-out activities |
+| O10 | `expert.py:42` | experts trained class-balanced; mean P 0.52 vs 64% engaged | score scale |
+| O11 | `expert.py:115` | hand-weighted score centred near 0.5 by construction | score scale |
+| O12 | `expert.py:52`, `expert.py:109` | an expert with no rows: constant 0.5 (learned) or raw features (hand-weighted) | held-out activities |
 | O13 | `gate.py:30`, `mixture.py:44` | absent classes get gate probability 0; oracle uses the empty expert | 05 oracle and configured rows |
 | O14 | `levels.py:78` | window score = mean P over all tracked people, read as the share | score vs target |
 | O15 | `levels.py:78` | every tracked person counts equally | score vs target |
 | O16 | `levels.py:26` | late cut-off = `tau_share` on a score centred near 0.5 | F1, balanced accuracy |
-| O17 | `train_models.py:226` | `majority` cut at 0.5, models at the variant's cut-off | baseline comparison |
+| O17 | `train_models.py:435` | `majority` cut at 0.5, models at the variant's cut-off | baseline comparison |
 | O18 | `train_models.py:181` | "±" is the population SD over 3 folds | reported spread |
 | O19 | `train_models.py:181` | NaN folds silently dropped from means | reported means |
 | O20 | (removed) | one NaN share made a session's `retention_r` NaN; resolved by removing the metric | – |
 | O21 | `metrics.py:10` | binary metrics pool the two held-out sessions | level vs shape |
 | O22 | `inspect_labels.py:61` | α on raw midpoint ratings, not on the thresholded target | label-quality evidence |
 | O23 | `inspect_labels.py` | its consensus ignores `exclude_self` | label report |
-| O24 | `pipeline.py:150` | non-students scored and averaged in at evaluation and inference | score vs target |
+| O24 | `pipeline.py:160` | non-students scored and averaged in at evaluation and inference | score vs target |
 | O25 | `attention.py:22` | a rating is read as "from now on", with no reaction delay or retrospective span | label timing |
 | O26 | `window_labels.py:38` | half of student consensus values are exactly 3.0, on the `tau_att` threshold | label stability |

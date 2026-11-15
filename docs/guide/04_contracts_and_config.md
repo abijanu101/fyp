@@ -225,16 +225,20 @@ must re-run after changing it.
 | `aggregation` | aggregator | thresholds for "fraction of students above", heatmap grid, coverage |
 | `gate`, `gate_uses_vec` | training | gate model and its inputs |
 | `context_mode` | nothing yet | unused: training reports both oracle and classified context, inference always uses classified |
-| `expert`, `hand_weighted`, `mixture` | training (`mixture.tau` also at inference) | expert model, baseline weights, mixing |
-| `engagement` | training | `aggregate`: `late` (default; experts see each student) or `early` (experts see Vec); `late_context` |
-| `labels` | label pipeline | `tau_att`, `tau_share`, minimum labelled students, offset |
+| `expert`, `hand_weighted`, `mixture` | training | expert model, baseline weights, mixing |
+| `engagement` | training | `labelers`: `per_labeler` (default), `consensus` or `ensemble`; for the window-grid paths, `aggregate`: `late` (experts see each student) or `early` (experts see Vec); `late_context`; `ensemble_exclude` |
+| `augmentation` | extraction, training | augmented training copies and their transform ranges |
+| `labels` | label pipeline | `tau_att`, `tau_share`, minimum labelled students, offset, `students`, `train_target`, `interp` |
+| `output` | inference, `plot_results` | PNG smoothing; prediction mode (`per_labeler` or `majority`) and majority resolution |
 | `tuning` | tuning scripts only | search profiles and spaces |
 | `benchmark` | `scripts/benchmark.py` only | sessions and tracker variants to time |
 | `output_dir` | scripts | where caches and results go |
 
 At inference, `Pipeline.predict` takes the gate, its columns, the mixture, the aggregation mode and
-the fill value from the saved model bundle, not from the config; only `classes` and `mixture.tau`
-are read from the config there. So a model always runs the way it was trained.
+the fill value (window-grid bundles), or the per-labeler model and `tau_att` (per-labeler bundles),
+from the saved model bundle, not from the config. Only `classes` and, for per-labeler bundles,
+`output.prediction` and `output.majority_resolution` are read from the config there (`infer` also
+reads `output.smooth_windows` for the PNG). So a model always runs the way it was trained.
 
 ### Overriding values per run
 

@@ -141,7 +141,7 @@ reasonable answers, and the config key `engagement.aggregate` picks between them
 
 ### A worked example
 
-Take one 8-second window in which three students are visible. To keep the numbers small, pretend
+Take one window in which three students are visible. To keep the numbers small, pretend
 the only feature is stillness (the share of frames a student sits still), and that the labels say:
 
 | Student (track) | Stillness | Their label (consensus attention ≥ `tau_att`?) |
@@ -329,7 +329,7 @@ from that student's features, just as the learned experts do, and still works wi
 
 ### Consensus labels or a per-labeler ensemble (`engagement.labelers`)
 
-By default (`"consensus"`) a late row's label is the student's consensus: the median over labelers
+With `"consensus"` (a window-grid path; the default is `per_labeler`, §7.9) a late row's label is the student's consensus: the median over labelers
 of their time-weighted mean rating, thresholded at `tau_att`. With labeler agreement near zero
 (Chapter 11), that median mostly reflects the middle rater's habits and discards the rest.
 
@@ -411,9 +411,9 @@ of engaged students, and how many students were labelled.
 ### The label problem, in brief
 
 At the design's defaults (`tau_att=4`, `tau_share=0.5`) almost no window is engaged (0.5%), and
-the labelers barely agree (Krippendorff's α ≈ 0). Chapter 11 has the numbers. The plan is to use
-provisional thresholds (`tau_att=3`, `tau_share=0.6`) to get the pipeline running end to end, then
-return to label design as a separate phase.
+the labelers barely agree (Krippendorff's α ≈ 0). Chapter 11 has the numbers. Provisional thresholds
+(`tau_att=3`, `tau_share=0.6`) got the window-grid paths running end to end. The label problem then
+led to per-labeler training (§7.9), which keeps each labeler's ratings apart.
 
 ## 7.7 The evaluation protocol: leave-one-group-out
 
@@ -452,11 +452,13 @@ been removed; it is documented as a proposal for review in `docs/misc/proposed_m
 
 ## 7.8 The output graph (`src/output/graph.py`)
 
-`build_graph` only accepts window-level arrays (context probabilities, engagement probabilities,
-track counts), so per-student data cannot reach the output even by mistake. Each record:
+Per-labeler bundles (the default) use `build_rating_graph` (§7.9). Window-grid bundles use
+`build_graph`, described here. Both only accept window-level arrays (context probabilities,
+engagement probabilities or ratings, track counts), so per-student data cannot reach the output
+even by mistake. Each window-grid record:
 
 ```json
-{"t_start": 0.0, "t_end": 8.0,
+{"t_start": 0.0, "t_end": 4.0,
  "predicted_context": {"label": "03", "confidence": 0.81},
  "layout_family": "grid", "engaged": "Y", "engagement_prob": 0.67, "n_visible_tracks": 14}
 ```
@@ -468,7 +470,7 @@ background by predicted activity.
 
 `engagement.labelers = "per_labeler"` replaces the window-label pipeline of §7.5–7.7 with the
 decisions of `docs/misc/targets.md` §7. Sections 7.5–7.7 still describe the `consensus` and
-`ensemble` paths, which `plot_results`, `tune_models` and the output viewer use.
+`ensemble` window-grid paths; `plot_results`, `tune_models` and the output viewer support all three.
 
 **Training rows: windows centred on label entries.** Every rating entry of every labeler (expert or
 self), except the shared session-start entry, gets a window of `window.length_s` centred on its

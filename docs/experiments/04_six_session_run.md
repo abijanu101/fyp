@@ -82,7 +82,7 @@ Each fold trains on four sessions and is scored on the held-out group's two.
 The oracle rows and the gate are not interpretable here (§4). Results file:
 `tmp/e2e6/results/24387875c765….json`.
 
-![Held-out curves](figures/05_six_session_heldout.png)
+![Held-out curves](figures/04_six_session_heldout.png)
 
 *Per session: engagement score (red) from models that never saw that group, labelled share of
 engaged students (grey), cut-off 0.6 (dashed); background = the gate's predicted activity.*
@@ -92,7 +92,7 @@ engaged students (grey), cut-off 0.6 (dashed); background = the gate's predicted
 windows above the cut-off. The gate predicted activity 04 for **all 73 windows**; the true activity
 is 03.
 
-![Retention graph of the unseen lecture](figures/05_infer_g1e3.png)
+![Retention graph of the unseen lecture](figures/04_infer_g1e3.png)
 
 ### 3.1 The same predictions, scored with the benchmarks' metrics
 

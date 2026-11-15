@@ -84,7 +84,7 @@ nothing. Put comments on their own line.
 
 ## 11.5 Status
 
-*Last updated: November 2026. Update this section when you change something it describes.*
+*Last updated: 16 November 2026. Update this section when you change something it describes.*
 
 ### Built and verified on real data
 
@@ -99,21 +99,26 @@ nothing. Put comments on their own line.
   embedding cache and fast paths verified with `--check`; resumable full-dataset runs.
 - Label parsing, label viewers and plots, label inspection; SCB sanity check and viewer.
 
-### Running
+### Running (16 November 2026)
 
-- **Three full-dataset tracker experiments** (`tune_tracker`, 20 trials each, CMC on everywhere,
-  resumable). As of 15 November 2026: StrongSORT (`full_strongsort`) is **complete** (best IDF1
-  0.878, with frequent ID switches); BoT-SORT without ReID (`full`) is at 17 of 20 (best 0.905);
-  BoT-SORT with ReID (`full_reid_cmc`) has started. Their outcome sets the default tracker. Results
-  in `docs/experiments/02_boxmot.md`, §6–7.
+- **Augmented detector scan D3** (`scan_detector --augment`, every frame of the full dataset, 5
+  variants each), in the user's terminal.
+- **Augmented tracker scans T2** next (BoT-SORT, BoT-SORT + ReID + CMC, StrongSORT; beam
+  bisection from the clean winners). The clean scans T1 are complete: BoT-SORT 0.905 IDF1,
+  StrongSORT 0.878 (`docs/experiments/02_boxmot.md` §6); the clean BoT-SORT + ReID scan was
+  dropped as not needed for seeding.
+- **Full extraction and training** follow once the tracker is chosen.
 
 ### Built, not yet run on all data
 
+- Per-labeler training (the default; Chapter 7 §7.9): unit-tested (`tests/test_label_targets.py`)
+  and run end to end on the six full-length sessions, with plots, inference in both prediction
+  modes, the output viewer and expert tuning (`docs/experiments/05_per_labeler.md`).
 - Context gate, engagement experts, mixture and both aggregation modes are unit-tested.
   `train_models`, `tune_models` and `infer` are scripts and have no unit tests; they were
   smoke-tested on six 100-frame sessions (`tmp/agg_smoke`): extract and train in both modes, infer
   with a late-mode model. Then run end to end on six full-length sessions (extract, train, held-out
-  plots, inference on an unseen session; `docs/experiments/05_six_session_run.md`).
+  plots, inference on an unseen session; `docs/experiments/04_six_session_run.md`).
 - `scripts/benchmark.py` (per-stage timing per tracker variant).
 - Data augmentation (augmented training copies per session, Chapter 8 §8.4): verified end to end
   on six 100-frame sessions with one copy each; off by default (`augmentation.copies: 0`). Whether
@@ -132,16 +137,19 @@ These wait on the full extraction of all 52 sessions, which is best run once the
   being averaged into one label. The window-grid paths (`consensus`, `ensemble`) remain for
   comparison.
 
-- **Tracker choice pending** the three full-dataset experiments. On the quick clips, ReID made
-  tracking more forgiving of bad settings but did not beat a tuned motion-only tracker, at about
-  60× the per-frame tracking cost.
+- **Tracker choice: clean scans T1 complete**, BoT-SORT 0.905 IDF1 against StrongSORT 0.878; the
+  clean BoT-SORT + ReID scan was dropped as not needed for seeding. The final choice waits on the
+  augmented scans (D3 running, T2 next). On the quick clips, ReID made tracking more forgiving of
+  bad settings but did not beat a tuned motion-only tracker, at about 60× the per-frame tracking
+  cost.
 - **CMC on for every full-dataset tracker trial**, for reliability: no full-dataset result depends
   on the blank-frame shortcut.
 - **SCB in soft mode.** On DIPSER, `read` fires on anyone looking down at a desk or device and
   `hand_raising` on hand-to-face poses (`docs/experiments/03_scb.md`). Raw scores are passed to the
   experts instead of decisions; a with/without-SCB comparison will decide whether it stays.
-- **Late aggregation is the default; early is a config switch away** (`engagement.aggregate`), so
-  the two can be compared on the same features and labels. Late aggregation departs
+- **In the window-grid paths, late aggregation is the configured mode; early is a config switch
+  away** (`engagement.aggregate`), so the two can be compared on the same features and labels.
+  Per-labeler models always use late (per-student) rows. Late aggregation departs
   from §8 as written; §8.4 already anticipates per-student training signal through SID–TID
   association. Each mode has its own engaged cut-off (`mixture.tau` early, `labels.tau_share`
   late) and the hand-weighted baseline reads students' own features in late mode (§7.5).
@@ -156,16 +164,18 @@ These wait on the full extraction of all 52 sessions, which is best run once the
 1. **Label target.** Labeler agreement is near chance (ordinal α between −0.08 and 0.13 per
    experiment); labelers use the scale very differently (one sits at 3 for 88% of the time,
    another at 2 for 73%); the median removes almost all 4s and 5s. The design's thresholds give
-   0.5% engaged windows. Provisional thresholds (`tau_att=3`, `tau_share=0.6`, passed with `--set`)
-   until label design is revisited.
+   0.5% engaged windows. Addressed by per-labeler training (16 November 2026, Chapter 7 §7.9),
+   which keeps each labeler's ratings apart; the provisional thresholds (`tau_att=3`,
+   `tau_share=0.6`, passed with `--set`) remain for the window-grid paths. Still open: whether
+   per-labeler models learn anything on the full data.
 2. **Performance.** About 185 ms per frame (~40 minutes per 45-minute session) against a 3-minute
-   target, measured on six full-length sessions under load (`docs/experiments/05_six_session_run.md`).
+   target, measured on six full-length sessions under load (`docs/experiments/04_six_session_run.md`).
    Largest costs: residual flow (56 ms), PNG decoding (49 ms), SCB (47 ms), detection (29 ms); ReID
    tracking would add 120–165 ms. The 50-student stress test (§11) is not done.
 3. **The first real end-to-end result.** A six-session full-length run works end to end
-   (`docs/experiments/05_six_session_run.md`), but with one session per activity it cannot evaluate
-   the gate or the per-activity experts. Needed: the full extraction, training in both aggregation
-   modes, and the feature-family ablation (not yet written).
+   (`docs/experiments/04_six_session_run.md`), but with one session per activity it cannot evaluate
+   the gate or the per-activity experts. Needed: the full extraction, per-labeler training (and the
+   window-grid modes for comparison), and the feature-family ablation (not yet written).
 4. **Possible new feature family.** A frozen pretrained image encoder (for example DINOv2-small
    or ResNet18) on student crops, and possibly whole frames for the gate, as an alternative to
    SCB's fixed classes.
@@ -173,9 +183,10 @@ These wait on the full extraction of all 52 sessions, which is best run once the
 5. **Improving the engagement scores.** On the six-session run the features carry consistent
    within-session signal (class motion against the labelled share, ρ ≈ −0.3) that the trained
    models do not use; leaving out the Vec context already helps. Candidate changes, in order:
-   within-session metrics, per-session feature normalisation, a continuous target, per-labeler
-   label normalisation, signed baselines, pooled experts, temporal smoothing
-   (`docs/experiments/05_six_session_run.md`, §6–7).
+   within-session metrics, per-session feature normalisation, a continuous target (done: the soft
+   per-labeler target, §7.9), per-labeler label normalisation (partly addressed by one model per
+   labeler), signed baselines, pooled experts, temporal smoothing
+   (`docs/experiments/04_six_session_run.md`, §6–7).
 
 ## 11.6 Settings that do nothing: decisions to make
 
@@ -213,12 +224,13 @@ through the code (Chapter 9, §9.6–9.7).
   (a) if it should stay a minimal floor. (c) keeps a silent no-op.
 - Related: on the six-session run, students with higher SCB `read` and `write` scores were rated
   *less* attentive (single-feature AUC 0.36–0.39), while the baseline weights both positively
-  (`docs/experiments/05_six_session_run.md`, §6.3). Decide the weights and the phone term together.
+  (`docs/experiments/04_six_session_run.md`, §6.3). Decide the weights and the phone term together.
 
-**☐ 3. `mixture.tau` (0.5): unused in late aggregation only.**
+**☐ 3. `mixture.tau` (0.5): used only by early aggregation.**
 - Purpose: the engaged cut-off for early aggregation, where the window score is a probability.
-- Reality: with `engagement.aggregate = "late"` (the default) the cut-off is `labels.tau_share`,
-  because the late score estimates a share of engaged students (§7.5).
+- Reality: in the window-grid paths with `engagement.aggregate = "late"` (the configured mode) the
+  cut-off is `labels.tau_share`, because the late score estimates a share of engaged students
+  (§7.5). The default per-labeler mode uses neither: engaged = rating ≥ `labels.tau_att`.
 - Recommendation: keep. Removing it breaks early aggregation, which is kept for comparison.
   Chapter 9 marks it early-only.
 
@@ -264,7 +276,7 @@ names where the details are.
 - `scripts/label_baselines.py`: the constant baseline on every published target, per second / per
   change and pooled / per subject; `--grid` for every target of `docs/misc/targets.md`, with the
   window length from the config.
-- `docs/experiments/05_six_session_run.md` §3.1: the run re-scored with the benchmarks' metrics
+- `docs/experiments/04_six_session_run.md` §3.1: the run re-scored with the benchmarks' metrics
   (pooling across folds inflates AUC from 0.51 to 0.85; the shared expert is below the constant
   "not engaged" on not-engaged F1).
 - Guide Chapter 12 (reading results, from scratch) and Chapter 13 (the implementation from rating to
@@ -292,6 +304,11 @@ names where the details are.
   `tune_models` ported; inference (`Pipeline.predict`) writes rating graphs with per-labeler curves
   (`build_rating_graph`).
 - `retention_r` removed from `train_models` and `experiment_decoders`.
+- Per-activity metrics in every per-labeler fold; `scripts/compare_results.py`; the full pipeline
+  experiment (`docs/experiments/06_full_pipeline.md`) as the test of the mixture of experts.
+
+- Residual-flow pooling grid 2 × 2 → 3 × 3 (`residual_flow.grid`; Chapter 5): nine flow features per
+  student, Vec 58 → 68 columns; no extra cost.
 
 **Viewers**
 
@@ -299,8 +316,8 @@ names where the details are.
 
 **Open**
 
-- Window length k (`window.length_s`, still 8; `docs/misc/targets.md` §7.2).
+- ~~Window length k~~: 4 s (`window.length_s`, set 16 November 2026; `docs/misc/targets.md` §7.2).
 - A curve-shape metric (`docs/misc/proposed_metrics.md`).
 - Whether augmented copies help per-labeler training: a first six-session check is in
-  `docs/experiments/06_per_labeler.md`; the real answer needs the full extraction.
+  `docs/experiments/05_per_labeler.md`; the real answer needs the full extraction.
 

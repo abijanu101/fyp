@@ -3,7 +3,8 @@
 Offline pipeline that turns DIPSER context-camera footage into a time-indexed classroom engagement
 ("retention") graph, with no per-student identity in the output. Implements Technical Design v3
 (Deliverable III): detection → tracking → BFMU features → window vector (Vec) → SPU context gate →
-mixture of per-experiment engagement experts → retention graph.
+one gated mixture of per-experiment experts per labeler → retention graph of predicted 1–5 ratings
+(one curve per labeler model, and their median).
 
 New to the code? Read the contributor's guide in [`docs/guide/`](docs/guide/README.md): it builds up
 from the big picture and the registry pattern to every stage, with recipes for common changes.
@@ -39,8 +40,8 @@ src/
   cfmu/         cluster features (null in Deliverable III) + spread maths
   aggregation/  windows, Vec assembly
   spu/          scene features, context gate, oracle/classified context, LOGO split
-  experts/      engagement experts, gated mixture
-  labels/       attention step functions, window labels
+  experts/      engagement experts, gated mixture, per-labeler models (the default)
+  labels/       attention step functions, interpolation, rating entries, window labels
   output/       retention graph JSON/PNG, manifest
   evaluation/   metrics, tracking quality (IDF1 etc.), Krippendorff alpha, stage timer
   tuning/       seeded random search, nested leave-one-group-out search
@@ -73,6 +74,7 @@ python -m scripts.run_pipeline infer --zip <camera.zip> --models outputs/models/
 
 The contributor's guide (`docs/guide/`) explains how all of this works; Chapter 9 covers running
 experiments and every config key. `docs/experiments/` records what was tried and found;
+`docs/progress/` holds dated progress updates (latest: `docs/progress/2026-11-16.md`).
 `docs/misc/benchmarks.md` surveys published results on DIPSER; `docs/misc/targets.md` lays out the
 possible attention targets (unit × aggregation × self-report) and where each work sits.
 `docs/misc/proposed_metrics.md` holds metrics proposed for review but not computed (currently

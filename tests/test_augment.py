@@ -94,5 +94,16 @@ class TestAugmentation(unittest.TestCase):
             self.assertTrue((df["group"].to_numpy()[tr] != g).all())
 
 
+class TestColourLookupTables(unittest.TestCase):
+    def test_lookup_tables_reproduce_the_per_pixel_maths_exactly(self):
+        from src.ingestion.augment import _colour_reference, colour
+        rng = np.random.default_rng(0)
+        img = rng.integers(0, 256, (48, 64, 3), dtype=np.uint8)
+        for _ in range(25):
+            args = (rng.uniform(-35, 35), rng.uniform(0.85, 1.15), rng.uniform(0.8, 1.2), rng.uniform(-3, 3),
+                    float(np.exp(rng.uniform(-0.14, 0.14))))
+            np.testing.assert_array_equal(colour(img, *args), _colour_reference(img, *args))
+
+
 if __name__ == "__main__":
     unittest.main()

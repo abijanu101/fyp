@@ -8,7 +8,7 @@ before it goes back in. Nothing here is computed by any script.
 
 **Status.** Removed from the code on 16 November 2026 (`scripts/train_models.py`,
 `scripts/experiment_decoders.py`), because it was not understood well enough to be reported.
-Results computed with it before then remain in `docs/experiments/05_six_session_run.md` (§3, §3.1,
+Results computed with it before then remain in `docs/experiments/04_six_session_run.md` (§3, §3.1,
 §6.4); they are a historical record, not a current metric.
 
 ### What it measured
@@ -49,7 +49,7 @@ equal by this metric; MAE would separate them (0.1 vs 0).
 
 The labelled share varies for two reasons: some sessions are more engaged than others, and
 engagement moves within a session. On the six-session run 69% of the variance was *between*
-sessions (05 §6.1). A metric pooled over sessions mostly rewards getting each session's level right
+sessions (04 §6.1). A metric pooled over sessions mostly rewards getting each session's level right
 (Chapter 12 §12.6: the same predictions gave AUC 0.85 pooled, 0.51 per fold). Computing r inside
 each session removes the level and keeps only the within-session movement.
 

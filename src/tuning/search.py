@@ -59,7 +59,8 @@ def _from_unit(spec: dict, u: float):
 
 def beam_bisection_search(space: dict, objective: Callable[[dict], dict], n_trials: int, baseline: dict,
                           beam: int = 2, inactive: set[str] = frozenset(), min_width: float = 1 / 64,
-                          on_trial: Callable[[dict], None] | None = None) -> list[dict]:
+                          on_trial: Callable[[dict], None] | None = None,
+                          prefetch: Callable[[list[dict]], None] | None = None) -> list[dict]:
     """Deterministic branch-and-bound search: a binary search per numeric parameter, k branches per
     node, a beam as the bound.
 
@@ -72,7 +73,12 @@ def beam_bisection_search(space: dict, objective: Callable[[dict], dict], n_tria
     trial budget is spent or every interval is narrower than `min_width`. Categorical parameters,
     and numeric ones listed in `inactive` (no effect under the fixed settings), keep their baseline
     values. Trial 0 is the baseline. Identical points are evaluated once. Returns trials best first,
-    in the same format as random_search."""
+    in the same format as random_search.
+
+    prefetch(points): optional; called before each level with every probe point of that level (they
+    do not depend on each other's scores), in evaluation order and within the remaining budget, so
+    a caller can compute them together (scripts/parallel_runs.py). The search itself, its order and
+    its results are unchanged."""
     dims = _numeric_dims(space, set(inactive))
     trials, seen = [], {}
 
@@ -97,6 +103,21 @@ def beam_bisection_search(space: dict, objective: Callable[[dict], dict], n_tria
             "score": evaluate(params_of(start))}
     frontier = [root]
     while frontier and len(trials) < n_trials:
+        if prefetch:                                         # this level's probes, as evaluate will ask for them
+            points, keys = [], set(seen)
+            for node in frontier:
+                for d in dims:
+                    lo, hi, u = node["lo"][d], node["hi"][d], node["u"][d]
+                    if hi - lo < min_width:
+                        continue
+                    for v in ((lo + u) / 2, (u + hi) / 2):
+                        pr = params_of({**node["u"], d: v})
+                        k = tuple(sorted((a, str(b)) for a, b in pr.items()))
+                        if k not in keys:
+                            keys.add(k)
+                            points.append(pr)
+            if points:
+                prefetch(points[:max(0, n_trials - len(trials))])
         children = []
         for node in frontier:
             moves = {}

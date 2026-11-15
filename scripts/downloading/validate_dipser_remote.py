@@ -32,7 +32,7 @@ import io
 import json
 import time
 import zipfile
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from scripts.downloading.dipser import (CONTEXT_RE, DATASET_ROOT, EXP_RE, GROUP_RE, HOST, LOCAL_ROOT, PASSWORD, PORT,
                                         REMOTE_ROOT, SUBJECT_RE, USER, listing, relative_after_directory)

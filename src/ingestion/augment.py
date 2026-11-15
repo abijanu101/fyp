@@ -42,7 +42,8 @@ def hflip_boxes(boxes: np.ndarray, width: int) -> np.ndarray:
     return out
 
 
-def colour(img, brightness=0.0, contrast=1.0, saturation=1.0, hue_deg=0.0, gamma=1.0):
+def _colour_reference(img, brightness=0.0, contrast=1.0, saturation=1.0, hue_deg=0.0, gamma=1.0):
+    """Per-pixel float version: the definition `colour` reproduces exactly (kept for the test)."""
     x = np.clip(img.astype(np.float32) * contrast + brightness, 0, 255)
     if saturation != 1.0 or hue_deg != 0.0:
         hsv = cv2.cvtColor(x.astype(np.uint8), cv2.COLOR_BGR2HSV).astype(np.float32)
@@ -54,6 +55,28 @@ def colour(img, brightness=0.0, contrast=1.0, saturation=1.0, hue_deg=0.0, gamma
     return np.clip(x, 0, 255).astype(np.uint8)
 
 
+def _lut(f) -> np.ndarray:
+    """A 256-entry uint8 table of f over the values 0..255, computed in float32 like the reference."""
+    return np.clip(f(np.arange(256, dtype=np.float32)), 0, 255).astype(np.uint8)
+
+
+def colour(img, brightness=0.0, contrast=1.0, saturation=1.0, hue_deg=0.0, gamma=1.0):
+    """Brightness/contrast, then hue/saturation (HSV), then gamma. Every step maps 0-255 values to
+    0-255 values, so each is a lookup table (cv2.LUT): about 20x faster than per-pixel float maths
+    and bit-identical to `_colour_reference` (tests/test_augment.py)."""
+    if saturation == 1.0 and hue_deg == 0.0:                  # gamma then acts on unrounded values
+        return _colour_reference(img, brightness, contrast, saturation, hue_deg, gamma)
+    x = cv2.LUT(img, _lut(lambda v: v * contrast + brightness))
+    hsv = cv2.cvtColor(x, cv2.COLOR_BGR2HSV)
+    h, sat, v = cv2.split(hsv)
+    h = cv2.LUT(h, _lut(lambda u: (u + hue_deg / 2) % 180))
+    sat = cv2.LUT(sat, _lut(lambda u: u * saturation))
+    x = cv2.cvtColor(cv2.merge([h, sat, v]), cv2.COLOR_HSV2BGR)
+    if gamma != 1.0:
+        x = cv2.LUT(x, _lut(lambda u: 255.0 * (u / 255.0) ** (1.0 / gamma)))
+    return x
+
+
 def noise(img, kind: str, strength: float, rng: np.random.Generator):
     """strength 0..1 (0.1 is already clearly visible)."""
     if strength <= 0:
@@ -61,16 +84,22 @@ def noise(img, kind: str, strength: float, rng: np.random.Generator):
     x = img.astype(np.float32)
     z = lambda: rng.standard_normal(x.shape, dtype=np.float32)       # float32: half the cost of float64
     if kind == "gaussian":
-        x += z() * np.float32(50 * strength)
+        n = z()
+        n *= np.float32(50 * strength)                                 # in place: same values, no temporaries
+        x += n
     elif kind == "salt & pepper":
         r = rng.random(x.shape[:2], dtype=np.float32)
         x[r < 0.075 * strength] = 0
         x[r > 1 - 0.075 * strength] = 255
     elif kind == "speckle":
-        x += x * z() * np.float32(0.6 * strength)
+        n = z()
+        n *= x
+        n *= np.float32(0.6 * strength)
+        x += n
     else:
         raise ValueError(f"noise kind {kind!r} not in {NOISE_KINDS}")
-    return np.clip(x, 0, 255).astype(np.uint8)
+    np.clip(x, 0, 255, out=x)
+    return x.astype(np.uint8)
 
 
 def apply_masks(img, rects, kind: str, rng: np.random.Generator):

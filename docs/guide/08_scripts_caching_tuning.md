@@ -85,7 +85,7 @@ Two details matter:
 ## 8.4 `train_models` (`scripts/train_models.py`)
 
 ```
-python -m scripts.train_models [--set labels.tau_att=3 labels.tau_share=0.6]
+python -m scripts.train_models [--set labels.tau_att=3]
 ```
 
 **Per-labeler mode (the default, `engagement.labelers = "per_labeler"`; Chapter 7 §7.9):**
@@ -141,6 +141,18 @@ cut-off. Every curve is out-of-sample: it repeats the
 leave-one-group-out fits (seconds) and plots each group from models that never saw it. The
 title gives the true activity, the gate's hit rate and the correlation r with the labelled
 share. Output: `<output_dir>/plots/<config hash>/`, one PNG per session plus `overview.png`.
+
+### Comparing two runs: `compare_results` (`scripts/compare_results.py`)
+
+```
+python -m scripts.compare_results outputs/results/<A>.json outputs/results/<B>.json --names MoE single
+```
+
+For two per-labeler results files: both runs' summary metrics on the configured variant, with the
+constant-3 and training-mean baselines; AUC per held-out group with the difference; AUC and
+Spearman per activity (each activity scored in the fold that holds it out; per-labeler results
+carry a `per_experiment` breakdown in every fold). `--context oracle` and `--prediction
+median|majority` pick other rows. Made for `docs/experiments/06_full_pipeline.md`.
 
 ### Watching a session: `output_viewer` (`scripts/output_viewer.py`)
 
@@ -226,8 +238,8 @@ usual. The manifest of a copy records its exact parameters.
 (`with_augmented`), marked `aug`. `heldout_splits` keeps leave-one-group-out over the original
 sessions: copies of the training groups join the training side of each fold, and **no augmented
 row is ever scored**. The held-out group is always evaluated on footage as recorded. The final
-models are trained on originals and copies. The results file reports
-`augmentation_copies`, `augmented_windows_for_training` and `augmented_row_label_coverage` (the
+models are trained on originals and copies. Per-labeler results report
+`augmented_rows_for_training`; the window-grid modes report `augmentation_copies`, `augmented_windows_for_training` and `augmented_row_label_coverage` (the
 share of copy rows linked to a labelled student; it should be close to the originals', which
 confirms the mirrored boxes line up). `tune_models` does not use copies.
 
@@ -407,8 +419,10 @@ share of frames in which they are detected; the 0.05 floor is the reference.
   keeps everyone.
 - `--grid` prints the full table over `--thresholds` instead (`detector_scan.csv`). At the
   configured 0.22 no student is dropped on the original data.
-- `--augment [COPY] --detect` runs the same on augmented copy COPY; `--detect` runs the detector
-  where that copy's detections are not cached yet (GPU). The full-dataset profiles keep CMC **on** everywhere: every trial then decodes
+- `--augment` augments every frame on the fly, 5 variants per frame by default (`--variants MIN
+  MAX`; `--stride N`, `--workers`), and detects each variant at the floor; results go to
+  `detector_search_augmented.*`. `--detect` runs the detector where the original data's floor
+  detections are not cached yet (GPU). The full-dataset profiles keep CMC **on** everywhere: every trial then decodes
 real frames, so no full-dataset result depends on the blank-frame shortcut, and the three
 experiments differ only in what they compare (ReID on/off with the same tracker; StrongSORT vs
 BoT-SORT with ReID). This costs time (up to about an hour per trial) in exchange for reliability.
@@ -456,7 +470,7 @@ modes by window AUC. AUC, not MAE: on these labels a constant 3 beats the models
 | `inspect_labels.py` | `python -m scripts.data_visualization.inspect_labels` | label distribution, labeler agreement, class balance for a grid of thresholds |
 | `check_scb.py` | `python -m scripts.data_visualization.check_scb` | SCB detections drawn on 12 sampled frames (the §11 sanity check) |
 | `scb_viewer.py` | `python -m scripts.data_visualization.scb_viewer g e c` | play a camera with SCB boxes; per-class confidence sliders |
-| `augment_viewer.py` | `python -m scripts.data_visualization.augment_viewer g e c` | preview data augmentations (colour, noise, hflip, masking) on a frame, with the manual boxes transformed alongside; not yet used by the pipeline |
+| `augment_viewer.py` | `python -m scripts.data_visualization.augment_viewer g e c` | preview data augmentations (colour, noise, hflip, masking) on a frame, with the manual boxes transformed alongside; the same transforms the augmented training copies use |
 | `label_viewer.py` | `python scripts/data_visualization/label_viewer.py g e c` | play a camera with every labeler's live attention values |
 | `plot_labels.py` | `python scripts/data_visualization/plot_labels.py g e s` or `--scan` | attention step plots per student and per session |
 | `player.py` | `python scripts/data_visualization/player.py data/DIPSER/DIPSEER` | six-camera synchronised player |

@@ -117,7 +117,7 @@ class TestConfigAndWiring(unittest.TestCase):
         relabeled, rewindowed = variant({"labels.tau_att": 3}), variant({"window.length_s": 10})
         still, flow = variant({}), variant({})
         still["bfmu"][0]["still_threshold"] = 0.1                         # window-level BFMU setting
-        flow["bfmu"][1]["grid"] = 3                                       # pixel-level BFMU setting
+        flow["bfmu"][1]["grid"] += 1                                      # pixel-level BFMU setting
         retracked = variant({"tracker.name": "strongsort"})
         same, base_t, base_f = tracking_hash, tracking_hash(self.cfg), feature_hash(self.cfg)
         self.assertEqual(feature_hash(relabeled), base_f)                  # labels never touch features
@@ -156,7 +156,8 @@ class TestConfigAndWiring(unittest.TestCase):
         trs = [moving_tracklet(i, n=100, dt=0.2, vx=0.0, x0=100 + 200 * i) for i in range(3)]
         st = SessionTrack(None, frame_t, (1280, 720), trs, [{"motion": 0.0}] * len(frame_t),
                           {"fps": 5.0, "t_first": 0.0, "t_last": float(frame_t[-1])}, {})
-        feats = Pipeline(self.cfg).features(st)
+        cfg = {**self.cfg, "window": {"length_s": 8, "overlap": 0.5}}      # pinned: independent of the config's k
+        feats = Pipeline(cfg).features(st)
         self.assertEqual(len(feats.windows), 3)                             # 8 s windows, 50% overlap, ~20 s
         self.assertEqual([v["n_tracks"] for v in feats.vec], [3.0, 3.0, 3.0])
         self.assertIn("motion.mean", feats.scene[0])

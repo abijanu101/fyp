@@ -20,7 +20,7 @@
 
   "bfmu": [
     {"name": "kalman_geometry", "still_threshold": 0.05, "use_kalman": true},
-    {"name": "residual_flow", "grid": 2, "scale": 0.5},
+    {"name": "residual_flow", "grid": 3, "scale": 0.5},
     {"name": "scb", "mode": "soft", "min_overlap": 0.5, "obj_floor": 0.01, "models": [
       {"weights": "data/SCB-ST-Dataset4/SCB5-Handrise-Read-write-2024-9-17/exp/weights/best.pt",
        "classes": ["hand_raising", "read", "write"], "conf": 0.25}]}
@@ -28,7 +28,7 @@
   "cfmu": {"name": "null"},
   "scene": {"name": "global_stats", "size": [64, 36], "grid": 3},
 
-  "window": {"length_s": 8, "overlap": 0.5},
+  "window": {"length_s": 4, "overlap": 0.5},
   "aggregation": {"heatmap_grid": 3, "min_coverage": 0.5, "thresholds": {"kg.stillness": 0.8, "scb.hand_raising": 0.1,
                                                                   "scb.read": 0.5, "scb.write": 0.5}},
 

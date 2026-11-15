@@ -1,6 +1,6 @@
 # Chapter 12 — Reading the results: a primer
 
-The experiment documents (`docs/experiments/`), especially `05_six_session_run.md`, use a
+The experiment documents (`docs/experiments/`), especially `04_six_session_run.md`, use a
 vocabulary of thresholds, metrics and evaluation choices that the earlier chapters define only in
 passing. This chapter builds it from scratch, in the order you need it: what is being predicted,
 how the labels are made (and why they are shaky), how a model is tested, what each number
@@ -13,10 +13,13 @@ computes each of these, step by step, with every implementation choice listed.
 
 ## 12.1 What is being predicted
 
-The pipeline's output is a **retention curve**: one engagement score per **window** of a session.
-A window's length and overlap are config settings (`window.length_s`, `window.overlap`); the current
-config, used throughout this chapter, has 8 seconds starting every 4 (50% overlap), so a 5-minute
-session has 73 windows (Chapter 6, §6.2).
+The pipeline's output is a **retention curve**: one value per **window** of a session. By default
+(per-labeler training, Chapter 7 §7.9) that value is a predicted 1–5 rating, with one curve per
+labeler model and their median. The window-grid paths, used in 04 and throughout this chapter,
+output an engagement score instead. A window's length and overlap are config settings (`window.length_s`, `window.overlap`). The
+six-session run, used throughout this chapter, had 8 seconds starting every 4 (50% overlap), so a
+5-minute session has 73 windows (Chapter 6, §6.2); the config has used 4 seconds since 16 November
+2026.
 
 To train and test a model we need a "true" value per window to compare with. DIPSER gives
 attention ratings per *student*; Chapter 7 (§7.6) turns them into window values in four steps.
@@ -31,20 +34,20 @@ Here they are on an example window with five labelled students:
 
 So each window has two targets:
 
-- the **labelled share**, a number between 0 and 1 (in 05 it is the grey line in the plots; the
+- the **labelled share**, a number between 0 and 1 (in 04 it is the grey line in the plots; the
   model's score should follow it);
 - the **window label**, engaged (1) or not (0): the share cut at `tau_share`. Classification
   metrics (§12.4) compare against this.
 
-In **late aggregation** (the default) each *student* also gets their own label (step 3), and the
-experts are trained on those student labels. The window score is then the mean of the students'
+In the window-grid paths with **late aggregation** (the 04 setup) each *student* also gets their
+own label (step 3), and the experts are trained on those student labels. The window score is then the mean of the students'
 predicted probabilities, an estimate of the share.
 
 ## 12.2 The `tau`s
 
 "tau" (τ) is just the conventional name for a threshold. Three of them appear in the results:
 
-| Name | Cuts | Value in 05 | Meaning |
+| Name | Cuts | Value in 04 | Meaning |
 |---|---|---|---|
 | `labels.tau_att` | a student's consensus attention (1–5) | 3 (design: 4) | "a student counts as engaged if their labelers' median rating is at least this" |
 | `labels.tau_share` | a window's labelled share (0–1) | 0.6 (design: 0.5) | "a window counts as engaged if at least this share of its students are engaged". In late mode, also the **cut-off** for the model's score: score ≥ 0.6 → predicted engaged |
@@ -52,7 +55,7 @@ predicted probabilities, an estimate of the share.
 
 Why 3 and 0.6 instead of the design's 4 and 0.5: labelers almost never give 4 or 5, and the median
 removes most of the few they do give, so with `tau_att = 4` only 0.5% of windows are engaged. The
-values used in 05 are **provisional**, chosen to give the pipeline both classes to learn from,
+values used in 04 are **provisional**, chosen to give the pipeline both classes to learn from,
 not because they are right (Chapter 11, §11.5).
 
 The cut-off only matters for metrics that turn a score into a yes/no (accuracy, F1). Metrics that
@@ -106,10 +109,10 @@ contributing the rating in force at that moment (`scripts/data_visualization/ins
 use the scale differently (one sits at 3 for 88% of the time, another at 2 for 73%), so their
 agreement is close to chance. Consequences for reading 05:
 
-- every number in 05 is measured against noisy labels; a modest score may be close to the best
+- every number in 04 is measured against noisy labels; a modest score may be close to the best
   achievable;
 - a model can look good by learning a *labeler's habits* instead of student behaviour;
-- part of a student's label changing over time is labeler noise (05 §6.2).
+- part of a student's label changing over time is labeler noise (04 §6.2).
 
 The published works report agreement differently (each labeler against the majority vote, F1
 0.41–0.61; `docs/misc/benchmarks.md` §3.1), but it tells the same story.
@@ -137,7 +140,7 @@ means when nothing has been learned:
 A model is only useful where it beats the baseline **on the same metric computed the same way**.
 Some metrics flatter baselines (§12.5); that is the main reason to always show one.
 
-### The variants in 05
+### The variants in 04
 
 | Variant | What it is |
 |---|---|
@@ -153,7 +156,7 @@ Some metrics flatter baselines (§12.5); that is the main reason to always show 
 predictions (what a real deployment gets); *oracle* results use the true activity, as if the gate
 were perfect. In 05 every activity appears in only one group, so the held-out group's activities
 are never seen in training: the gate scores 0% and the oracle rows are uninterpretable by
-construction (05 §4). Only `shared_expert` and `hand_weighted` are meaningful there.
+construction (04 §4). Only `shared_expert` and `hand_weighted` are meaningful there.
 
 ## 12.5 The metrics
 
@@ -179,7 +182,7 @@ From those four counts:
 - **Balanced accuracy**: the average of the recalls of both classes. Chance = 0.5 whatever the
   class balance.
 
-**How a constant games them.** With 36% of student-windows not engaged (05 §3.1):
+**How a constant games them.** With 36% of student-windows not engaged (04 §3.1):
 
 | Constant | Accuracy | F1 not engaged | Balanced accuracy | AUC |
 |---|---|---|---|---|
@@ -206,7 +209,7 @@ The four engaged/not pairs: (w1, w3) right, (w1, w4) right, (w2, w3) **wrong**, 
 AUC = 3/4 = 0.75.
 
 - 1 = perfect ranking, **0.5 = chance**, 0 = perfectly reversed.
-- An AUC **below 0.5** means higher scores go with the *other* class. In 05 §6.3 a single feature
+- An AUC **below 0.5** means higher scores go with the *other* class. In 04 §6.3 a single feature
   with AUC 0.36 is useful: *low* values go with engaged, it is just signed the other way.
 - AUC ignores the cut-off and the scale of the scores, so it compares models whose scores are not
   calibrated.
@@ -229,22 +232,22 @@ The hand-weighted score and "minus flow" are on arbitrary scales, so 05 leaves t
   relation) to +1. It ignores offset and scale: a curve that is always 0.3 too high but rises and
   falls exactly with the labels has r = 1. A constant has no r (undefined, treated as 0).
 - **Spearman ρ**: Pearson on the *ranks* instead of the values, so it only asks "when one goes up,
-  does the other?", and is not thrown off by outliers or curved relations. 05 §6.3 uses it for
+  does the other?", and is not thrown off by outliers or curved relations. 04 §6.3 uses it for
   features: ρ = −0.3 between class motion and the labelled share means "more motion, fewer students
   rated attentive", consistently but weakly.
 
-### `retention_r`: the metric for the curve (removed, in 05's results)
+### `retention_r`: the metric for the curve (removed, in 04's results)
 
 **`retention_r`** was this project's own metric: for each held-out session, the Pearson r between
 the model's score curve and the labelled-share curve over the session's windows; then the mean
 over sessions. It was **removed from the code on 16 November 2026** and is documented as a proposal
-for review in `docs/misc/proposed_metrics.md`; it is explained here because 05 reports it.
+for review in `docs/misc/proposed_metrics.md`; it is explained here because 04 reports it.
 
 It answers the question a retention graph exists for: *when the class's engagement rises and falls
 during a session, does the curve rise and fall with it?* Because Pearson ignores offset, it does
 not care whether the curve sits at the right height, only whether it has the right **shape**.
 Because it is computed **inside each session**, it cannot be inflated by getting the difference
-between sessions right (§12.6). 0 = no relation (chance); in 05 the default models reach 0.01–0.12, the
+between sessions right (§12.6). 0 = no relation (chance); in 04 the default models reach 0.01–0.12, the
 shared expert without context 0.24, and the single feature "minus flow" 0.30.
 
 Sessions where the score or the share never changes are skipped (no r exists).
@@ -261,7 +264,7 @@ share of variance** says how much of the target is the first kind. In 05 it is 6
 there is to predict is each session's overall level, which depends on group and activity, exactly
 what leave-one-group-out holds out. The within-session movement is about ±0.1.
 
-The same split exists for students (05 §6.2: 44% of student-label variance is *between* students,
+The same split exists for students (04 §6.2: 44% of student-label variance is *between* students,
 some are generally rated attentive; 56% *within* a student over time).
 
 This matters because a model can score well by getting the **level** right and still have no idea
@@ -276,7 +279,7 @@ metrics mix in the "level".
 | **Pooled** | put all held-out predictions from all folds in one pile, score once | differences *between* groups and sessions |
 | **Per session** | score each session, average over sessions | movement *within* sessions |
 
-05 §3.1 shows the size of the effect on the same predictions: the shared expert's window AUC is
+04 §3.1 shows the size of the effect on the same predictions: the shared expert's window AUC is
 0.51 per fold, **0.85 pooled** and 0.56 per session. Pooled, it is rewarded for ranking the three
 held-out groups' overall levels in the right order (its mean scores 0.35, 0.53, 0.88 against
 engaged rates of 12%, 69%, 94%), three points, not a skill. The same pooling makes the train-mean
@@ -294,7 +297,7 @@ four seconds. Counting **per change** gives each run of an unchanged label weigh
 - Per change gives every episode, including short dips in attention, equal say.
 
 On the DIPSER labels the constant "predict 3" scores accuracy 0.62 per second but 0.45 per change
-(`benchmarks.md` §1); in 05 §3.1 the shared expert's student-level AUC falls from 0.61 to 0.53.
+(`benchmarks.md` §1); in 04 §3.1 the shared expert's student-level AUC falls from 0.61 to 0.53.
 Neither is "right"; they answer different questions, and a result should say which it used.
 
 ## 12.7 Reading 05, section by section

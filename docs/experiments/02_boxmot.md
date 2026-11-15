@@ -363,7 +363,13 @@ Best parameters (trial 14): `det_conf 0.276, min_conf 0.410, max_cos_dist 0.350,
 brightness ±35, gamma, sensor noise up to 0.35, horizontal flip with p 0.5, grey occluders with
 p 0.5; boxes mirrored where flipped; §5). Beam bisection search, beam 2, one level each (§5).
 Each search's trial 0 is its starting point scored on augmented data, which alone measures how much
-each tuned tracker degrades on worse footage.
+each tuned tracker degrades on worse footage. **The detection threshold is not searched in T2**: it is
+D3's result, kept fixed (`--det-conf-from outputs/tuning/detector_search_augmented.json`), so the
+threshold is settled once, by D3, for the rest of FYP-1, and T2 tunes how each tracker uses the
+detections it lets through. It is also passed to the trackers as `det_thresh`, although BoT-SORT
+and StrongSORT only store that value (BoxMOT 26: CMC masks with `cmc_min_conf` or StrongSORT's
+`min_conf`). Run all three at once with
+`python -m scripts.parallel_runs tracker-scans --augment 1 --trials 26 34 22 --det-conf-from outputs/tuning/detector_search_augmented.json`.
 
 | Tracker | Profile | Starts from | Trials (one level) | Clean IDF1 of the start | Trial 0 on augmented | Best on augmented | Change vs clean |
 |---|---|---|---|---|---|---|---|

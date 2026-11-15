@@ -203,8 +203,15 @@ sliding, which the Kalman velocity already captures. So:
 2. inside each box, subtract the box's own mean flow vector (removing whole-body translation);
 3. take the magnitude of what remains, divide by the box diagonal and the time between frames
    (units: box diagonals per second, so it is comparable across near and far students);
-4. average it over a 2×2 grid of cells (top-left, top-right, bottom-left, bottom-right of the
-   box), giving four signals per person per frame: `rf.mag_00` … `rf.mag_11`.
+4. average it over a grid × grid of cells inside the box (`residual_flow.grid`, 3 in the config:
+   top, middle and bottom thirds by left, centre and right), giving nine signals per person per
+   frame: `rf.mag_00` … `rf.mag_22` (row, column). The grid was 2 × 2 until 16 November 2026. Finer
+   grids cost nothing (the flow is computed once per frame; the grid only pools it) but cells should
+   stay larger than Farneback's 15-pixel window at the flow's scale: at `scale` 0.5 the median
+   student box is about 78 × 83 px and the smallest tenth about 48 × 59 px, so 3 × 3 cells are about
+   26 × 28 px (16 × 20 for small boxes), while 4 × 4 would fall below the window for small boxes.
+   The three grids of the config (flow, scene, occupancy heatmap) are compared in Chapter 9, "The
+   three grids".
 
 ### SCB behaviour detector (`src/bfmu/scb.py`)
 
@@ -263,7 +270,7 @@ SCB soft mode):
 Two tracker-tuning jobs kept the CPU at about 90% during this run, so the CPU-bound stages
 (decoding, flow, tracking) are upper bounds. Even so, the pipeline runs at about real time
 (5.2 frames/s processed against a 5 fps camera; six later full-length sessions averaged 185 ms,
-range 143–211, `docs/experiments/05_six_session_run.md`): a 45-minute session would take about 43 minutes,
+range 143–211, `docs/experiments/04_six_session_run.md`): a 45-minute session would take about 43 minutes,
 roughly 14× over the design's 3-minute target. Residual flow is the largest single cost: it
 computes dense flow over the whole half-resolution frame but only uses it inside student boxes.
 

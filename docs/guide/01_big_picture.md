@@ -49,9 +49,12 @@ of which 52 exist on disk.
 
 For one camera ZIP, the pipeline writes three files:
 
-- `retention_graph.json`: one record per time window with the predicted activity, an engagement
-  probability, an engaged yes/no, and the number of visible people. Nothing about individuals.
-- `retention_graph.png`: the smoothed engagement curve, shaded by predicted activity.
+- `retention_graph.json`: one record per time window with the predicted activity, the class's
+  predicted attention rating (1–5), each labeler model's rating, an engaged yes/no (rating ≥
+  `labels.tau_att`), and the number of visible people. Nothing about individuals. Models trained on
+  the window-grid paths write an engagement probability instead (Chapter 7, §7.8).
+- `retention_graph.png`: each labeler model's smoothed curve (experts blue, self orange) and the
+  final curve in black, on the 1–5 scale, shaded by predicted activity.
 - `manifest.json`: everything needed to reproduce the run: frame rate, gaps in the footage, the
   full configuration, and a hash of that configuration.
 
@@ -87,10 +90,11 @@ actually grouped and run):
  7  Context gate (SPU)   src/spu           which of the 6 activities is this? (probabilities),
      │  g = [p01 .. p06]                    from scene features of the whole frame [scene, gate]
      ▼
- 8  Expert mixture       src/experts       one engagement model per activity, weighted by g;
-     │  engagement score per window         scores each student and averages per window (late,
-     │                                      the default) or scores Vec (early)
-     │                                      [expert, mixture, engagement.aggregate]
+ 8  Expert mixture       src/experts       one mixture per labeler (labeler_01–05, self), each
+     │  rating curves per window            weighting its per-activity experts by g; scores each
+     │                                      student, averages per window into one curve per
+     │                                      labeler, plus their median or majority
+     │                                      [expert, mixture, engagement.labelers, output]
      ▼
  9  Retention graph      src/output        JSON + PNG + manifest, window-level only
 ```
@@ -102,30 +106,34 @@ names in the config become objects, and Chapter 9 how to use that to run experim
 
 Two side branches only exist during development:
 
-- **Labels** (`src/labels`) turn the labelers' change events into engaged / not-engaged labels:
-  one per student per window for late aggregation, one per window for early aggregation, to train
-  and evaluate the experts [labels]. Evaluation always uses the window labels.
+- **Labels** (`src/labels`) turn the labelers' change events into training values. By default
+  each rating entry gets a window centred on it and a soft value from that labeler's own ratings,
+  and evaluation scores every held-out entry (Chapter 7, §7.9) [labels]. The window-grid paths use
+  engaged / not-engaged labels per student or per window instead.
 - **Evaluation** (`src/evaluation`) scores tracking against our manual boxes, the gate against
   the folder structure, and the experts against the labels.
 
 ## 1.5 The key idea: windows
 
-Most of the pipeline works per **window**: a fixed slice of time, 8 seconds by default, with 50%
-overlap between consecutive windows. A 5-minute session gives about 73 windows.
+Most of the pipeline works per **window**: a fixed slice of time (`window.length_s`, 4 seconds in
+the current config), with 50% overlap between consecutive windows. A 5-minute session gives about
+149 windows.
 
 Everything before stage 6 is about individual people over time. Stage 6 cuts each person's time
 series into windows: per window, every visible student gets one row of features, and a summary of
 all of them, the fixed-length vector *Vec*, describes the classroom as a whole.
 
-How the engagement experts (stage 8) see a window is a configuration choice
+The default per-labeler models always score each visible student and average per window. In the
+window-grid paths, how the engagement experts (stage 8) see a window is a configuration choice
 (`engagement.aggregate`; Chapter 7, §7.5 works through an example):
 
-- **late aggregation** (the default): the experts see each visible student's own features (plus
+- **late aggregation** (the configured value): the experts see each visible student's own features (plus
   Vec as context), predict per student, and the window's score is the average over its students;
 - **early aggregation** (the design as written): the experts see only Vec, one row per window.
 
 Either way, the output stages only ever receive window-level arrays: the retention graph is built
-from one context prediction and one engagement probability per window. That is how the privacy
+from one context prediction and window-level ratings (one per labeler model, plus the final one)
+per window. That is how the privacy
 guarantee works structurally rather than by promise. Per-student predictions in late aggregation
 exist only inside the window computation and are never written out. At inference nothing per
 student is written at all. During development, `run_pipeline extract` does cache tracks (`.npz`)

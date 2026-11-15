@@ -355,10 +355,17 @@ def main_per_labeler(cfg: dict) -> None:
                     sub = rows[te].iloc[np.flatnonzero(sel)]
                     if sub.empty:
                         continue
+                    sub_exp = sub["exp"].to_numpy()
                     for kind, pred in kinds.items():
                         y, p = per_entry(sub, pred[sel])
+                        by_exp = {}                                 # per activity: where a mixture helps or hurts
+                        for c in classes:
+                            m = sub_exp == c
+                            if m.any():
+                                by_exp[c] = rating_metrics(*per_entry(sub.iloc[np.flatnonzero(m)], pred[sel][m]),
+                                                           tau_att)
                         folds.setdefault(f"{track}/{vname}/{ctx}/{kind}", []).append(
-                            {"held_out": g, **rating_metrics(y, p, tau_att)})
+                            {"held_out": g, **rating_metrics(y, p, tau_att), "per_experiment": by_exp})
         print(f"  fold {g}: {int(te.sum())} held-out rows, {int(tr.sum())} training rows", flush=True)
 
     entries = rows[~aug_r].drop_duplicates("entry_id")
