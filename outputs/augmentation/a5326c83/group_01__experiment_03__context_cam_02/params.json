@@ -1,0 +1,183 @@
+{
+  "augmentation": {
+    "copies": 0,
+    "seed": 0,
+    "brightness": 35,
+    "contrast": 0.15,
+    "saturation": 0.2,
+    "hue_deg": 3,
+    "gamma": 0.15,
+    "noise": {
+      "kinds": [
+        "gaussian",
+        "speckle"
+      ],
+      "max": 0.35
+    },
+    "hflip": 0.5,
+    "mask": {
+      "kind": "cutout (grey)",
+      "p": 0.5,
+      "count": [
+        1,
+        3
+      ],
+      "size": [
+        0.04,
+        0.12
+      ]
+    }
+  },
+  "frame_index": 141,
+  "images": {
+    "original": null,
+    "copy_1": {
+      "copy": 1,
+      "hflip": false,
+      "brightness": -23.573799971045908,
+      "contrast": 0.9180103527060003,
+      "saturation": 1.1798996379400501,
+      "hue_deg": 2.4237617285462436,
+      "gamma": 1.0288121036589801,
+      "noise_kind": "gaussian",
+      "noise": 0.3167825597766796,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.8317233868595769,
+          0.7448254762411476,
+          0.05881974692359306,
+          0.05881974692359306
+        ],
+        [
+          0.8644307439431062,
+          0.5938088480734577,
+          0.057603031168711835,
+          0.057603031168711835
+        ],
+        [
+          0.06026723062255097,
+          0.7974315605659428,
+          0.057013440052065156,
+          0.057013440052065156
+        ]
+      ],
+      "noise_seed": 676320663
+    },
+    "copy_2": {
+      "copy": 2,
+      "hflip": true,
+      "brightness": -15.817440138403946,
+      "contrast": 0.8518971465644452,
+      "saturation": 0.909542936141154,
+      "hue_deg": -2.404022429387245,
+      "gamma": 1.0120399833055,
+      "noise_kind": "gaussian",
+      "noise": 0.2393532677114205,
+      "mask_kind": "none",
+      "mask_rects": [],
+      "noise_seed": 1495426453
+    },
+    "copy_3": {
+      "copy": 3,
+      "hflip": true,
+      "brightness": -6.937239067569603,
+      "contrast": 1.0094313155634427,
+      "saturation": 1.1832167491258208,
+      "hue_deg": -0.8706863556472548,
+      "gamma": 0.950615312322885,
+      "noise_kind": "speckle",
+      "noise": 0.338188112585818,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.33742821695528247,
+          0.6381185974712515,
+          0.05910579850704886,
+          0.05910579850704886
+        ]
+      ],
+      "noise_seed": 598294504
+    },
+    "copy_4": {
+      "copy": 4,
+      "hflip": true,
+      "brightness": -6.998354248003242,
+      "contrast": 0.9547638680253395,
+      "saturation": 0.8659326939448277,
+      "hue_deg": 0.7319597422674984,
+      "gamma": 1.0517257780986875,
+      "noise_kind": "gaussian",
+      "noise": 0.23376704095200196,
+      "mask_kind": "none",
+      "mask_rects": [],
+      "noise_seed": 44013562
+    },
+    "extreme_bright": {
+      "copy": "extreme_bright",
+      "hflip": true,
+      "brightness": 35,
+      "contrast": 1.15,
+      "saturation": 1.2,
+      "hue_deg": 3,
+      "gamma": 1.15,
+      "noise_kind": "speckle",
+      "noise": 0.35,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.02,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.35000000000000003,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.68,
+          0.1,
+          0.12,
+          0.12
+        ]
+      ],
+      "noise_seed": 0
+    },
+    "extreme_dark": {
+      "copy": "extreme_dark",
+      "hflip": true,
+      "brightness": -35,
+      "contrast": 0.85,
+      "saturation": 0.8,
+      "hue_deg": -3,
+      "gamma": 0.8695652173913044,
+      "noise_kind": "speckle",
+      "noise": 0.35,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.02,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.35000000000000003,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.68,
+          0.1,
+          0.12,
+          0.12
+        ]
+      ],
+      "noise_seed": 0
+    }
+  }
+}

@@ -139,6 +139,89 @@ session was extracted with. It is a development tool: per-student scores and ide
 only here and in training, never in the pipeline's outputs. `--snapshot out.png --start 30`
 renders one frame without opening a window.
 
+### Data augmentation: augmented training copies (`src/ingestion/augment.py`)
+
+With few groups, the models see each room, camera and lighting once. Augmentation adds training
+copies of every session seen through a different, plausible camera: shifted colour, brightness and
+contrast, sensor noise, a mirrored room, fixed grey occluders. It is off by default
+(`augmentation.copies: 0`).
+
+**One transformation per session copy.** `sample_params(aug_cfg, session, copy)` draws one fixed
+parameter set per (session, copy), deterministically from `augmentation.seed`, and the same set is
+applied to every frame of that copy. Tracking and the window features therefore see a consistent
+video (another white balance, a mirrored room, an occluder that stays put), never per-frame
+flicker. Only the sensor noise is redrawn each frame, at a level fixed for the copy, the way real
+sensor noise behaves.
+
+```python
+params = sample_params(cfg["augmentation"], "group_01/experiment_03/context_cam_02", copy=1)
+src = AugmentedZipFrameSource(zip_path, params)   # a ZipFrameSource and a torch Dataset
+len(src), src[120]                                # same timestamps as the original; frame 120, augmented
+```
+
+`AugmentedZipFrameSource` subclasses `ZipFrameSource` (same timestamps, iteration and `read`) and
+`torch.utils.data.Dataset` (`len`, indexing).
+
+**Copies are materialised on disk, as datasets.** `python -m scripts.augment_dataset` writes copy
+*k* to `data/DIPSER_aug/<tag>/` (`augmentation.root`) with exactly the layout of `data/DIPSER/`:
+
+```
+data/DIPSER_aug/aug1-<settings hash>/
+├── DIPSEER/group_01/experiment_03/context_cam_02.zip   augmented frames, same timestamp names (JPEG)
+│                                  subjects/*            the label archives, hard-linked (no extra space)
+├── abi_labels/group_01/experiment_03.json               manual boxes, mirrored where the copy is flipped
+├── abi_labels/experiments.tsv, cameras.yml              copied
+└── augmentation.json                                    settings and every session's exact parameters
+```
+
+Any tool therefore runs on an augmented copy by pointing `dataset.root` at it: the viewers, the
+pipeline, and the tracker tuning and detector scan, which also take `--augment [COPY]` as a
+shortcut (§8.6), for robustness experiments on tracking. `tune_tracker` keeps a separate detection cache per
+augmented dataset (keyed by its `augmentation.json` tag), since session names are the same.
+Frames are JPEG at `augmentation.jpeg_quality` (95): noisy frames do not compress as PNG (about
+2.2 MB against 0.5 MB per frame), and two copies of groups 1–2 take roughly 50 GB as JPEG. The
+mild JPEG artefacts are of the kind real cameras add. Writing is resumable per camera ZIP and runs
+in parallel worker processes (`--workers`, default half the cores up to 6): it is CPU-bound, about
+6–8 minutes per session copy per worker.
+
+**Transforms, in order:** horizontal flip → colour (brightness, contrast, saturation, hue, gamma) →
+noise (Gaussian or speckle) → masks (grey cutouts at fixed positions). Ranges are in the config
+(§9.6). The hue range is deliberately tiny (±3°): a larger hue shift turns skin and clothing
+colours unnatural, while brightness, contrast and noise reflect what real classroom cameras do.
+
+**Labels.** Colour, noise and masks leave the manual student boxes unchanged. A flip mirrors them
+(`hflip_boxes`): before linking a flipped copy's tracks to students, `train_models` mirrors the
+boxes with the frame width recorded in the copy's manifest. Time is unchanged, so window labels
+and per-student labels are the original session's.
+
+**Extraction.** With `copies: N`, `run_pipeline extract` first does every original session as usual,
+then every session's copies 1…N, reading each from its materialised ZIP (and writing it first, via
+`augment_dataset.ensure_session`, if it does not exist yet). Their features go next to the
+originals under their own names: `<session>.aug<k>-<settings hash>.{npz,csv,tracks.csv,manifest.json}`. The originals' caches are
+untouched (augmentation is not part of the tracking or feature hash). The settings hash in the name
+means a change to the ranges never reuses stale copies, while raising `copies` keeps the existing
+ones. Each copy costs a full frame pass, so `copies: 2` triples extraction time; `--reuse` resumes as
+usual. The manifest of a copy records its exact parameters.
+
+**Training.** `train_models` (and `plot_results`) append the copies to the window table
+(`with_augmented`), marked `aug`. `heldout_splits` keeps leave-one-group-out over the original
+sessions: copies of the training groups join the training side of each fold, and **no augmented
+row is ever scored**. The held-out group is always evaluated on footage as recorded. The final
+models are trained on originals and copies. The results file reports
+`augmentation_copies`, `augmented_windows_for_training` and `augmented_row_label_coverage` (the
+share of copy rows linked to a labelled student; it should be close to the originals', which
+confirms the mirrored boxes line up). `tune_models` does not use copies.
+
+**Looking at it.** `python -m scripts.augment_samples` writes, for three sessions, the original
+frame, the first copies this config produces, and two *extremes* (every range at its bright or
+dark end at once, maximum noise, maximum masks, flipped) to
+`outputs/augmentation/<settings hash>/`, as PNGs, a contact sheet and the exact parameters.
+`python -m scripts.dipser.augment_viewer` explores the same transforms interactively.
+
+Verified on six 100-frame sessions with one copy each: extraction wrote 6 originals and 6 copies,
+training added 52 augmented windows to the training folds and scored only the 52 originals, and
+94% of copy rows were linked to labelled students (originals: 93%).
+
 ## 8.5 How tuning works (`src/tuning/search.py`)
 
 ### Search spaces
@@ -169,6 +252,32 @@ trials = random_search(space, objective, n_trials, seed, baseline=current_params
 - Results come back sorted, best first. Several trials within about 0.01 of the best should be
   treated as ties.
 
+### Beam bisection (the default for `tune_tracker`)
+
+```python
+trials = beam_bisection_search(space, objective, n_trials, baseline, beam=2, inactive={...})
+```
+
+Random search spends trials evenly over the whole space and does not learn from them. Once a good
+region is known, a directed search is cheaper. `beam_bisection_search` is a binary search per
+parameter, organised as branch and bound:
+
+- A **node** is a point plus, for each numeric parameter, an interval around it (in [0, 1] units,
+  log scale where the space says `log`). The root is the starting point with full intervals.
+- **Branching.** For each of the k numeric parameters, probe the midpoints of the lower and upper
+  halves of its interval, keep the best of the three points, and halve the interval around it:
+  one bisection step per parameter, k branches per node. One more branch applies every branch's
+  winning move at once.
+- **Bound.** Only the `beam` best nodes of each level are expanded further. The search stops when
+  the trial budget is spent or every interval is narrower than 1/64 of its range.
+- Categorical parameters, and numeric parameters with no effect under the profile's fixed settings
+  (`inactive`, e.g. BoT-SORT's appearance thresholds when ReID is off), keep their starting values.
+- Deterministic: re-running proposes the same trials, so resuming works as for random search.
+
+Each level costs up to (2k + 1) × beam trials: 13 × 2 = 26 for BoT-SORT without ReID (6 numeric
+parameters). On a smooth test function it reaches the optimum within about 60 trials where random
+search is still far off (`tests/test_tuning.py`); real tracking scores are noisier.
+
 ### Nested leave-one-group-out (for the gate and experts)
 
 If you pick hyperparameters by their score on the test group, that score is optimistic: you have
@@ -186,9 +295,24 @@ It returns both the selected parameters and the nested estimate. Report the nest
 ## 8.6 `tune_tracker` (`scripts/tune_tracker.py`)
 
 ```
-python -m scripts.tune_tracker --profile <profile> [--trials N] [--fresh]
+python -m scripts.tune_tracker --profile <profile> [--trials N] [--fresh]       # beam bisection (default)
+python -m scripts.tune_tracker --profile <profile> --randomize                   # seeded random search
+python -m scripts.tune_tracker --profile <profile> --augment [COPY]              # on augmented data
 python -m scripts.tune_tracker --profile <profile> --check
 ```
+
+**Search method.** The default is the beam bisection search (§8.5), starting from the best trial of
+the same profile's random search on the original data (`tracker_<tracker>_<profile>.json`) when it
+exists, or from `--start <scan>.json`, else from the profile's baseline. `--beam` sets the beam
+width (2). `--randomize` runs the seeded random search, the method of the first full-dataset
+experiments; resume those with `--randomize`. Both methods read and extend the same
+`<stem>.sessions.jsonl`, so a trial computed by one is never recomputed by the other. Bisection
+results are written as `<stem>_bisect.{csv,json}`; random-search results keep the plain names.
+
+**Augmented data.** `--augment [COPY]` runs the same profile on augmented copy COPY (default 1),
+written by `augment_dataset` first if missing. Boxes are mirrored where a copy is flipped, the
+detections and ReID embeddings get their own cache, and results go to their own files
+(`<stem>_<aug tag>...`). The original data's fingerprints and caches are unchanged.
 
 **The objective.** Tracking is scored against our manual boxes (`abi_labels`) with
 `tracking_metrics` (`src/evaluation/tracking.py`):
@@ -249,9 +373,20 @@ trackers start from their best known settings (BoxMOT's StrongSORT default `min_
 drop whole students; `docs/experiments/02_boxmot.md`, §3).
 
 **Is the detector the limit?** `python -m scripts.scan_detector` checks, without any tracker, what
-each detector confidence threshold costs: from the cached floor detections it reports, per
-threshold, the share of frames in which each annotated student is detected, against the 0.05 floor
-(`outputs/tuning/detector_scan.csv`). At the configured 0.22 no student is dropped. The full-dataset profiles keep CMC **on** everywhere: every trial then decodes
+detector confidence thresholds cost, from the cached floor detections. A student's recall is the
+share of frames in which they are detected; the 0.05 floor is the reference.
+
+- By default it **binary-searches the optimal threshold**: the highest one that keeps every
+  student (none undetected, none below half their frames, none losing more than `--max-drop`, 0.10,
+  against the floor). Recall only falls as the threshold rises, so bisection is exact and needs
+  about 8 passes. Each probe also reports `unmatched_share`, the kept boxes that match no annotated
+  student (teachers, TAs, false positives): the price of a lower threshold. Output:
+  `outputs/tuning/detector_search.{csv,json}`, including whether the configured `detector.conf`
+  keeps everyone.
+- `--grid` prints the full table over `--thresholds` instead (`detector_scan.csv`). At the
+  configured 0.22 no student is dropped on the original data.
+- `--augment [COPY] --detect` runs the same on augmented copy COPY; `--detect` runs the detector
+  where that copy's detections are not cached yet (GPU). The full-dataset profiles keep CMC **on** everywhere: every trial then decodes
 real frames, so no full-dataset result depends on the blank-frame shortcut, and the three
 experiments differ only in what they compare (ReID on/off with the same tracker; StrongSORT vs
 BoT-SORT with ReID). This costs time (up to about an hour per trial) in exchange for reliability.
@@ -261,19 +396,23 @@ BoT-SORT with ReID). This costs time (up to about an hour per trial) in exchange
 Full-dataset runs take a day or more, so they are resumable at the level of one session:
 
 - every (trial settings, session) result is appended to
-  `outputs/tuning/tracker_<name>_<profile>.sessions.jsonl` the moment it is computed;
-- re-running the same command re-creates the same seeded trial sequence and reuses every result
-  already on disk, so an interruption (Ctrl+C, a crash, a reboot) loses at most one session's work;
+  `outputs/tuning/tracker_<name>_<profile>[_<aug tag>].sessions.jsonl` the moment it is computed;
+- both search methods are deterministic: re-running the same command proposes the same trials and
+  reuses every result already on disk, so an interruption (Ctrl+C, a crash, a reboot) loses at most
+  one session's work. **Resume with the same method**: a random scan with `--randomize`; without it
+  the command runs the bisection search instead (still reusing the logged results);
 - the file's first line fingerprints everything that affects the scores (tracker, profile settings,
-  search space, detector, association, seed, ReID model). A mismatch stops the run instead of mixing
-  results; `--fresh` moves the old file aside and starts over;
+  search space, detector, association, seed, ReID model, and the augmented copy if any). A mismatch
+  stops the run instead of mixing results; `--fresh` moves the old file aside and starts over;
 - the trial count is *not* part of the fingerprint: raising `--trials` continues the same sequence.
 
 While running, each trial shows a live progress line (`trial 3: 17/52 sessions, 21.4 min`) and
-then a summary line with its scores and settings.
+then a summary line with its scores and settings. The bisection search first prints its starting
+point, the number of numeric parameters and the trials per level.
 
-**Output**: `outputs/tuning/tracker_<name>_<profile>.csv` (every trial, with per-group scores) and
-`.json`, which includes a `config_patch` to paste into the config.
+**Output**: `outputs/tuning/tracker_<name>_<profile>[_<aug tag>][_bisect].csv` (every trial, with
+per-group scores) and `.json` (the search method, the dataset, the baseline and best scores, and a
+`config_patch` to paste into the config). Random-search results keep the names without `_bisect`.
 
 ## 8.7 `tune_models` (`scripts/tune_models.py`)
 
@@ -292,11 +431,12 @@ the label thresholds first: the expert objective depends on them.
 | `inspect_labels.py` | `python -m scripts.dipser.inspect_labels` | label distribution, labeler agreement, class balance for a grid of thresholds |
 | `check_scb.py` | `python -m scripts.dipser.check_scb` | SCB detections drawn on 12 sampled frames (the §11 sanity check) |
 | `scb_viewer.py` | `python -m scripts.dipser.scb_viewer g e c` | play a camera with SCB boxes; per-class confidence sliders |
+| `augment_viewer.py` | `python -m scripts.dipser.augment_viewer g e c` | preview data augmentations (colour, noise, hflip, masking) on a frame, with the manual boxes transformed alongside; not yet used by the pipeline |
 | `label_viewer.py` | `python scripts/dipser/label_viewer.py g e c` | play a camera with every labeler's live attention values |
 | `plot_labels.py` | `python scripts/dipser/plot_labels.py g e s` or `--scan` | attention step plots per student and per session |
 | `player.py` | `python scripts/dipser/player.py data/DIPSER/DIPSEER` | six-camera synchronised player |
 
-The first three import `src` and need `-m`; the last three are standalone files. Two more files
+The first four import `src` and need `-m`; the last three are standalone files. Two more files
 are one-off helpers: `camera_previews.py` saves the first frame of each camera ZIP, and
 `annotation_helper.py` (hard-coded paths, no command line) was used while drawing the manual boxes.
 
@@ -323,6 +463,7 @@ projected for a 45-minute session. Run it on an otherwise idle machine.
 | `outputs/tracks/`, `outputs/features/` | frame-pass and feature-pass results | yes |
 | `outputs/results/`, `outputs/models/` | evaluation results, trained model bundles | yes |
 | `outputs/plots/` | held-out engagement curves from `plot_results` | yes |
+| `outputs/augmentation/` | augmentation samples and extremes from `augment_samples` | yes |
 | `outputs/tuning/`, `outputs/benchmarks/` | tuning and timing logs | yes |
 | `outputs/labels/`, `outputs/label_plots/`, `outputs/scb_check/` | dataset inspection outputs | yes |
 | `tmp/` | working files that need to live a while (test runs, one-off scripts) | no |

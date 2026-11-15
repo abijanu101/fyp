@@ -1,0 +1,38 @@
+{
+  "dataset": "original",
+  "criterion": {
+    "never_detected": 0,
+    "below_50pct": 0,
+    "max_drop_vs_floor": 0.1
+  },
+  "floor": 0.05,
+  "optimal_threshold": 0.166,
+  "at_optimal": {
+    "threshold": 0.166,
+    "students": 621.0,
+    "mean_recall": 0.9966225485043718,
+    "p10_recall": 0.989247311827957,
+    "min_recall": 0.902557014512785,
+    "never_detected": 0.0,
+    "below_50pct": 0.0,
+    "max_drop_vs_floor": 0.09744298548721497,
+    "lost_10pts_vs_floor": 0.0,
+    "lost_25pts_vs_floor": 0.0,
+    "unmatched_share": 0.22964138009177948
+  },
+  "configured_threshold": 0.22,
+  "at_configured": {
+    "threshold": 0.22,
+    "students": 621.0,
+    "mean_recall": 0.9944492234784948,
+    "p10_recall": 0.9865433137089992,
+    "min_recall": 0.6986869384934347,
+    "never_detected": 0.0,
+    "below_50pct": 0.0,
+    "max_drop_vs_floor": 0.30131306150656534,
+    "lost_10pts_vs_floor": 3.0,
+    "lost_25pts_vs_floor": 1.0,
+    "unmatched_share": 0.19057325702103622
+  },
+  "configured_keeps_everyone": false
+}

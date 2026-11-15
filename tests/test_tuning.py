@@ -4,7 +4,7 @@ import numpy as np
 
 from src.core.types import Tracklet
 from src.evaluation import krippendorff_alpha_ordinal, tracking_metrics
-from src.tuning import nested_logo_search, random_search, sample_params
+from src.tuning import beam_bisection_search, nested_logo_search, random_search, sample_params
 
 nan = np.nan
 
@@ -64,6 +64,24 @@ class TestSearch(unittest.TestCase):
                                baseline={"x": 0.9})
         self.assertEqual(next(t for t in trials if t["trial"] == 0)["params"], {"x": 0.9})
         self.assertEqual(trials[0]["score"], max(t["score"] for t in trials))
+
+    def test_bisection_finds_the_optimum_and_respects_the_budget(self):
+        space = {"a": {"low": 0.0, "high": 1.0}, "b": {"low": 1, "high": 100, "int": True, "log": True}}
+        f = lambda p: {"score": -((p["a"] - 0.73) ** 2) - (np.log(p["b"]) - np.log(20)) ** 2 / 10}
+        trials = beam_bisection_search(space, f, 60, {"a": 0.5, "b": 50}, beam=2)
+        self.assertLessEqual(len(trials), 60)
+        self.assertEqual(next(t for t in trials if t["trial"] == 0)["params"], {"a": 0.5, "b": 50})
+        self.assertAlmostEqual(trials[0]["params"]["a"], 0.73, delta=0.03)
+        self.assertTrue(15 <= trials[0]["params"]["b"] <= 27)
+
+    def test_bisection_is_deterministic_and_holds_inactive_and_categorical_params(self):
+        space = {"a": {"low": 0.0, "high": 1.0}, "z": {"low": 0.0, "high": 1.0}, "c": [1, 2]}
+        seen = []
+        f = lambda p: seen.append(p) or {"score": -abs(p["a"] - 0.2)}
+        run = lambda: [t["params"] for t in beam_bisection_search(space, f, 12, {"a": 0.9, "z": 0.4, "c": 2},
+                                                                 inactive={"z"})]
+        self.assertEqual(run(), run())
+        self.assertTrue(all(p["z"] == 0.4 and p["c"] == 2 for p in seen))
 
     def test_nested_search_never_scores_selection_on_outer_test(self):
         groups = np.array(["g1"] * 4 + ["g2"] * 4 + ["g3"] * 4)

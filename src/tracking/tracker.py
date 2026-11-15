@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -27,10 +28,23 @@ class BoxmotTracker(Tracker):
     """
 
     name: str
+    _announced: set[str] = set()      # option sets BoxMOT has already logged in this process
 
     def __init__(self, **options):
         from boxmot import create_tracker
-        self.tracker = create_tracker(self.name, **options)
+        # BoxMOT logs its full settings at INFO on every construction, and a tracker is built per
+        # session, so a run would repeat the same block once per session. Let it log each distinct
+        # option set once (one block per tuning trial, one per extract run), silence repeats.
+        key = f"{self.name}:{sorted(options.items(), key=lambda kv: kv[0])!r}"
+        logger = logging.getLogger("boxmot")
+        level = logger.level
+        if key in BoxmotTracker._announced:
+            logger.setLevel(logging.WARNING)
+        try:
+            self.tracker = create_tracker(self.name, **options)
+        finally:
+            logger.setLevel(level)
+        BoxmotTracker._announced.add(key)
 
     def update(self, frame: Frame, dets: Detections) -> list[TrackState]:
         rows = np.column_stack([dets.xyxy, dets.conf, np.zeros(len(dets))]) if len(dets) else np.empty((0, 6))

@@ -89,6 +89,12 @@ Two data-quality rules live here:
 2. **Undecodable frames are skipped**, not fatal. OpenCV *raises* on some corrupt buffers rather
    than returning `None`, so decoding is wrapped in `try`.
 
+For training only, `AugmentedZipFrameSource` (`src/ingestion/augment.py`) subclasses
+`ZipFrameSource` and `torch.utils.data.Dataset`: the same frames and timestamps, each passed through
+one fixed augmentation (colour, noise, flip, masks) drawn per session copy.
+`scripts/augment_dataset.py` uses it to write augmented copies of the dataset to disk, which the
+frame pass then reads like any other camera ZIP; Chapter 8, §8.4 explains the whole scheme.
+
 ### The timing audit
 
 `src/ingestion/manifest.py` measures what the camera actually delivered:

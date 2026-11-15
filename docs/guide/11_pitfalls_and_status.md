@@ -102,10 +102,10 @@ nothing. Put comments on their own line.
 ### Running
 
 - **Three full-dataset tracker experiments** (`tune_tracker`, 20 trials each, CMC on everywhere,
-  resumable). As of 15 November 2026: BoT-SORT without ReID (`full`) at 10 of 20 trials and
-  StrongSORT (`full_strongsort`) at 5 of 20 are running; BoT-SORT with ReID (`full_reid_cmc`) is
-  queued. Their outcome sets the default tracker. Results go in `docs/experiments/02_boxmot.md`,
-  §6–7.
+  resumable). As of 15 November 2026: StrongSORT (`full_strongsort`) is **complete** (best IDF1
+  0.878, with frequent ID switches); BoT-SORT without ReID (`full`) is at 17 of 20 (best 0.905);
+  BoT-SORT with ReID (`full_reid_cmc`) has started. Their outcome sets the default tracker. Results
+  in `docs/experiments/02_boxmot.md`, §6–7.
 
 ### Built, not yet run on all data
 
@@ -115,6 +115,9 @@ nothing. Put comments on their own line.
   with a late-mode model. Then run end to end on six full-length sessions (extract, train, held-out
   plots, inference on an unseen session; `docs/experiments/05_six_session_run.md`).
 - `scripts/benchmark.py` (per-stage timing per tracker variant).
+- Data augmentation (augmented training copies per session, Chapter 8 §8.4): verified end to end
+  on six 100-frame sessions with one copy each; off by default (`augmentation.copies: 0`). Whether
+  it helps is untested: it needs the full extraction plus copies (each copy is another frame pass).
 
 These wait on the full extraction of all 52 sessions, which is best run once the tracker is chosen
 (a different tracker means re-running the frame pass, about 4–5 hours).
@@ -224,8 +227,15 @@ StrongSORT reads it. Removed from the config and from `tune_tracker`; the detect
 (`detector.conf`) is the only confidence filter, and it was verified not to drop any student
 (`docs/experiments/02_boxmot.md`, §3).
 
-**☐ 6. Restart the StrongSORT scan with its quick-tuned baseline.** Stop it, run
-`python tmp/migrate_tuning_fingerprints.py full_strongsort`, restart it with the same command.
-Trials 1 and later are kept; only trial 0 re-runs (`docs/experiments/02_boxmot.md`, §7). The
-BoT-SORT scan needs no restart; if it is ever restarted, migrate it first with
-`python tmp/migrate_tuning_fingerprints.py full`.
+**☐ 7. On-the-fly augmentation for the final training run.** Augmented copies are currently
+written to disk (`scripts/augment_dataset.py`), which suits experiments and makes them reusable for
+tracker studies, but caps how many copies are practical (about 25 GB per copy of groups 1–2).
+For the deliverable's final training run, add a switch (e.g. `augmentation.materialise: false`)
+that augments frames in memory during the frame pass instead (`AugmentedZipFrameSource` already
+does exactly that), and raise `augmentation.copies` well beyond 2. Only extraction time then limits
+the number of copies.
+
+**☑ 6. StrongSORT scan restarted with its quick-tuned baseline, and complete.** Migrated (trials
+1–5 kept, trial 0 re-ran at 0.843), finished at a best IDF1 of 0.878
+(`docs/experiments/02_boxmot.md`, §6.5). The BoT-SORT scan was restarted with `--fresh` instead of
+migrated; its recomputed trials matched the old ones exactly.

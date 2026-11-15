@@ -326,6 +326,34 @@ In late mode, `train_models.expert_factory` maps each one to the student's own f
 from that student's features, just as the learned experts do, and still works with
 `late_context=false`.
 
+### Consensus labels or a per-labeler ensemble (`engagement.labelers`)
+
+By default (`"consensus"`) a late row's label is the student's consensus: the median over labelers
+of their time-weighted mean rating, thresholded at `tau_att`. With labeler agreement near zero
+(Chapter 11), that median mostly reflects the middle rater's habits and discards the rest.
+
+`"ensemble"` keeps the labelers apart instead:
+
+- **Training.** One mixture per expert labeler (`fit_ensemble`), each trained only on the students
+  that labeler rated, on that labeler's own call (their time-weighted mean ≥ `tau_att`, the same
+  rule as the consensus). Labelers in `engagement.ensemble_exclude` (by default the students'
+  self-ratings, a different construct) and labelers who rated no training student are skipped.
+- **Prediction.** A `LabelerEnsemble` averages its labelers' probabilities for each row, **over the
+  labelers who rated that row's student**: a labeler who never rated a student has no vote on
+  that student. Rows with no rating labeler (unlinked tracks such as teachers), and every row at
+  inference, where nothing is known about labelers, average all of them.
+- **Everything else is unchanged:** the gate, the mixture inside each labeler model (per-activity
+  or shared experts), the window averaging, the cut-off and the metrics.
+
+The per-labeler labels come from `labeler_labels_session` (`src/labels/session.py`) and ride on
+`EngagementRows` as `y_by_labeler` and `rated_by`; `engagement_rows` builds them whenever the
+ensemble is configured. Ensembles need late aggregation (per-student rows).
+
+Why the "who rated" rule matters on DIPSER: the fourth expert slot is `labeler_04` in group 1,
+split between `labeler_04` and `labeler_05` in group 2, and `labeler_05` in group 3
+(`docs/experiments/01_dipser.md`). Averaging only over the student's own labelers keeps a
+group-3 student from being scored by a labeler-04 model that never saw group 3's ratings.
+
 ### Why it might or might not help
 
 Why it might help: the window label is itself a share of engaged students, so predicting students

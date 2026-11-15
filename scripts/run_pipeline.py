@@ -28,6 +28,7 @@ from src.core.pipeline import Pipeline, feature_hash, to_frame, to_track_frame, 
 from src.core.store import load_track, save_track
 from src.core.types import SessionKey
 from src.datasets import DipserIndex
+from src.ingestion import aug_tag
 from src.output import write_graph_json, write_graph_png, write_manifest
 
 
@@ -47,18 +48,22 @@ def session_stem(key: SessionKey) -> str:
     return f"{key.group}__{key.experiment}__{key.camera}"
 
 
-def session_track(pipe: Pipeline, index: DipserIndex, key: SessionKey, reuse: bool):
-    """Run the session's frame pass and cache it; with reuse, load an existing cache entry instead.
+def session_track(pipe: Pipeline, index: DipserIndex, key: SessionKey, reuse: bool,
+                  stem: str | None = None, zip_path: Path | None = None):
+    """Run the session's frame pass and cache it as <stem>.npz; with reuse, load an existing cache
+    entry instead. zip_path: read frames from there (an augmented copy) instead of the original.
     Returns (track, was_cached)."""
-    path = tracks_dir(pipe.cfg) / f"{session_stem(key)}.npz"
+    path = tracks_dir(pipe.cfg) / f"{stem or session_stem(key)}.npz"
     if reuse and path.exists():
         return load_track(path), True
-    st = pipe.track(index.frames_zip(key), key)
+    st = pipe.track(zip_path or index.frames_zip(key), key)
     save_track(st, path)
     return st, False
 
 
 def cmd_extract(cfg: dict, session: str | None, reuse: bool) -> None:
+    """All sessions first, then (if augmentation.copies > 0) every session's augmented copies, each
+    under `<stem>.<aug tag>` next to the originals. Copies are for training only."""
     index = DipserIndex.from_config(cfg)
     keys = [SessionKey(*session.split("/"))] if session else index.sessions()
     out = features_dir(cfg)
@@ -66,21 +71,31 @@ def cmd_extract(cfg: dict, session: str | None, reuse: bool) -> None:
         d.mkdir(parents=True, exist_ok=True)
         (d / "config.json").write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     pipe = Pipeline(cfg)
-    for i, key in enumerate(keys, 1):
-        stem = session_stem(key)
+    aug = cfg.get("augmentation", {})
+    jobs = [(key, None) for key in keys] + [(key, c) for c in range(1, aug.get("copies", 0) + 1) for key in keys]
+    for i, (key, copy) in enumerate(jobs, 1):
+        stem = session_stem(key) + ("" if copy is None else f".{aug_tag(aug, copy)}")
+        label = f"{key}" + ("" if copy is None else f" (augmented copy {copy})")
         if reuse and (out / f"{stem}.csv").exists() and (out / f"{stem}.tracks.csv").exists():
-            print(f"[{i}/{len(keys)}] {key}: features cached")
+            print(f"[{i}/{len(jobs)}] {label}: features cached")
             continue
-        st, cached = session_track(pipe, index, key, reuse)
+        zip_path = params = None
+        if copy is not None:                                 # read the materialised copy (made if missing)
+            from scripts.augment_dataset import ensure_session
+            zip_path, params = ensure_session(cfg, key, copy)
+        st, cached = session_track(pipe, index, key, reuse, stem, zip_path)
         feats = pipe.features(st)
         feats.manifest["frame_pass_cached"] = cached
+        if params is not None:
+            feats.manifest["augmentation"] = {**params, "tag": aug_tag(aug, copy), "frame_wh": list(st.frame_wh),
+                                              "source": str(zip_path)}
         (out / f"{stem}.manifest.json").write_text(json.dumps(feats.manifest, indent=2, default=str),
                                                    encoding="utf-8")
         to_track_frame(feats).to_csv(out / f"{stem}.tracks.csv", index=False)   # per-student rows (late aggregation)
         to_frame(feats).to_csv(out / f"{stem}.csv", index=False)   # written last: marks the session done
         t, secs = st.timing, feats.manifest["stage_seconds"]
         frame_pass = "cached" if cached else f"{sum(st.stage_seconds.values()):.0f}s"
-        print(f"[{i}/{len(keys)}] {key}: {t['n_frames']} frames @ {t['fps']:.2f} fps, frame pass {frame_pass}, "
+        print(f"[{i}/{len(jobs)}] {label}: {t['n_frames']} frames @ {t['fps']:.2f} fps, frame pass {frame_pass}, "
               f"{len(feats.windows)} windows, {feats.manifest['n_tracklets']} tracklets "
               f"({feats.manifest['n_raw_tracks']} raw) | " + " ".join(f"{k}={v:.1f}" for k, v in secs.items()))
 

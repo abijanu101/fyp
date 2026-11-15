@@ -191,6 +191,11 @@ Each labeler file is a list of change events:
  {"datetime": "10:45:25:006335", "emotion": "1"}]
 ```
 
+Every student-session (321 in experiments 01–06) has four expert files plus `self_labeling.json`.
+The experts come from a pool of five: `labeler_01`–`03` rate everyone, and the fourth is
+`labeler_04` (178 student-sessions) or `labeler_05` (143). This reconciles the dataset paper ("4
+experts") with the authors' later paper ("5 experts"; `docs/misc/benchmarks.md`).
+
 Only entries with an `attention` key change attention, and a value holds until the next one.
 Values are strings. Our parser (`src/labels/attention.py`) casts them to integers and **drops
 values outside 1–5**: one self-report (`group_01/experiment_03/subject_18`) contains attention

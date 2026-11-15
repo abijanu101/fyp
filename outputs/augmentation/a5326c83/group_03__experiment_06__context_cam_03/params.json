@@ -1,0 +1,171 @@
+{
+  "augmentation": {
+    "copies": 0,
+    "seed": 0,
+    "brightness": 35,
+    "contrast": 0.15,
+    "saturation": 0.2,
+    "hue_deg": 3,
+    "gamma": 0.15,
+    "noise": {
+      "kinds": [
+        "gaussian",
+        "speckle"
+      ],
+      "max": 0.35
+    },
+    "hflip": 0.5,
+    "mask": {
+      "kind": "cutout (grey)",
+      "p": 0.5,
+      "count": [
+        1,
+        3
+      ],
+      "size": [
+        0.04,
+        0.12
+      ]
+    }
+  },
+  "frame_index": 109,
+  "images": {
+    "original": null,
+    "copy_1": {
+      "copy": 1,
+      "hflip": true,
+      "brightness": -32.12755124422356,
+      "contrast": 1.0107993793208747,
+      "saturation": 0.8508811070932416,
+      "hue_deg": -0.13116887302733682,
+      "gamma": 0.8954809602494503,
+      "noise_kind": "gaussian",
+      "noise": 0.23062936220802496,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.6641475913614696,
+          0.1109097072608351,
+          0.07608710206895292,
+          0.07608710206895292
+        ]
+      ],
+      "noise_seed": 1092810714
+    },
+    "copy_2": {
+      "copy": 2,
+      "hflip": false,
+      "brightness": 8.210146525549582,
+      "contrast": 0.8603267640689295,
+      "saturation": 0.9172036733071093,
+      "hue_deg": -1.0799068707857413,
+      "gamma": 0.9175123107316778,
+      "noise_kind": "gaussian",
+      "noise": 0.24884025373110208,
+      "mask_kind": "none",
+      "mask_rects": [],
+      "noise_seed": 2043098266
+    },
+    "copy_3": {
+      "copy": 3,
+      "hflip": false,
+      "brightness": 0.5050584441912349,
+      "contrast": 1.1040747192351508,
+      "saturation": 1.1738281078690138,
+      "hue_deg": 0.453355065161841,
+      "gamma": 1.056669485689789,
+      "noise_kind": "gaussian",
+      "noise": 0.1661829866357486,
+      "mask_kind": "none",
+      "mask_rects": [],
+      "noise_seed": 287322630
+    },
+    "copy_4": {
+      "copy": 4,
+      "hflip": false,
+      "brightness": 3.385931446691764,
+      "contrast": 0.9240667026328918,
+      "saturation": 1.0854087618930055,
+      "hue_deg": 1.861424112899031,
+      "gamma": 1.1043642595046796,
+      "noise_kind": "speckle",
+      "noise": 0.2987753875954692,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.1151651357037763,
+          0.3593169312167632,
+          0.04998944489040733,
+          0.04998944489040733
+        ]
+      ],
+      "noise_seed": 1467623804
+    },
+    "extreme_bright": {
+      "copy": "extreme_bright",
+      "hflip": true,
+      "brightness": 35,
+      "contrast": 1.15,
+      "saturation": 1.2,
+      "hue_deg": 3,
+      "gamma": 1.15,
+      "noise_kind": "speckle",
+      "noise": 0.35,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.02,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.35000000000000003,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.68,
+          0.1,
+          0.12,
+          0.12
+        ]
+      ],
+      "noise_seed": 0
+    },
+    "extreme_dark": {
+      "copy": "extreme_dark",
+      "hflip": true,
+      "brightness": -35,
+      "contrast": 0.85,
+      "saturation": 0.8,
+      "hue_deg": -3,
+      "gamma": 0.8695652173913044,
+      "noise_kind": "speckle",
+      "noise": 0.35,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.02,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.35000000000000003,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.68,
+          0.1,
+          0.12,
+          0.12
+        ]
+      ],
+      "noise_seed": 0
+    }
+  }
+}

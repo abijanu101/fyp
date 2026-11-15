@@ -73,6 +73,28 @@ at the floor); these are partial losses of a hard-to-see student, not drops. Bel
 is flat, so the threshold sits on the plateau and a finer search (e.g. bisection) would not change
 the conclusion. Above 0.30 losses grow quickly.
 
+**Binary search for the optimal threshold** (`python -m scripts.scan_detector`, the default mode;
+`outputs/tuning/detector_search.{csv,json}`). Criterion: no student undetected, none detected in
+fewer than half their frames, none losing more than 10 points against the floor. Eight probes:
+
+| Threshold | Keeps every student | Mean recall | Lowest | Largest drop | Unmatched boxes |
+|---|---|---|---|---|---|
+| 0.1625 | yes | 0.997 | 0.914 | 0.086 | 23.2% |
+| **0.1660 (optimal)** | **yes** | 0.997 | 0.903 | 0.097 | 23.0% |
+| 0.1695 | no | 0.997 | 0.886 | 0.114 | 22.7% |
+| 0.2188 | no | 0.995 | 0.701 | 0.299 | 19.1% |
+| 0.2750 | no | 0.990 | 0.533 | 0.467 | 15.9% |
+| 0.5000 | no | 0.873 | 0.002 | 0.996 | 5.5% |
+
+The highest threshold that keeps every student within 10 points of the floor is **0.166**. The
+configured 0.22 fails this stricter criterion because of a single student (`subject_11`,
+`group_02/experiment_06/context_cam_01`, 0.70 against 1.0 at the floor); every other student is
+within 10 points. The trade-off is visible in the last column: going from 0.22 to 0.166 keeps that
+student but adds 4 points of boxes that match no annotated student (teachers, TAs, false
+positives), which the tracker then has to handle. The tracker search chose its `det_conf` on IDF1,
+which weighs both; the detector search isolates the recall side. Whether to lower `detector.conf`
+is therefore a tracking question: the full-dataset tracker searches decide it.
+
 The table also quantifies a hazard: StrongSORT's own `min_conf` filter defaults to **0.6**, where
 6 students are never detected and 142 are detected in under half their frames. The full StrongSORT
 experiment therefore starts from the quick-tuned values (`min_conf` 0.2153; §7), not BoxMOT's
@@ -132,10 +154,30 @@ the one-to-one assignment.
 - **Detections cached once** per session at a confidence floor of 0.05. Each trial filters them at
   its own `det_conf`, so detector confidence is tuned jointly with the tracker at no extra cost,
   and only the tracker re-runs.
-- **Seeded random search**; trial 0 is the current configuration. Search space for BoT-SORT:
-  `det_conf`, `track_high_thresh`, `track_low_thresh`, `new_track_thresh`, `max_lost_frames`
-  (log scale), `match_thresh`, `proximity_thresh`, `appearance_thresh`, `use_embeddings` (ReID
-  on/off), `use_cmc` (camera-motion compensation on/off).
+- **Search method.** The first scans (quick profiles and the three full-dataset experiments of
+  §7) used a **seeded random search**: trial 0 is the starting configuration, every other trial
+  draws each parameter independently from the space. From 15 November 2026 the default is a
+  **beam bisection search** (guide §8.5), now run with `--randomize` to get the random search:
+  - starting point: the winner of the same profile's random search;
+  - per node and per numeric parameter, a binary-search step: probe the midpoints of the lower and
+    upper halves of the parameter's interval, keep the best of the three, halve the interval
+    (k branches per node), plus one branch combining every winning move;
+  - a beam of 2 nodes per level as the bound; parameters with no effect under the profile's fixed
+    settings (BoT-SORT's `proximity_thresh` and `appearance_thresh` without ReID) are held;
+  - deterministic and resumable, sharing the random search's per-session result log, so no trial
+    is computed twice.
+
+  One level costs up to (2k + 1) × 2 trials: 26 for BoT-SORT without ReID (k = 6), 34 with ReID
+  (k = 8), 22 for StrongSORT (k = 5; `n_init` is categorical and held).
+- **Search space** for BoT-SORT: `det_conf`, `track_high_thresh`, `track_low_thresh`,
+  `new_track_thresh`, `max_lost_frames` (log scale), `match_thresh`, `proximity_thresh`,
+  `appearance_thresh`, `use_embeddings` (ReID on/off), `use_cmc` (camera-motion compensation
+  on/off). For StrongSORT: `det_conf`, `min_conf`, `max_cos_dist`, `max_iou_dist`, `max_age` (log
+  scale), `n_init`, `use_cmc`.
+- **Augmented data.** `--augment [COPY]` runs any profile on augmented copy COPY of the dataset
+  (`scripts/augment_dataset.py`: one fixed colour, brightness, noise, flip and occlusion setting per
+  session copy; boxes mirrored where flipped), with its own detection and ReID caches and result
+  files. This compares the trackers' robustness on the same sessions under worse footage.
 - **Profiles**:
   - `quick`: 3 sessions, one per group (`group_01/experiment_03/context_cam_02`,
     `group_02/experiment_04/context_cam_03`, `group_03/experiment_01/context_cam_01`), first 300
@@ -222,8 +264,36 @@ StrongSORT trial had CMC **on**.
 0.857 / 0.918 / 0.890; coverage 0.90; 0.74 ID switches and 1.27 track ids per subject). That is
 lower than its 0.950 on the quick profile's 60-second clips: full sessions are five minutes long,
 with more occlusions, more people moving and more chances to switch ids. The 20-trial search is
-running; interim, as of 15 November 2026: 11 of 20 trials complete, best so far trial 6 at IDF1
-0.905 (mean over the 52 sessions, not yet a nested estimate). Final results go here.
+running; interim, as of 15 November 2026: 17 of 20 trials complete, best so far trial 6 at IDF1
+0.905 (coverage 0.97, 1.04 ID switches and 1.40 track ids per subject; mean over the 52 sessions,
+not a nested estimate). Final results go here.
+
+The run was restarted with `--fresh` after `det_thresh` was removed from the configuration. Its
+trials 0–10 reproduced the earlier run's numbers exactly, in every metric and on all 52 sessions:
+direct confirmation that `det_thresh` had no effect (§3).
+
+### 6.5 StrongSORT, full profile (all 52 sessions; complete)
+
+20 trials, CMC on, trial 0 = the quick-tuned StrongSORT values (§6.3, §7). Output:
+`outputs/tuning/tracker_strongsort_full_strongsort.{csv,json}`.
+
+| | IDF1 | Group 01 / 02 / 03 | Coverage | ID switches / subject | Track ids / subject |
+|---|---|---|---|---|---|
+| Trial 0 (quick-tuned values) | 0.843 | 0.804 / 0.854 / 0.873 | 0.99 | 3.9 | 1.95 |
+| **Best, trial 14** | **0.878** | 0.836 / 0.907 / 0.894 | 0.95 | 9.3 | 1.77 |
+| Runner-up, trial 8 | 0.877 | 0.845 / 0.882 / 0.904 | 0.99 | 5.2 | 1.77 |
+| *Old trial 0, BoxMOT defaults* | *0.715* | | | | |
+
+Best parameters: `det_conf 0.28, min_conf 0.41, max_cos_dist 0.35, max_iou_dist 0.69, max_age 133,
+n_init 3`. The best trials all keep a lost track for a long time (`max_age` 47–133 frames, 9–27 s)
+and confirm a track only after 3 hits.
+
+**StrongSORT's identities flicker.** Across trials it switches a student's matched track id 4–20
+times per session, against about 1 for BoT-SORT, at similar or higher coverage. The box stays on
+the right person, but the id attached to it changes back and forth. IDF1 forgives part of this
+(the one-to-one mapping keeps the largest share); the feature pass does not, since each switch cuts
+a student's time series. StrongSORT's best IDF1 is also below BoT-SORT's without ReID (0.878 against
+0.905 so far), at about 60× the per-frame tracking cost (§6.2).
 
 ## 7. Tracker-level experiments on the full dataset
 
@@ -233,12 +303,17 @@ in-scope sessions, scored identically:
 
 | # | Tracker | ReID | CMC | Profile | Status |
 |---|---|---|---|---|---|
-| 1 | BoT-SORT | off | on | `full` | running: 11 of 20 trials, best IDF1 so far 0.905 (trial 0: 0.888) |
-| 2 | StrongSORT | on (always) | on | `full_strongsort` | 6 of 20 trials done, best so far 0.853; to be restarted with the quick-tuned baseline (below), keeping trials 1–5 |
-| 3 | BoT-SORT | on | on | `full_reid_cmc` | check passed; queued |
+| 1 | BoT-SORT | off | on | `full` | running: 17 of 20 trials, best IDF1 so far 0.905 (trial 0: 0.888) |
+| 2 | StrongSORT | on (always) | on | `full_strongsort` | **complete**: best 0.878 (trial 0: 0.843), §6.5 |
+| 3 | BoT-SORT | on | on | `full_reid_cmc` | running: started 15 November 2026 |
 
 StrongSORT's old trial 0 (BoxMOT defaults) scored 0.715; that number reflects `min_conf` 0.6
 dropping students (§3), not StrongSORT's tracking.
+
+**Interim reading (two of three complete or nearly):** BoT-SORT without ReID leads, 0.905 against
+StrongSORT's 0.878, with about a tenth of StrongSORT's ID switches and at a fraction of its cost.
+Experiment 3 decides whether ReID helps BoT-SORT; if it does not beat 0.905 clearly, motion-only
+BoT-SORT is the default tracker.
 
 With CMC held on everywhere, experiments 1 and 3 differ only in ReID (same tracker), and 2 and 3
 compare the two trackers with ReID.
@@ -254,6 +329,34 @@ The quick-profile evidence so far: tuned motion-only BoT-SORT 0.950, best ReID-o
 tuned StrongSORT 0.932 (same three 60-second clips). ReID costs about 120–165 ms per frame against
 about 2 ms for motion-only tracking; that cost stands regardless of accuracy and must be weighed
 against the 3-minute compute target. Results and the decision go here when the runs complete.
+
+### 7.1 Planned second scans
+
+Two follow-ups, both prepared (guide §8.6), to run once experiments 1 and 3 complete:
+
+1. **Refinement by beam bisection** on the original data, from each experiment's random-search
+   winner (picked up automatically):
+
+   ```
+   python -m scripts.tune_tracker --profile full --trials 26             # one level, BoT-SORT
+   python -m scripts.tune_tracker --profile full_strongsort --trials 22  # one level, StrongSORT
+   python -m scripts.tune_tracker --profile full_reid_cmc --trials 34    # one level, BoT-SORT + ReID
+   ```
+
+   With CMC on, a full-dataset trial takes about an hour, so one level is about a day per tracker;
+   `--beam 1` halves it.
+2. **Robustness on augmented data**: each winner scored on augmented copy 1 of the same 52 sessions,
+   then optionally refined there:
+
+   ```
+   python -m scripts.tune_tracker --profile full --augment 1 --trials 1             # the winner only
+   python -m scripts.tune_tracker --profile full_strongsort --augment 1 --trials 1
+   python -m scripts.tune_tracker --profile full_reid_cmc --augment 1 --trials 1
+   ```
+
+   Compared with each winner's score on the original data, this shows which tracker degrades least
+   on worse footage. The detector side is checked the same way with
+   `python -m scripts.scan_detector --augment 1 --detect` (§3).
 
 ## 8. Engineering issues encountered
 

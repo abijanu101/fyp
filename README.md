@@ -61,7 +61,8 @@ python -m unittest discover -s tests -t .              # tests
 
 python -m scripts.tune_tracker [--profile full]        # detector conf + tracker params vs manual boxes
 python -m scripts.scan_detector                        # does the detector threshold drop students? (cached detections)
-python -m scripts.run_pipeline extract [--reuse]       # features for all in-scope sessions
+python -m scripts.run_pipeline extract [--reuse]       # features for all in-scope sessions (+ augmented copies if augmentation.copies > 0)
+python -m scripts.augment_samples                      # augmentation examples and extremes -> outputs/augmentation/
 python -m scripts.train_models                         # LOGO evaluation + final models
 python -m scripts.plot_results                         # held-out engagement curves vs labels, per session
 python -m scripts.output_viewer group_01 experiment_03 context_cam_01   # play a session with its predictions
@@ -71,7 +72,8 @@ python -m scripts.run_pipeline infer --zip <camera.zip> --models outputs/models/
 ```
 
 The contributor's guide (`docs/guide/`) explains how all of this works; Chapter 9 covers running
-experiments and every config key. `docs/experiments/` records what was tried and found.
+experiments and every config key. `docs/experiments/` records what was tried and found;
+`docs/misc/benchmarks.md` surveys published results on DIPSER.
 
 Any config value can be overridden per run with `--set key.path=<json>`, e.g.
 `--set window.length_s=10 labels.tau_att=3`.
@@ -81,6 +83,7 @@ Dataset tools live in `scripts/dipser/`. These use the pipeline code (run with `
 ```
 python -m scripts.dipser.inspect_labels    # label distribution, agreement, threshold grid
 python -m scripts.dipser.check_scb         # SCB behaviour detections on a DIPSER sample (§11 gate)
+python -m scripts.dipser.augment_viewer group_01 experiment_03 context_cam_02   # preview augmentations + transformed boxes
 python -m scripts.dipser.scb_viewer group_01 experiment_04 context_cam_03   # play a camera with SCB boxes, per-class sliders
 ```
 

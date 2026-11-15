@@ -27,6 +27,8 @@ python -m unittest tests.test_stages.TestTracklets.test_camera_frame_drop_is_not
 | `tests/test_labels.py` | clock parsing, step functions, time-weighted means, out-of-range values, window labelling rules |
 | `tests/test_spread.py` | CFMU spread maths: within² + between² = total², edge cases |
 | `tests/test_aggregation_modes.py` | early rows reproduce the window-level mixture exactly; late rows carry window context; window scores average rows and fill empty windows; per-student labels agree with the window share; the feature pass emits one row per visible track |
+| `tests/test_augment.py` | box mirroring, parameters fixed per (session, copy), hue range, copy tags, the same transform on every frame, the augmented source as a torch Dataset with the original timestamps, a materialised copy reading back with the original timestamps, augmented rows never in a test fold |
+| `tests/test_per_labeler.py` | the labeler ensemble: a labeler who did not rate a student has no vote, opposed labelers cancel where both rated, all labelers vote without labeler information (inference), self-ratings excluded, consensus mode unchanged |
 | `tests/test_mixture.py` | soft/hard/oracle mixing, shared scope, per-experiment training, hand-weighted signs, LOGO splits |
 | `tests/test_stages.py` | windows, tracklet gap filtering, SID association (including passing TAs), motion features, Vec key stability, config hashing and cache keys, track store round trip, the feature pass without video, graph privacy |
 | `tests/test_tuning.py` | Krippendorff's alpha (against the published example), tracking metrics, random and nested search |
@@ -88,8 +90,18 @@ For a one-off comparison, no code changes are needed:
 python -m scripts.run_pipeline extract --set tracker.options.max_lost_frames=40
 ```
 
-For a systematic search, edit `tuning.tracker.space.botsort` and run `tune_tracker` (Chapter 8),
-then paste the resulting `config_patch` into the config.
+For a systematic search, edit `tuning.tracker.space.botsort` and run `tune_tracker` (Chapter 8,
+§8.6), then paste the resulting `config_patch` into the config:
+
+```
+python -m scripts.tune_tracker --profile quick --randomize          # explore: seeded random search
+python -m scripts.tune_tracker --profile quick --trials 26          # refine: beam bisection from its winner
+python -m scripts.tune_tracker --profile quick --augment 1          # the same on augmented data
+```
+
+Explore first, refine second: the bisection search starts from the profile's random-search winner
+automatically. Prototype on the `quick` profile (minutes per trial) before a full-dataset profile
+(about an hour per trial with CMC on).
 
 ## 10.6 Recipe: add a tracker
 

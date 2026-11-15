@@ -26,11 +26,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from scripts.run_pipeline import parse_sets
-from scripts.train_models import engagement_rows, load_table, mixture_factory
+from scripts.train_models import engagement_rows, heldout_splits, load_table, mixture_factory, with_augmented
 from src.core.config import config_hash, load_config
 from src.core.pipeline import SCENE_PREFIX, VEC_PREFIX
-from src.experts import decision_threshold, fit_rows, predict_windows
-from src.spu import GATES, logo_splits
+from src.experts import decision_threshold, fit_engagement, predict_windows
+from src.spu import GATES
 
 
 def held_out_predictions(cfg: dict, df) -> tuple[np.ndarray, np.ndarray]:
@@ -41,11 +41,12 @@ def held_out_predictions(cfg: dict, df) -> tuple[np.ndarray, np.ndarray]:
     Xg, exp = df[gate_cols].to_numpy(float), df["exp"].to_numpy()
     rows = engagement_rows(cfg, df, vec_cols)
     p, g = np.full(len(df), np.nan), np.zeros((len(df), len(classes)))
-    for _, tr, te in logo_splits(df["group"].to_numpy()):
+    for _, tr, te in heldout_splits(df):                     # augmented copies train, never scored
         gate = GATES.build(cfg["gate"]["name"], classes=classes, seed=cfg["seed"],
                            **cfg["gate"].get("params", {})).fit(Xg[tr], exp[tr])
         g[te] = gate.predict_proba(Xg[te])
-        mix, fill = fit_rows(mixture_factory(cfg, rows, None, mcfg["expert_scope"], mcfg["mode"]), rows, tr)
+        mix, fill = fit_engagement(cfg["engagement"], mixture_factory(cfg, rows, None, mcfg["expert_scope"],
+                                                                       mcfg["mode"]), rows, tr)
         p[te] = predict_windows(mix, rows, te, g[te], fill)
     return p, g
 
@@ -80,12 +81,12 @@ def main() -> None:
     tau = decision_threshold(cfg["engagement"]["aggregate"], cfg["mixture"]["tau"], cfg["labels"]["tau_share"])
     colors = [plt.get_cmap("tab10")(i) for i in range(len(classes))]
 
-    df = load_table(cfg)
+    df = with_augmented(cfg, load_table(cfg))
     p, g = held_out_predictions(cfg, df)
     out = Path(cfg["output_dir"]) / "plots" / config_hash(cfg)[:12]
     out.mkdir(parents=True, exist_ok=True)
 
-    sessions = list(df.groupby("session", sort=True).indices.items())
+    sessions = list(df[~df["aug"]].groupby("session", sort=True).indices.items())   # originals only
     legend = [plt.Rectangle((0, 0), 1, 1, color=c, alpha=0.3) for c in colors]
     overview, axes = plt.subplots(len(sessions), 1, figsize=(11, 2.4 * len(sessions)), squeeze=False)
     for (session, idx), ax in zip(sessions, axes[:, 0]):

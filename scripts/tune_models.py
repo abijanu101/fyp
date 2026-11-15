@@ -28,7 +28,7 @@ from scripts.train_models import engagement_rows, load_table, mixture_factory
 from src.core.config import load_config
 from src.core.pipeline import SCENE_PREFIX, VEC_PREFIX
 from src.evaluation import binary_metrics, context_metrics
-from src.experts import fit_rows, predict_windows
+from src.experts import fit_engagement, predict_windows
 from src.spu import GATES, context_probs
 from src.tuning import nested_logo_search
 
@@ -50,7 +50,8 @@ def expert_scorer(cfg, rows, y, exp, labeled):
     def score(params, tr, te):
         c = copy.deepcopy(cfg)
         c["expert"]["params"] = params
-        mix, fill = fit_rows(mixture_factory(c, rows, None, mcfg["expert_scope"], mcfg["mode"]), rows, tr)
+        mix, fill = fit_engagement(c["engagement"], mixture_factory(c, rows, None, mcfg["expert_scope"], mcfg["mode"]),
+                                   rows, tr)
         te = te[labeled[te]]
         p = predict_windows(mix, rows, te, context_probs("oracle", classes, exp[te]), fill)
         return binary_metrics(y[te], p, mcfg["tau"])["auc"]

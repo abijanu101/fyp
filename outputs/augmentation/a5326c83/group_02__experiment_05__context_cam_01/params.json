@@ -1,0 +1,190 @@
+{
+  "augmentation": {
+    "copies": 0,
+    "seed": 0,
+    "brightness": 35,
+    "contrast": 0.15,
+    "saturation": 0.2,
+    "hue_deg": 3,
+    "gamma": 0.15,
+    "noise": {
+      "kinds": [
+        "gaussian",
+        "speckle"
+      ],
+      "max": 0.35
+    },
+    "hflip": 0.5,
+    "mask": {
+      "kind": "cutout (grey)",
+      "p": 0.5,
+      "count": [
+        1,
+        3
+      ],
+      "size": [
+        0.04,
+        0.12
+      ]
+    }
+  },
+  "frame_index": 151,
+  "images": {
+    "original": null,
+    "copy_1": {
+      "copy": 1,
+      "hflip": false,
+      "brightness": -33.00961681548395,
+      "contrast": 0.9368474398960928,
+      "saturation": 1.1226734230217443,
+      "hue_deg": 1.6709694715695687,
+      "gamma": 1.107502407947679,
+      "noise_kind": "gaussian",
+      "noise": 0.005863520822058627,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.1032047628889185,
+          0.8075845834432759,
+          0.04110612260206113,
+          0.04110612260206113
+        ]
+      ],
+      "noise_seed": 1511947858
+    },
+    "copy_2": {
+      "copy": 2,
+      "hflip": true,
+      "brightness": 27.10435441602148,
+      "contrast": 0.872069947608819,
+      "saturation": 1.1673869686115739,
+      "hue_deg": -0.10316946734658439,
+      "gamma": 0.9484505110189219,
+      "noise_kind": "speckle",
+      "noise": 0.24480515678094772,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.80401653140051,
+          0.35141457203900817,
+          0.0904024513888877,
+          0.0904024513888877
+        ],
+        [
+          0.2809214844364072,
+          0.42562320321888086,
+          0.1082964304224193,
+          0.1082964304224193
+        ]
+      ],
+      "noise_seed": 1094158701
+    },
+    "copy_3": {
+      "copy": 3,
+      "hflip": true,
+      "brightness": -33.88389474697209,
+      "contrast": 0.8533082519753383,
+      "saturation": 1.0034101599596073,
+      "hue_deg": 1.2346874048573433,
+      "gamma": 0.9153692025328934,
+      "noise_kind": "speckle",
+      "noise": 0.009070204954652971,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.6336223007761447,
+          0.5878409286898442,
+          0.11107574043432805,
+          0.11107574043432805
+        ],
+        [
+          0.6359939170549801,
+          0.11205246272613562,
+          0.07229837881643966,
+          0.07229837881643966
+        ]
+      ],
+      "noise_seed": 77191024
+    },
+    "copy_4": {
+      "copy": 4,
+      "hflip": true,
+      "brightness": -25.739428486227805,
+      "contrast": 1.1452052028526334,
+      "saturation": 0.8356614543879755,
+      "hue_deg": -0.48141141763233186,
+      "gamma": 0.9238390447577927,
+      "noise_kind": "speckle",
+      "noise": 0.2543421729864391,
+      "mask_kind": "none",
+      "mask_rects": [],
+      "noise_seed": 1013562331
+    },
+    "extreme_bright": {
+      "copy": "extreme_bright",
+      "hflip": true,
+      "brightness": 35,
+      "contrast": 1.15,
+      "saturation": 1.2,
+      "hue_deg": 3,
+      "gamma": 1.15,
+      "noise_kind": "speckle",
+      "noise": 0.35,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.02,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.35000000000000003,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.68,
+          0.1,
+          0.12,
+          0.12
+        ]
+      ],
+      "noise_seed": 0
+    },
+    "extreme_dark": {
+      "copy": "extreme_dark",
+      "hflip": true,
+      "brightness": -35,
+      "contrast": 0.85,
+      "saturation": 0.8,
+      "hue_deg": -3,
+      "gamma": 0.8695652173913044,
+      "noise_kind": "speckle",
+      "noise": 0.35,
+      "mask_kind": "cutout (grey)",
+      "mask_rects": [
+        [
+          0.02,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.35000000000000003,
+          0.1,
+          0.12,
+          0.12
+        ],
+        [
+          0.68,
+          0.1,
+          0.12,
+          0.12
+        ]
+      ],
+      "noise_seed": 0
+    }
+  }
+}

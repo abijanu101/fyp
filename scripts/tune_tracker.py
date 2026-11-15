@@ -2,6 +2,21 @@
 
   python -m scripts.tune_tracker [--profile quick|full|full_reid_cmc|full_strongsort] [--tracker NAME]
                                  [--trials N] [--check] [--fresh] [--set key=value ...]
+                                 [--randomize] [--beam B] [--start earlier_scan.json] [--augment [COPY]]
+
+Search (default: beam bisection, src/tuning/search.py beam_bisection_search)
+  Binary search per numeric parameter, k branches per node (k = numeric parameters that matter
+  under the profile's fixed settings), a beam of B nodes as the bound; deterministic. Each level
+  costs up to (2k + 1) x B trials. It starts from the best trial of the profile's random search on
+  the original data (tracker_<tracker>_<profile>.json) when that exists, or from --start (any
+  earlier scan's .json), else from the profile's baseline. --randomize uses
+  the seeded random search instead (the original method; resume earlier random scans with it).
+  Both read and extend the same <stem>.sessions.jsonl, so results are shared between methods.
+
+Augmented data
+  --augment [COPY] runs the same profile on augmented copy COPY (default 1) of DIPSER, written by
+  scripts/augment_dataset.py if missing (boxes mirrored where flipped). It has its own result files
+  (<stem>_<aug tag>...) and its own detection cache.
 
 How it works
   1. Once per session, frames are decoded and the detector runs at a low confidence floor; the
@@ -59,7 +74,8 @@ from src.datasets import DipserIndex
 from src.evaluation import tracking_metrics
 from src.ingestion import ZipFrameSource
 from src.tracking import TRACKERS, TrackletBuilder
-from src.tuning import random_search
+from src.ingestion import aug_tag, augmented_root
+from src.tuning import beam_bisection_search, random_search
 
 REID_MODEL = "osnet-x0-25-msmt17"     # BoxMOT 26 default ReID model for both BoT-SORT and StrongSORT
 
@@ -77,8 +93,12 @@ class SessionDetections:
                        floor: float, detector_factory) -> "SessionDetections":
         """detector_factory() returns the shared detector; it is only called on a cache miss."""
         det_cfg = {**cfg["detector"], "conf": floor}
+        # An augmented dataset (scripts/augment_dataset.py) has the same session names as the
+        # original, so its detections get their own cache; the original data's key is unchanged.
+        marker = index.root / "augmentation.json"
+        source = {"dataset": json.loads(marker.read_text(encoding="utf-8"))["tag"]} if marker.exists() else {}
         cache = (Path(cfg["output_dir"]) / "cache" / "detections" /
-                 config_hash({"detector": det_cfg, "max_frames": max_frames, "v": 2})[:12] /
+                 config_hash({"detector": det_cfg, "max_frames": max_frames, "v": 2, **source})[:12] /
                  f"{session_stem(key)}.npz")
         zip_path = index.frames_zip(key)
         if not cache.exists():
@@ -186,16 +206,31 @@ def profile_setup(cfg: dict, name: str, prof: dict) -> tuple[dict, dict, dict]:
     return base_options, fixed, space
 
 
-def run_fingerprint(cfg: dict, name: str, prof: dict) -> str:
+def run_fingerprint(cfg: dict, name: str, prof: dict, dataset_tag: str | None = None) -> str:
     """Everything that affects a profile's scores; a resumable log only resumes under the same one.
-    n_trials is left out so raising --trials continues the same seeded sequence."""
+    n_trials is left out so raising --trials continues the same seeded sequence. dataset_tag: the
+    augmented copy the scores come from (None = the original data, whose fingerprints are unchanged)."""
     base_options, _, space = profile_setup(cfg, name, prof)
     tcfg = cfg["tuning"]["tracker"]
     return config_hash({"tracker": name, "profile": {k: v for k, v in prof.items() if k != "n_trials"},
                         "space": space, "base_options": base_options,
                         "default_det_conf": cfg["detector"]["conf"], "detector": cfg["detector"],
                         "floor": tcfg["det_conf_floor"], "min_iou": cfg["association"]["min_iou"],
-                        "seed": cfg["tuning"]["seed"], "reid": REID_MODEL, "v": 2})
+                        "seed": cfg["tuning"]["seed"], "reid": REID_MODEL, "v": 2,
+                        **({"dataset": dataset_tag} if dataset_tag else {})})
+
+
+def inactive_params(name: str, base_options: dict, fixed: dict) -> set[str]:
+    """Parameters with no effect under the profile's fixed settings: searching them wastes trials."""
+    if name == "botsort" and not {**base_options, **fixed}.get("use_embeddings", True):
+        return {"proximity_thresh", "appearance_thresh"}       # appearance gating, ReID only
+    return set()
+
+
+def start_from(path: str, space: dict) -> dict:
+    """Starting point from an earlier scan's .json (its best trial, as a config patch)."""
+    patch = json.loads(Path(path).read_text(encoding="utf-8"))["config_patch"]
+    return {"det_conf": patch["detector.conf"], **{k: v for k, v in patch["tracker.options"].items() if k in space}}
 
 
 def main() -> None:
@@ -207,6 +242,14 @@ def main() -> None:
     ap.add_argument("--check", "--check-blank", dest="check", action="store_true",
                     help="verify the fast path reproduces the tracker's own tracks on the first session, then exit")
     ap.add_argument("--fresh", action="store_true", help="move an existing results file aside and start over")
+    ap.add_argument("--randomize", action="store_true",
+                    help="seeded random search (the earlier method) instead of the beam bisection search")
+    ap.add_argument("--beam", type=int, default=2, help="bisection search: nodes kept per level")
+    ap.add_argument("--start", help="bisection search: start from an earlier scan's .json (its best trial)")
+    ap.add_argument("--augment", nargs="?", type=int, const=1, metavar="COPY",
+                    help="run on augmented copy COPY (default 1) of the data (scripts/augment_dataset.py; "
+                         "written first if missing)")
+    ap.add_argument("--workers", type=int, default=3, help="--augment: parallel writers for missing copies")
     ap.add_argument("--set", nargs="*", default=[])
     args = ap.parse_args()
     cfg = load_config(args.config, parse_sets(args.set))
@@ -220,6 +263,14 @@ def main() -> None:
     min_iou = cfg["association"]["min_iou"]
 
     keys = index.sessions() if prof["sessions"] == "all" else [SessionKey(*s.split("/")) for s in prof["sessions"]]
+    dataset_tag = None
+    if args.augment:                       # same sessions, read from the materialised augmented copy
+        from scripts.augment_dataset import ensure_many
+        ensure_many(cfg, [(k, args.augment) for k in keys], args.workers, log=lambda m: print(m, flush=True))
+        dataset_tag = aug_tag(cfg["augmentation"], args.augment)
+        cfg = {**cfg, "dataset": {**cfg["dataset"], "root": str(augmented_root(cfg["augmentation"], args.augment))}}
+        index = DipserIndex.from_config(cfg)
+        print(f"augmented data: {index.root} (boxes mirrored where flipped)", flush=True)
     if args.check:
         keys = keys[:1]
     det_pipe = Pipeline({**cfg, "detector": {**cfg["detector"], "conf": tcfg["det_conf_floor"]}})
@@ -270,9 +321,9 @@ def main() -> None:
     # -- resumable results: one JSON line per (trial settings, session)
     out = Path(cfg["output_dir"]) / "tuning"
     out.mkdir(parents=True, exist_ok=True)
-    stem = f"tracker_{name}_{args.profile}"
-    results_path = out / f"{stem}.sessions.jsonl"
-    fingerprint = run_fingerprint(cfg, name, prof)
+    stem = f"tracker_{name}_{args.profile}" + (f"_{dataset_tag}" if dataset_tag else "")
+    results_path = out / f"{stem}.sessions.jsonl"      # shared by both search methods (a result cache)
+    fingerprint = run_fingerprint(cfg, name, prof, dataset_tag)
     if args.fresh and results_path.exists():
         aside = results_path.with_name(f"{results_path.stem}.{time.strftime('%Y%m%d-%H%M%S')}.jsonl")
         results_path.rename(aside)
@@ -323,15 +374,36 @@ def main() -> None:
               f"sw/subj={r['id_switches_per_subject']:.2f}  tids/subj={r['tids_per_subject']:.2f}  {r['params']}",
               flush=True)
 
-    trials = random_search(space, objective, args.trials or prof["n_trials"], cfg["tuning"]["seed"],
-                           baseline=baseline, on_trial=log)
+    n_trials = args.trials or prof["n_trials"]
+    if args.randomize:
+        method = "random"
+        trials = random_search(space, objective, n_trials, cfg["tuning"]["seed"], baseline=baseline, on_trial=log)
+    else:
+        method = "bisect"
+        # Start from the winner of this profile's random search on the original data, when there is one.
+        start = args.start or out / f"tracker_{name}_{args.profile}.json"
+        if Path(start).exists():
+            baseline = {**baseline, **start_from(start, space)}
+            print(f"starting point: best trial of {Path(start).name}", flush=True)
+        elif args.start:
+            raise SystemExit(f"--start {args.start}: not found")
+        else:
+            print(f"starting point: the profile's baseline (no {Path(start).name} yet)", flush=True)
+        skip = inactive_params(name, base_options, fixed)
+        k = sum(isinstance(v, dict) for p, v in space.items() if p not in skip)
+        print(f"beam bisection: {k} numeric parameters, beam {args.beam}: up to {(2 * k + 1) * args.beam} trials "
+              f"per level, budget {n_trials}" + (f"; held fixed (inactive): {sorted(skip)}" if skip else ""), flush=True)
+        trials = beam_bisection_search(space, objective, n_trials, baseline, beam=args.beam, inactive=skip,
+                                       on_trial=log)
+    stem = stem + ("" if method == "random" else "_bisect")    # random keeps the original file names
 
     pd.DataFrame([{**{k: v for k, v in t.items() if k not in ("params", "by_group")},
                    **{f"group.{g}": v for g, v in t["by_group"].items()}, **t["params"]} for t in trials]) \
         .to_csv(out / f"{stem}.csv", index=False)
     best_opts, det_conf = options_for(trials[0]["params"])
     base = next(t for t in trials if t["trial"] == 0)
-    summary = {"tracker": name, "profile": args.profile, "n_sessions": len(sessions),
+    summary = {"tracker": name, "profile": args.profile, "search": method, "dataset": dataset_tag or "original",
+               "n_sessions": len(sessions),
                "max_frames": prof["max_frames"], "fixed": fixed, "objective": tcfg["objective"],
                "baseline": {"score": base["score"], "by_group": base["by_group"]},
                "best": {k: v for k, v in trials[0].items() if k != "params"},

@@ -20,7 +20,7 @@ PASSWORD = os.getenv('FTP_PASSWORD')
 
 REMOTE_ROOT = "/DIPSEER"
 
-LOCAL_ROOT = Path(r"E:\Coding\Projects\fyp\data\DIPSER")
+LOCAL_ROOT = Path(__file__).resolve().parents[2] / "data" / "DIPSER"    # <repo>/data/DIPSER
 DATASET_ROOT = LOCAL_ROOT / "DIPSEER"
 MANIFEST = LOCAL_ROOT / "dataset.json"
 IGNORE_GROUPS = [

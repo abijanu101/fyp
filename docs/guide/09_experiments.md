@@ -160,7 +160,10 @@ pairs matched by any track. **ID switches** and **track ids per subject**: fragm
 ### Tuning terms
 
 **Trial**: one parameter set, evaluated. **Trial 0 / baseline**: the current config's values, so
-every search reports its gain over what you have. **Search space**: the ranges or lists trials are
+every search reports its gain over what you have. **Random search**: trials drawn independently
+from the space (`--randomize`). **Beam bisection**: a binary search per numeric parameter, k
+branches per node and a beam of the best nodes per level (the default for the tracker; Chapter 8,
+§8.5). **Level** (bisection): one round of branching, up to (2k + 1) × beam trials. **Search space**: the ranges or lists trials are
 drawn from. **Profile**: a named tracker search setup (which tracker, which sessions, how many
 trials, which parameters are fixed). **Objective**: the metric a search maximises. **Fingerprint**:
 the settings a resumable run checks before reusing logged results. **`config_patch`**: the winning
@@ -328,7 +331,29 @@ hash; the entries that read pixels (`residual_flow`, `scb`) are also in the trac
 | `mixture.tau` | 0.5 | engaged cut-off in **early** aggregation (unused in late) | T |
 | `engagement.aggregate` | `late` | `late`: score each student, average per window; `early`: score Vec (§7.5) | T |
 | `engagement.late_context` | true | late only: append the window's Vec to every student row | T |
+| `engagement.labelers` | `consensus` | `consensus`: train on the median-of-labelers label; `ensemble`: one model per labeler on their own labels, averaged over the labelers who rated each student (§7.5); late only | T |
+| `engagement.ensemble_exclude` | `["self_labeling"]` | labelers left out of the ensemble (the self-ratings by default) | T |
 | `context_mode` | `classified` | **unused**: training always reports both, inference always uses classified | T |
+
+### Augmentation (training copies; Chapter 8, §8.4)
+
+Not in the tracking or feature hash: the originals' caches never change. More or different copies
+need `extract --reuse` (a frame pass per new copy), then `train_models`.
+
+| Key | Value | What it does |
+|---|---|---|
+| `augmentation.copies` | 0 | augmented copies per session for training; 0 = off. Each copy costs a frame pass |
+| `augmentation.seed` | 0 | seed of the per-(session, copy) parameter draw |
+| `augmentation.root` | `data/DIPSER_aug` | where `augment_dataset` writes each copy as a complete dataset (not part of the copy's tag) |
+| `augmentation.jpeg_quality` | 95 | JPEG quality of the written frames |
+| `augmentation.brightness` | 35 | brightness offset drawn from ±35 grey levels |
+| `augmentation.contrast` | 0.15 | contrast factor from 1 ± 0.15 |
+| `augmentation.saturation` | 0.2 | saturation factor from 1 ± 0.2 |
+| `augmentation.hue_deg` | 3 | hue shift from ±3°; kept tiny on purpose |
+| `augmentation.gamma` | 0.15 | gamma from 1/1.15 to 1.15 (log-uniform) |
+| `augmentation.noise.kinds`, `.max` | gaussian, speckle; 0.35 | noise kind drawn per copy; level from 0 to 0.35 (Gaussian σ up to ≈ 17 grey levels, speckle up to ±21%), redrawn per frame |
+| `augmentation.hflip` | 0.5 | probability that a copy is mirrored (student boxes mirrored with it) |
+| `augmentation.mask` | grey cutout, p 0.5, 1–3 masks, 4–12% of the frame side | fixed occluders per copy, with probability `p` |
 
 ### Labels
 
@@ -353,10 +378,10 @@ The search-space syntax is in Chapter 8, §8.5: a list is a choice, `{low, high}
 
 | Key | What it does |
 |---|---|
-| `tuning.seed` | seed of the random searches (separate from `seed`) |
+| `tuning.seed` | seed of the random searches (separate from `seed`); the bisection search is deterministic and does not use it |
 | `tuning.tracker.det_conf_floor` | detections are cached once at this confidence; each trial filters them at its own `det_conf` |
 | `tuning.tracker.objective` | the tracking metric maximised (`idf1`). Only higher-is-better metrics make sense |
-| `tuning.tracker.profiles.<name>` | `tracker`, `sessions` (`"all"` or a list), `max_frames`, `n_trials`, `fixed` options pinned for every trial, and optionally `base_options`, trial 0's settings (otherwise `tracker.options` for the configured tracker, BoxMOT defaults for another) (§8.6) |
+| `tuning.tracker.profiles.<name>` | `tracker`, `sessions` (`"all"` or a list), `max_frames`, `n_trials` (the trial budget of either search; `--trials` overrides it), `fixed` options pinned for every trial, and optionally `base_options`, trial 0's settings (otherwise `tracker.options` for the configured tracker, BoxMOT defaults for another). The bisection search starts from the profile's random-search winner when one exists (§8.6) |
 | `tuning.tracker.space.<tracker>` | ranges per option. `det_conf` here stands in for `detector.conf`: the winning value is patched there |
 | `tuning.gate` / `tuning.expert` | `n_trials` per search, and `space.<model name>`; only the space matching `gate.name` / `expert.name` is used |
 | `benchmark.sessions` | sessions timed by `scripts/benchmark.py` |

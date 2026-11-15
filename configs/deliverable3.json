@@ -44,7 +44,14 @@
     "phone_sign": {"01": 1, "02": -1, "03": -1, "04": 1, "05": 1, "06": 0}
   },
   "mixture": {"mode": "soft", "expert_scope": "per_experiment", "tau": 0.5},
-  "engagement": {"aggregate": "late", "late_context": true},
+  "engagement": {"aggregate": "late", "late_context": true,
+                 "labelers": "consensus", "ensemble_exclude": ["self_labeling"]},
+
+  "augmentation": {"copies": 0, "seed": 0, "root": "data/DIPSER_aug", "jpeg_quality": 95,
+                   "brightness": 35, "contrast": 0.15, "saturation": 0.2, "hue_deg": 3, "gamma": 0.15,
+                   "noise": {"kinds": ["gaussian", "speckle"], "max": 0.35},
+                   "hflip": 0.5,
+                   "mask": {"kind": "cutout (grey)", "p": 0.5, "count": [1, 3], "size": [0.04, 0.12]}},
 
   "labels": {"tau_att": 4, "tau_share": 0.5, "min_labeled_students": 3,
              "exclude_self": false, "offset_s": 0.0, "students": "camera"},

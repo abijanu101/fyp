@@ -42,3 +42,18 @@ def student_labels_session(index: DipserIndex, key: SessionKey, windows: list[Wi
     students, labeler = _students_and_labeler(index, key, cfg)
     per_window = [labeler.student_labels(students, w) for w in windows]
     return {sid: np.array([pw[sid] for pw in per_window], float) for sid in students}
+
+
+def labeler_labels_session(index: DipserIndex, key: SessionKey, windows: list[Window],
+                           cfg: dict) -> dict[str, dict[str, np.ndarray]]:
+    """{labeler: {subject_id: (n_windows,) 1/0/NaN}}: each labeler's own call per student and window
+    (their time-weighted mean attention >= tau_att), without any consensus. A labeler who did not
+    rate a student is absent from that student's entry, so callers can tell 'absent' from 'NaN
+    before their first rating'."""
+    students, labeler = _students_and_labeler(index, key, cfg)
+    out: dict[str, dict[str, np.ndarray]] = {}
+    for sid, tracks in students.items():
+        for name, tr in tracks.items():
+            m = np.array([tr.mean_over(w.t_start, w.t_end) for w in windows], float)
+            out.setdefault(name, {})[sid] = np.where(np.isfinite(m), (m >= labeler.tau_att).astype(float), np.nan)
+    return out

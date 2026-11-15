@@ -8,7 +8,7 @@ from pathlib import Path
 import random
 
 
-DIPSER_PATH = Path(r"E:\Coding\Projects\fyp\data\DIPSER")
+DIPSER_PATH = Path(__file__).resolve().parents[2] / "data" / "DIPSER"   # <repo>/data/DIPSER
 
 GROUP = "group_01"
 EXPERIMENT = "experiment_08"

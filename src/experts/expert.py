@@ -23,10 +23,20 @@ class EngagementExpert(ABC):
 
 
 class SklearnExpert(EngagementExpert):
-    """Small, strongly regularised, class-weighted model (§8.3: at most 6 session-cameras per expert)."""
+    """Small, strongly regularised, class-balanced model (§8.3: at most 6 session-cameras per expert).
 
-    def __init__(self, model: str, seed: int = 0, feature_names=None, exp_id=None, **params):
-        self.model = build_classifier(model, seed, class_weight="balanced", **params)
+    Classes are balanced by `class_weight="balanced"` where the model supports it, and otherwise
+    (k-NN) by training on a random class-balanced subsample. `max_train_rows` caps the training
+    rows by a class-preserving random subsample, for models whose cost grows quickly with rows
+    (SVM with probabilities is roughly quadratic)."""
+
+    WEIGHTED = ("logreg", "random_forest", "svm")
+
+    def __init__(self, model: str, seed: int = 0, feature_names=None, exp_id=None,
+                 max_train_rows: int | None = None, **params):
+        self.name, self.seed, self.max_train_rows = model, seed, max_train_rows
+        extra = {"class_weight": "balanced"} if model in self.WEIGHTED else {}
+        self.model = build_classifier(model, seed, **extra, **params)
         self._constant: float | None = None
 
     def fit(self, X, y):
@@ -35,7 +45,17 @@ class SklearnExpert(EngagementExpert):
             self._constant = float(y.mean()) if len(y) else 0.5
             return self
         self._constant = None
-        self.model.fit(X, y)
+        keep = np.arange(len(y))
+        rng = np.random.default_rng(self.seed)
+        if self.name not in self.WEIGHTED:                      # balance by undersampling the majority class
+            n = min(np.bincount(y))
+            keep = np.concatenate([rng.choice(np.flatnonzero(y == c), n, replace=False) for c in (0, 1)])
+        if self.max_train_rows and len(keep) > self.max_train_rows:
+            keep = rng.choice(keep, self.max_train_rows, replace=False)
+        if self.name == "knn":                                  # k cannot exceed the training rows
+            k = self.model.get_params()["clf__n_neighbors"]
+            self.model.set_params(clf__n_neighbors=min(k, len(keep)))
+        self.model.fit(np.asarray(X)[keep], y[keep])
         return self
 
     def predict_proba(self, X):
@@ -72,3 +92,5 @@ class HandWeightedExpert(EngagementExpert):
 
 EXPERTS.register("logreg")(partial(SklearnExpert, "logreg"))
 EXPERTS.register("random_forest")(partial(SklearnExpert, "random_forest"))
+EXPERTS.register("svm")(partial(SklearnExpert, "svm"))
+EXPERTS.register("knn")(partial(SklearnExpert, "knn"))

@@ -46,6 +46,10 @@ class EngagementRows:
     window: np.ndarray     # (R,) index of each row's window in the window table
     exp: np.ndarray        # (R,) experiment id of each row (routes per-experiment training)
     y: np.ndarray          # (R,) training label: 1/0, NaN = unlabelled
+    # Optional, late rows only: each labeler's own label per row ({labeler: (R,) 1/0/NaN}) and
+    # whether that labeler rated the row's student at all ({labeler: (R,) bool}).
+    y_by_labeler: dict | None = None
+    rated_by: dict | None = None
 
 
 def early_rows(windows: pd.DataFrame, vec_cols: list[str]) -> tuple[np.ndarray, list[str], np.ndarray]:
@@ -98,10 +102,68 @@ def fit_predict(make_mixture: Callable[[], object], rows: EngagementRows, train_
 
 def predict_windows(mix, rows: EngagementRows, windows: np.ndarray, g: np.ndarray, fill: float) -> np.ndarray:
     """One probability per window in `windows`: each row gets its window's context g[...], and a
-    window's score is the mean over its rows."""
+    window's score is the mean over its rows. A LabelerEnsemble averages, per row, the labelers who
+    rated that row's student (`rows.rated_by`), or all of them where none did or nothing is known."""
     pos = np.full(int(max(rows.window.max(initial=0), windows.max(initial=0))) + 1, -1)
     pos[windows] = np.arange(len(windows))
     sel = np.isin(rows.window, windows)
     local = pos[rows.window[sel]]
-    p_rows = mix.predict_proba(rows.X[sel], g[local]) if sel.any() else np.zeros(0)
+    if not sel.any():
+        p_rows = np.zeros(0)
+    elif isinstance(mix, LabelerEnsemble):
+        p_rows = mix.predict_proba(rows.X[sel], g[local], mix.rated(rows, sel))
+    else:
+        p_rows = mix.predict_proba(rows.X[sel], g[local])
     return window_scores(p_rows, local, len(windows), fill)
+
+
+# ----------------------------------------------------------------------------- per-labeler ensemble
+
+class LabelerEnsemble:
+    """One mixture per labeler (config engagement.labelers = "ensemble"), each trained only on the
+    students that labeler rated, on that labeler's own label. Prediction averages the labelers who
+    rated the row's student; rows with no rating labeler (unlinked tracks, and every row at
+    inference, where nothing is known about labelers) average all of them."""
+
+    def __init__(self, mixtures: dict[str, object]):
+        self.mixtures = mixtures                                 # {labeler: fitted mixture}
+
+    def rated(self, rows: EngagementRows, sel: np.ndarray) -> np.ndarray | None:
+        if rows.rated_by is None:
+            return None
+        return np.stack([rows.rated_by.get(n, np.zeros(len(rows.window), bool))[sel] for n in self.mixtures], 1)
+
+    def predict_proba(self, X: np.ndarray, g: np.ndarray, rated: np.ndarray | None = None) -> np.ndarray:
+        P = np.stack([m.predict_proba(X, g) for m in self.mixtures.values()], 1)   # (rows, labelers)
+        w = np.ones_like(P) if rated is None else np.where(rated.any(1, keepdims=True), rated, True).astype(float)
+        return (P * w).sum(1) / w.sum(1)
+
+
+def fit_ensemble(make_mixture: Callable[[], object], rows: EngagementRows, train_windows: np.ndarray,
+                 exclude: tuple[str, ...] = ()) -> tuple[LabelerEnsemble, float]:
+    """fit_rows once per labeler on `rows.y_by_labeler` (labelers in `exclude` and labelers who rated
+    no training student are skipped). fill: mean of the per-labeler training label rates."""
+    if rows.y_by_labeler is None:
+        raise ValueError("labeler ensemble needs rows built with per-labeler labels (late aggregation)")
+    mixtures, fills = {}, []
+    for name, y in sorted(rows.y_by_labeler.items()):
+        if name in exclude or not np.isfinite(y[np.isin(rows.window, train_windows)]).any():
+            continue
+        one = EngagementRows(rows.X, rows.cols, rows.window, rows.exp, y)
+        mixtures[name], fill = fit_rows(make_mixture, one, train_windows)
+        fills.append(fill)
+    if not mixtures:
+        raise ValueError("no labeler rated any training student")
+    return LabelerEnsemble(mixtures), float(np.mean(fills))
+
+
+def fit_engagement(engagement_cfg: dict, make_mixture: Callable[[], object], rows: EngagementRows,
+                   train_windows: np.ndarray):
+    """The configured fit (config `engagement`): one mixture on consensus labels, or a per-labeler
+    ensemble when `labelers` is "ensemble". Returns (model, fill) for predict_windows."""
+    mode = engagement_cfg.get("labelers", "consensus")
+    if mode == "ensemble":
+        return fit_ensemble(make_mixture, rows, train_windows, tuple(engagement_cfg.get("ensemble_exclude", ())))
+    if mode != "consensus":
+        raise ValueError(f"engagement.labelers must be 'consensus' or 'ensemble', got {mode!r}")
+    return fit_rows(make_mixture, rows, train_windows)
