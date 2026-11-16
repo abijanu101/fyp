@@ -1,0 +1,47 @@
+{
+  "tracker": "strongsort",
+  "profile": "full_strongsort",
+  "search": "bisect",
+  "dataset": "aug1-4f270e71",
+  "n_sessions": 52,
+  "max_frames": null,
+  "fixed": {
+    "use_cmc": true
+  },
+  "objective": "idf1",
+  "baseline": {
+    "score": 0.8456760351235373,
+    "by_group": {
+      "group_01": 0.8157700888479406,
+      "group_02": 0.865247391695676,
+      "group_03": 0.8581852200016779
+    }
+  },
+  "best": {
+    "trial": 10,
+    "score": 0.8774314146984867,
+    "idf1": 0.8774314146984867,
+    "coverage": 0.9704138494395278,
+    "id_switches_per_subject": 20.8997484886908,
+    "tids_per_subject": 1.8297487768641612,
+    "subjects_found": 0.9982517482517482,
+    "n_tracks": 40.11538461538461,
+    "by_group": {
+      "group_01": 0.8540985893208275,
+      "group_02": 0.8950266378580141,
+      "group_03": 0.8851240417121211
+    }
+  },
+  "config_patch": {
+    "detector.conf": 0.1098,
+    "tracker.options": {
+      "min_conf": 0.255,
+      "max_cos_dist": 0.2249,
+      "max_iou_dist": 0.8207,
+      "max_age": 95,
+      "n_init": 3,
+      "use_cmc": true,
+      "det_thresh": 0.1098
+    }
+  }
+}

@@ -33,15 +33,22 @@ from src.output import write_graph_json, write_graph_png, write_manifest
 
 
 def parse_sets(pairs: list[str]) -> dict:
-    return {k: json.loads(v) for k, v in (p.split("=", 1) for p in pairs)}
+    """`key=value` overrides; the value is JSON, or a plain string when it is not valid JSON (so
+    `mixture.expert_scope=shared` works: Windows PowerShell 5.1 strips the quotes of '"shared"')."""
+    def value(v: str):
+        try:
+            return json.loads(v)
+        except ValueError:
+            return v
+    return {k: value(v) for k, v in (p.split("=", 1) for p in pairs)}
 
 
 def tracks_dir(cfg: dict) -> Path:
-    return Path(cfg["output_dir"]) / "tracks" / tracking_hash(cfg)[:12]
+    return Path(cfg["output_dir"]) / "cache" / "tracks" / tracking_hash(cfg)[:12]
 
 
 def features_dir(cfg: dict) -> Path:
-    return Path(cfg["output_dir"]) / "features" / feature_hash(cfg)[:12]
+    return Path(cfg["output_dir"]) / "cache" / "features" / feature_hash(cfg)[:12]
 
 
 def session_stem(key: SessionKey) -> str:
@@ -71,29 +78,40 @@ def cmd_extract(cfg: dict, session: str | None, reuse: bool) -> None:
         d.mkdir(parents=True, exist_ok=True)
         (d / "config.json").write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     pipe = Pipeline(cfg)
-    aug = cfg.get("augmentation", {})
-    jobs = [(key, None) for key in keys] + [(key, c) for c in range(1, aug.get("copies", 0) + 1) for key in keys]
+    jobs = extract_jobs(cfg, keys)
     for i, (key, copy) in enumerate(jobs, 1):
-        stem = session_stem(key) + ("" if copy is None else f".{aug_tag(aug, copy)}")
-        label = f"{key}" + ("" if copy is None else f" (augmented copy {copy})")
-        if reuse and (out / f"{stem}.csv").exists() and (out / f"{stem}.tracks.csv").exists():
-            print(f"[{i}/{len(jobs)}] {label}: features cached")
-            continue
-        params = None if copy is None else sample_augmentation(aug, str(key), copy)   # augmented on the fly
-        st, cached = session_track(pipe, index, key, reuse, stem, params)
-        feats = pipe.features(st)
-        feats.manifest["frame_pass_cached"] = cached
-        if params is not None:
-            feats.manifest["augmentation"] = {**params, "tag": aug_tag(aug, copy), "frame_wh": list(st.frame_wh)}
-        (out / f"{stem}.manifest.json").write_text(json.dumps(feats.manifest, indent=2, default=str),
-                                                   encoding="utf-8")
-        to_track_frame(feats).to_csv(out / f"{stem}.tracks.csv", index=False)   # per-student rows (late aggregation)
-        to_frame(feats).to_csv(out / f"{stem}.csv", index=False)   # written last: marks the session done
-        t, secs = st.timing, feats.manifest["stage_seconds"]
-        frame_pass = "cached" if cached else f"{sum(st.stage_seconds.values()):.0f}s"
-        print(f"[{i}/{len(jobs)}] {label}: {t['n_frames']} frames @ {t['fps']:.2f} fps, frame pass {frame_pass}, "
-              f"{len(feats.windows)} windows, {feats.manifest['n_tracklets']} tracklets "
-              f"({feats.manifest['n_raw_tracks']} raw) | " + " ".join(f"{k}={v:.1f}" for k, v in secs.items()))
+        print(f"[{i}/{len(jobs)}] " + extract_one(cfg, pipe, index, key, copy, reuse))
+
+
+def extract_jobs(cfg: dict, keys: list) -> list[tuple]:
+    """(session, copy) extraction jobs: every original (copy None), then augmented copies 1..N."""
+    aug = cfg.get("augmentation", {})
+    return [(key, None) for key in keys] + [(key, c) for c in range(1, aug.get("copies", 0) + 1) for key in keys]
+
+
+def extract_one(cfg: dict, pipe: Pipeline, index: DipserIndex, key: SessionKey, copy: int | None,
+                reuse: bool) -> str:
+    """Frame pass + feature pass of one session (or one augmented copy of it), written next to the
+    others; returns a one-line report. Shared by `extract` and scripts/parallel_runs.py."""
+    out, aug = features_dir(cfg), cfg.get("augmentation", {})
+    stem = session_stem(key) + ("" if copy is None else f".{aug_tag(aug, copy)}")
+    label = f"{key}" + ("" if copy is None else f" (augmented copy {copy})")
+    if reuse and (out / f"{stem}.csv").exists() and (out / f"{stem}.tracks.csv").exists():
+        return f"{label}: features cached"
+    params = None if copy is None else sample_augmentation(aug, str(key), copy)   # augmented on the fly
+    st, cached = session_track(pipe, index, key, reuse, stem, params)
+    feats = pipe.features(st)
+    feats.manifest["frame_pass_cached"] = cached
+    if params is not None:
+        feats.manifest["augmentation"] = {**params, "tag": aug_tag(aug, copy), "frame_wh": list(st.frame_wh)}
+    (out / f"{stem}.manifest.json").write_text(json.dumps(feats.manifest, indent=2, default=str), encoding="utf-8")
+    to_track_frame(feats).to_csv(out / f"{stem}.tracks.csv", index=False)   # per-student rows (late aggregation)
+    to_frame(feats).to_csv(out / f"{stem}.csv", index=False)   # written last: marks the session done
+    t, secs = st.timing, feats.manifest["stage_seconds"]
+    frame_pass = "cached" if cached else f"{sum(st.stage_seconds.values()):.0f}s"
+    return (f"{label}: {t['n_frames']} frames @ {t['fps']:.2f} fps, frame pass {frame_pass}, "
+            f"{len(feats.windows)} windows, {feats.manifest['n_tracklets']} tracklets "
+            f"({feats.manifest['n_raw_tracks']} raw) | " + " ".join(f"{k}={v:.1f}" for k, v in secs.items()))
 
 
 def cmd_infer(cfg: dict, zip_path: str, models_path: str, out_dir: str) -> None:

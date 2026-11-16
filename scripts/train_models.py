@@ -62,6 +62,7 @@ def load_table(cfg: dict) -> pd.DataFrame:
         df["y"] = [np.nan if l.engaged is None else l.engaged for l in labels]
         df["share"] = [l.share_engaged for l in labels]
         df["n_labeled"] = [l.n_labeled for l in labels]
+        df = df.copy()                       # defragment after the column-by-column build
         df["stem"], df["flip_width"], df["aug"] = csv.stem, 0, False
         parts.append(df)
     if not parts:
@@ -92,7 +93,7 @@ def with_augmented(cfg: dict, df: pd.DataFrame) -> pd.DataFrame:
                 raise SystemExit(f"{csv.name}: {len(a)} windows, original has {len(sdf)}")
             p = json.loads(manifest.read_text(encoding="utf-8"))["augmentation"]
             labels = sdf[["session", "group", "exp", "window_local", "y", "share", "n_labeled"]].reset_index(drop=True)
-            a = pd.concat([a, labels], axis=1)
+            a = pd.concat([a, labels], axis=1).copy()
             a["session"] = a["session"] + f"#{tag}"
             a["stem"], a["flip_width"], a["aug"] = stem, p["frame_wh"][0] if p["hflip"] else 0, True
             parts.append(a)

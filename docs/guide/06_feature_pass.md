@@ -196,7 +196,7 @@ The tests check the identity the design relies on: within² + between² = total�
 ## 6.7 The saved feature table
 
 `to_frame(feats)` builds the window table, and `run_pipeline extract` saves it as one CSV per
-session under `outputs/features/<feature hash>/`, with one row per window:
+session under `outputs/cache/features/<feature hash>/`, with one row per window:
 
 ```
 t_start, t_end, vec.n_tracks, vec.kg.speed.mean, vec.kg.speed.std, ..., scene.motion.mean, ...

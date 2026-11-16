@@ -16,9 +16,9 @@ errors propagate into every downstream number.
 |---|---|---|---|
 | D1 | Detector: full grid scan of the confidence threshold, clean data (§3) | done | 0.22 drops no student; mean recall 0.994 |
 | D2 | Detector: binary search for the optimal threshold, clean data (§3) | done | 0.166 keeps every student within 10 points of the floor |
-| D3 | Detector: binary search under on-the-fly augmentation (§3) | to be run | |
+| D3 | Detector: binary search under on-the-fly augmentation (§3) | done | **0.110** keeps every student within 10 points of the floor; 0.22 fails under augmentation |
 | T1 | Trackers on clean data: BoT-SORT without ReID, StrongSORT; random search, 20 trials (§6) | done | BoT-SORT 0.905 IDF1, StrongSORT 0.878 |
-| T2 | Trackers on augmented data: BoT-SORT, BoT-SORT + ReID + CMC, StrongSORT; beam bisection (§6) | to be run | |
+| T2 | Trackers on augmented data: BoT-SORT, BoT-SORT + ReID + CMC, StrongSORT; beam bisection (§6) | done | **BoT-SORT + ReID + CMC 0.930 IDF1**, BoT-SORT 0.914, StrongSORT 0.877 |
 
 ## 2. Phase 1: validation notebook (`notebooks/dipser_tracking.ipynb`)
 
@@ -127,7 +127,7 @@ student but add 4 points of boxes that are not students, which the tracker then 
 tracker searches choose `det_conf` on IDF1, which weighs both sides; the detector search isolates
 the recall side. Whether to lower `detector.conf` is therefore settled by the tracker experiments.
 
-#### D3. Binary search under augmentation (running)
+#### D3. Binary search under augmentation (done, 16 November 2026)
 
 The detector is a single point of failure, so it is also tested on degraded footage: all 52
 sessions, **every frame augmented on the fly 5 times**, each variant with its own independently
@@ -143,7 +143,24 @@ The floor reference is the augmented variants' own floor detections. Run in the 
 | | Optimal threshold | Configured 0.22 keeps every student | Mean recall at 0.22 | Lowest at 0.22 | Unmatched boxes at 0.22 |
 |---|---|---|---|---|---|
 | D2, clean | 0.166 | no (one student) | 0.994 | 0.699 | 19.1% |
-| D3, augmented | *to be run* | *to be run* | | | |
+| D3, augmented | **0.1098** | **no (22 students lose more than 10 points)** | 0.978 | 0.590 | 14.5% |
+
+343,135 augmented images (every frame of the 52 sessions, 5 variants each), 621 student-sessions.
+Under augmentation the detector's confidences drop, so 0.22, which loses one student on clean data,
+loses 22 by more than 10 recall points (4 by more than 25; the worst drops 39 points). Per threshold:
+
+| Threshold | Mean recall | 10th percentile | Lowest | Lose > 10 points vs floor | Unmatched boxes |
+|---|---|---|---|---|---|
+| 0.05 (floor) | 0.993 | 0.988 | 0.943 | 0 | 37.9% |
+| **0.1098 (optimal)** | **0.990** | **0.983** | **0.877** | **0** | **24.9%** |
+| 0.22 (configured until D3) | 0.978 | 0.954 | 0.590 | 22 | 14.5% |
+
+**Decision: `detector.conf` = 0.1098 for the rest of FYP-1** (set by `configs/derived.py` from
+`outputs/tuning/detector_search_augmented.json`). It is the highest threshold that keeps every
+student, on degraded footage, within 10 points of the floor; the price is more boxes that are not
+students (24.9% against 14.5%), which the tracker's own thresholds handle (T2 tunes them with this
+threshold fixed). The clean-data optimum (0.166, D2) is above it, so 0.1098 also keeps every student
+on clean footage.
 
 ### Tracker wrapper
 
@@ -357,7 +374,7 @@ Best parameters (trial 14): `det_conf 0.276, min_conf 0.410, max_cos_dist 0.350,
   within 0.01 of each other with different parameters: the bisection refinement (T2) starts from
   the winners rather than expecting large gains.
 
-### T2. Augmented data: BoT-SORT, BoT-SORT with ReID and CMC, StrongSORT (to be run)
+### T2. Augmented data: BoT-SORT, BoT-SORT with ReID and CMC, StrongSORT (done, 16 November 2026)
 
 **Setup.** The same 52 sessions on augmented copy 1 (one fixed setting per session copy: colour,
 brightness ±35, gamma, sensor noise up to 0.35, horizontal flip with p 0.5, grey occluders with
@@ -373,9 +390,55 @@ and StrongSORT only store that value (BoxMOT 26: CMC masks with `cmc_min_conf` o
 
 | Tracker | Profile | Starts from | Trials (one level) | Clean IDF1 of the start | Trial 0 on augmented | Best on augmented | Change vs clean |
 |---|---|---|---|---|---|---|---|
-| BoT-SORT, no ReID | `full` | its T1 winner | 26 | 0.905 | *to be run* | | |
-| BoT-SORT + ReID + CMC | `full_reid_cmc` | **vanilla BoT-SORT's** T1 winner | 34 | 0.905 (as vanilla) | *to be run* | | |
-| StrongSORT | `full_strongsort` | its T1 winner | 22 | 0.878 | *to be run* | | |
+| BoT-SORT, no ReID | `full` | its T1 winner | 26 | 0.905 | 0.899 | 0.914 (trial 15) | −0.006 at the start |
+| BoT-SORT + ReID + CMC | `full_reid_cmc` | **vanilla BoT-SORT's** T1 winner | 34 | 0.905 (as vanilla) | 0.901 | **0.930** (trial 30) | −0.004 at the start |
+| StrongSORT | `full_strongsort` | its T1 winner | 22 | 0.878 | 0.846 | 0.877 (trial 10) | −0.032 at the start |
+
+All three with `detector.conf` fixed at D3's 0.1098 (trial 0 is each start under that threshold on
+augmented copy 1). The best of each, mean over the 52 sessions:
+
+| | BoT-SORT | **BoT-SORT + ReID + CMC** | StrongSORT |
+|---|---|---|---|
+| IDF1 | 0.914 | **0.930** | 0.877 |
+| IDF1 per group G01 / G02 / G03 | 0.903 / 0.920 / 0.918 | **0.923 / 0.937 / 0.931** | 0.854 / 0.895 / 0.885 |
+| Coverage | 0.963 | 0.958 | 0.970 |
+| ID switches per subject | 1.50 | 2.06 | 20.9 |
+| Track ids per subject | 1.35 | 1.34 | 1.83 |
+| Subjects found | 0.986 | 0.989 | 0.998 |
+| Tracking cost per frame | ~2 ms | ~120–165 ms (ReID; embeddings cached for the search) | ~120–165 ms |
+
+Best parameters (the `config_patch` of each `_bisect.json`):
+
+- BoT-SORT + ReID + CMC: `track_high_thresh 0.2852, track_low_thresh 0.1745, new_track_thresh
+  0.5479, match_thresh 0.7111, max_lost_frames 96, proximity_thresh 0.7726, appearance_thresh
+  0.2857` (ReID and CMC on).
+- BoT-SORT: `track_high_thresh 0.2568, track_low_thresh 0.2058, new_track_thresh 0.2979,
+  match_thresh 0.8587, max_lost_frames 96` (ReID off, CMC on).
+- StrongSORT: `min_conf 0.255, max_cos_dist 0.2249, max_iou_dist 0.8207, max_age 95, n_init 3`.
+
+Readings:
+
+- **The tuned trackers hardly degrade on augmented footage** (−0.004 to −0.006 IDF1 at the
+  BoT-SORT starts), once the detection threshold follows D3; StrongSORT degrades more (−0.032).
+- **ReID earns its place on degraded footage**: +0.016 IDF1 over the same tracker without it, in
+  every group. On clean data (quick clips, T1) it had not beaten tuned motion-only BoT-SORT.
+- **Both BoT-SORT winners keep tracks longer** (`max_lost_frames` 96, about 19 s at 5 fps, against
+  25 for the T1 winner): with the lower detection threshold, a lost student is worth waiting for.
+- **ID switches rise with ReID** (2.06 against 1.50 per subject) while IDF1 is higher and track ids per
+  subject are about the same: IDF1 weighs how much of each student's time one identity covers,
+  switches count every change. How long the extra switches last was not measured.
+- **StrongSORT stays last**, with ten times the ID switches of BoT-SORT.
+
+**How it was run.** All three scans at once with the parallel launcher (`scripts/parallel_runs.py
+tracker-scans`), after D3 in the same command: a prepare stage (augmented detections and ReID
+embeddings, one decode per session) and the three searches sharing decoded frames in 5 worker
+processes. D3 ended at 03:10 and T2 at 09:34: about 6.4 hours for 82 full-dataset trials,
+preparation included, where the serial tool needed about an hour per trial. The launcher's results
+are identical to `tune_tracker`'s (checked trial by trial with CMC on and off).
+
+```
+python -m scripts.scan_detector --augment --workers 4; if ($?) { python -m scripts.parallel_runs tracker-scans --augment 1 --trials 26 34 22 --workers 5 --gpu-workers 2 --det-conf-from outputs/tuning/detector_search_augmented.json }
+```
 
 A clean BoT-SORT + ReID search was started and stopped before its first trial completed (15
 November 2026): its only purpose was a starting point, and vanilla BoT-SORT's winner serves.
@@ -386,16 +449,20 @@ python -m scripts.tune_tracker --profile full_reid_cmc --augment 1 --trials 34
 python -m scripts.tune_tracker --profile full_strongsort --augment 1 --trials 22
 ```
 
-With CMC on, a full-dataset trial takes about an hour, so one level is about a day per tracker
-(`--beam 1` halves it). Results: `outputs/tuning/tracker_<tracker>_<profile>_<aug tag>_bisect.{csv,json}`.
+Results: `outputs/tuning/tracker_<tracker>_<profile>_aug1-4f270e71_bisect.{csv,json}` and the
+per-session `.sessions.jsonl`. The serial equivalents (`tune_tracker --profile ... --augment 1
+--det-conf-from ...`) resume the same files.
 
 ## 7. Tracker decision
 
-Interim, on T1: **BoT-SORT without ReID** is the default tracker (it is already configured with
-quick-tuned values; the T1 winner improves on them, 0.905 against 0.888). T2 decides whether ReID
-earns its cost on degraded footage, and whether the default's parameters should move to values
-that hold up under augmentation. Apply the final winner's `config_patch` to the config, then
-re-run the frame pass.
+**Final (16 November 2026): BoT-SORT with ReID and CMC, with T2's winning parameters, at
+`detector.conf` 0.1098 (D3).** It has the best IDF1 on augmented footage (0.930) and in every group;
+T1 made BoT-SORT the family, T2 shows ReID adds 0.016 on degraded footage. The cost is the ReID
+model in the frame pass (about 120–165 ms per frame, roughly doubling extraction time; Chapter 5).
+`configs/derived.py` applies D3's threshold and the T2 winner's `config_patch` to every config load,
+from the results files themselves, so the frame pass of the full run uses exactly these values.
+
+Until 16 November: BoT-SORT without ReID with quick-tuned values was the interim default.
 
 ## 8. Engineering issues encountered
 

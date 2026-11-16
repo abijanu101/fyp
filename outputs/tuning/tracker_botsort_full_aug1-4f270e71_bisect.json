@@ -1,0 +1,51 @@
+{
+  "tracker": "botsort",
+  "profile": "full",
+  "search": "bisect",
+  "dataset": "aug1-4f270e71",
+  "n_sessions": 52,
+  "max_frames": null,
+  "fixed": {
+    "use_embeddings": false,
+    "use_cmc": true
+  },
+  "objective": "idf1",
+  "baseline": {
+    "score": 0.8987789145507222,
+    "by_group": {
+      "group_01": 0.8818691698305502,
+      "group_02": 0.9092101611361048,
+      "group_03": 0.9064164400838871
+    }
+  },
+  "best": {
+    "trial": 15,
+    "score": 0.9137007641453371,
+    "idf1": 0.9137007641453371,
+    "coverage": 0.9633594476368206,
+    "id_switches_per_subject": 1.4991354799047107,
+    "tids_per_subject": 1.3532317041932427,
+    "subjects_found": 0.9855232908117523,
+    "n_tracks": 20.307692307692307,
+    "by_group": {
+      "group_01": 0.9034943793309511,
+      "group_02": 0.9203833271496067,
+      "group_03": 0.9179670929559285
+    }
+  },
+  "config_patch": {
+    "detector.conf": 0.1098,
+    "tracker.options": {
+      "track_high_thresh": 0.2568,
+      "track_low_thresh": 0.2058,
+      "new_track_thresh": 0.2979,
+      "match_thresh": 0.8587,
+      "max_lost_frames": 96,
+      "proximity_thresh": 0.7451,
+      "appearance_thresh": 0.5429,
+      "use_embeddings": false,
+      "use_cmc": true,
+      "det_thresh": 0.1098
+    }
+  }
+}

@@ -107,8 +107,8 @@ python scripts/data_visualization/player.py data/DIPSER/DIPSEER                 
 
 | Path | Contents | Keyed by |
 |---|---|---|
-| `tracks/<hash>/` | frame pass per session: raw tracklets, pixel signals, scene features | detector, tracker, ingestion, scene, pixel-level BFMU |
-| `features/<hash>/` | per session: window rows (Vec + scene, `<session>.csv`) and per-student rows (`<session>.tracks.csv`) | the above + tracklets, BFMU, CFMU, window, aggregation |
+| `cache/tracks/<hash>/` | frame pass per session: raw tracklets, pixel signals, scene features | detector, tracker, ingestion, scene, pixel-level BFMU |
+| `cache/features/<hash>/` | per session: window rows (Vec + scene, `<session>.csv`) and per-student rows (`<session>.tracks.csv`) | the above + tracklets, BFMU, CFMU, window, aggregation |
 | `cache/detections/` | detections at a low confidence floor and ReID embeddings, for tracker tuning | detector |
 | `results/<hash>.json`, `models/<hash>.joblib` | evaluation and trained models | full config |
 | `plots/<hash>/` | held-out engagement curves (`plot_results`) | full config |

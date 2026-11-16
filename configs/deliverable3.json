@@ -1,4 +1,5 @@
 {
+  "derived": "configs/derived.py",
   "seed": 0,
   "dataset": {
     "root": "data/DIPSER",

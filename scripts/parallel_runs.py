@@ -2,6 +2,14 @@
 
   python -m scripts.parallel_runs tracker-scans --augment 1 [--profiles full full_reid_cmc full_strongsort]
                                  [--trials 26 34 22] [--workers 5] [--gpu-workers 2] [--beam 2]
+  python -m scripts.parallel_runs extract --set augmentation.copies=8 [--workers 3]
+
+extract
+  `run_pipeline extract --reuse` with several recordings at once: one worker process per recording,
+  each holding its own pipeline (detector, ReID, SCB on the GPU). Jobs run in run_pipeline's order
+  (originals, then every session's copy 1, then copy 2, ...), so the copies finish in layers and
+  training at copies=k can start once layer k is done. Finished recordings are skipped (the
+  window .csv is written last), so it is resumable and raising `copies` only extracts the new ones.
 
 tracker-scans
   The augmented tracker scans (docs/experiments/02_boxmot.md, T2), all at once:
@@ -99,6 +107,30 @@ def track_session(spec: dict, requests: list[tuple[str, dict, float]]) -> list[d
                                       spec["max_frames"], spec["augment"])
     return [tracking_metrics(tracks, spec["subjects"], len(sd.dets), spec["min_iou"])
             for tracks in run_trackers(sd, requests)]
+
+
+_PIPE = None
+
+
+def _extract_init(cfg: dict, threads: int) -> None:
+    """Worker start-up: one pipeline per process, a fair share of the CPU threads."""
+    global _PIPE
+    import cv2
+    import torch
+
+    from src.core.pipeline import Pipeline
+    cv2.setNumThreads(threads)
+    torch.set_num_threads(threads)
+    _PIPE = Pipeline(cfg)
+
+
+def extract_job(cfg: dict, key_str: str, copy) -> str:
+    """One recording (or augmented copy) through run_pipeline's extract_one, with --reuse."""
+    from scripts.run_pipeline import extract_one
+    from src.core.types import SessionKey
+    from src.datasets import DipserIndex
+
+    return extract_one(cfg, _PIPE, DipserIndex.from_config(cfg), SessionKey(*key_str.split("/")), copy, True)
 
 
 # ----------------------------------------------------------------------------- the session pool
@@ -255,6 +287,40 @@ def tracker_scans(args) -> None:
         print(f"{label}: {'FAILED: ' + repr(r) if isinstance(r, BaseException) else 'best ' + format(r['best']['score'], '.3f')}")
 
 
+def extract(args) -> None:
+    import json
+    import os
+
+    from scripts.run_pipeline import extract_jobs, features_dir, session_stem, tracks_dir
+    from src.datasets import DipserIndex
+    from src.ingestion import aug_tag
+
+    cfg = load_config(args.config, parse_sets(args.set))
+    out, aug = features_dir(cfg), cfg.get("augmentation", {})
+    for d in (out, tracks_dir(cfg)):
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "config.json").write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    def done(key, copy) -> bool:
+        stem = session_stem(key) + ("" if copy is None else f".{aug_tag(aug, copy)}")
+        return (out / f"{stem}.csv").exists() and (out / f"{stem}.tracks.csv").exists()
+
+    jobs = extract_jobs(cfg, DipserIndex.from_config(cfg).sessions())
+    todo = [(k, c) for k, c in jobs if not done(k, c)]
+    print(f"extract: {len(jobs) - len(todo)} of {len(jobs)} recordings already done, {len(todo)} to go "
+          f"on {args.workers} workers -> {out}", flush=True)
+    if not todo:
+        return
+    threads = max(1, (os.cpu_count() or 1) // args.workers)
+    start = time.monotonic()
+    with ProcessPoolExecutor(args.workers, initializer=_extract_init, initargs=(cfg, threads)) as ex:
+        futs = [ex.submit(extract_job, cfg, str(k), c) for k, c in todo]
+        for n, f in enumerate(as_completed(futs), 1):
+            el = time.monotonic() - start
+            print(f"[{n}/{len(todo)}] {f.result()}  ({el / 3600:.2f} h, ~{el / n * (len(todo) - n) / 3600:.1f} h left)",
+                  flush=True)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="command", required=True)
@@ -268,12 +334,16 @@ def main() -> None:
     t.add_argument("--fix-det-conf", action="store_true", help="keep the detection threshold at detector.conf")
     t.add_argument("--det-conf-from", metavar="JSON",
                    help="detector.conf from a detector scan's result (D3: outputs/tuning/detector_search_augmented.json), fixed")
-    for p in (t,):
+    e = sub.add_parser("extract", help="run_pipeline extract --reuse, several recordings at once")
+    e.add_argument("--workers", type=int, default=3, help="worker processes, each with its own pipeline on the GPU")
+    for p in (t, e):
         p.add_argument("--config", default="configs/deliverable3.json")
         p.add_argument("--set", nargs="*", default=[])
     args = ap.parse_args()
     if args.command == "tracker-scans":
         tracker_scans(args)
+    elif args.command == "extract":
+        extract(args)
 
 
 if __name__ == "__main__":

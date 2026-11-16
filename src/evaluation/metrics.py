@@ -4,7 +4,8 @@ agreement.py, tracking quality in tracking.py."""
 from __future__ import annotations
 
 import numpy as np
-from sklearn.metrics import balanced_accuracy_score, f1_score, precision_recall_fscore_support, roc_auc_score
+from sklearn.metrics import (balanced_accuracy_score, confusion_matrix, f1_score, precision_recall_fscore_support,
+                             roc_auc_score)
 
 
 def binary_metrics(y: np.ndarray, p: np.ndarray, tau: float = 0.5) -> dict:
@@ -63,4 +64,7 @@ def rating_metrics(rating: np.ndarray, pred: np.ndarray, tau_att: float) -> dict
         "auc": float(roc_auc_score(yb, p)) if both else np.nan,
         "balanced_acc": float(balanced_accuracy_score(yb, pb)) if both else np.nan,
         "engaged_rate": float(yb.mean()),
+        # rows = true rating 1-5 / not engaged, engaged; columns = predicted (rounded) the same way
+        "confusion": confusion_matrix(yi, cls, labels=[1, 2, 3, 4, 5]).tolist(),
+        "confusion_binary": confusion_matrix(yb, pb, labels=[0, 1]).tolist(),
     }

@@ -39,10 +39,10 @@ python -m scripts.run_pipeline extract [--session group_01/experiment_03/context
 For each in-scope session (or the one given), it runs both passes and writes:
 
 ```
-outputs/tracks/<tracking hash>/<session>.npz              the SessionTrack (frame pass)
-outputs/features/<feature hash>/<session>.csv             window rows
-outputs/features/<feature hash>/<session>.manifest.json   timing, stage seconds, hashes
-outputs/features/<feature hash>/<session>.tracks.csv      per-student rows (late aggregation)
+outputs/cache/tracks/<tracking hash>/<session>.npz        the SessionTrack (frame pass)
+outputs/cache/features/<feature hash>/<session>.csv       window rows
+outputs/cache/features/<feature hash>/<session>.manifest.json timing, stage seconds, hashes
+outputs/cache/features/<feature hash>/<session>.tracks.csv per-student rows (late aggregation)
 ```
 
 **By default nothing is read back.** Every session runs the full frame pass, so each manifest's
@@ -503,8 +503,8 @@ projected for a 45-minute session. Run it on an otherwise idle machine.
 
 | Folder | Contents | In git? |
 |---|---|---|
-| `outputs/cache/` | detections and ReID embeddings for tuning: large, regenerable | no |
-| `outputs/tracks/`, `outputs/features/` | frame-pass and feature-pass results | yes |
+| `outputs/cache/detections*/` | detections and ReID embeddings for tuning: large, regenerable | no |
+| `outputs/cache/tracks/`, `outputs/cache/features/` | frame-pass and feature-pass results: regenerable with `run_pipeline extract` | no |
 | `outputs/results/`, `outputs/models/` | evaluation results, trained model bundles | yes |
 | `outputs/plots/` | held-out engagement curves from `plot_results` | yes |
 | `outputs/augmentation/` | augmentation samples and extremes from `augment_samples` | yes |
@@ -512,6 +512,6 @@ projected for a 45-minute session. Run it on an otherwise idle machine.
 | `outputs/labels/`, `outputs/label_plots/`, `outputs/scb_check/` | dataset inspection outputs | yes |
 | `tmp/` | working files that need to live a while (test runs, one-off scripts) | no |
 
-Everything under `outputs/` except the cache is meant to be shared. `outputs/tracks/` grows by
-about 50 MB per tracker configuration extracted; if that becomes heavy, it is the next candidate
-for the ignore list. Model bundles (`.joblib`) are pickles: only load ones you trust.
+Everything under `outputs/` except the cache is meant to be shared. The cache holds every
+intermediate a script can rebuild from the dataset and the config (detections, frame-pass tracks,
+window features), keyed by hash, so a fresh clone regenerates it rather than pulling it. Model bundles (`.joblib`) are pickles: only load ones you trust.

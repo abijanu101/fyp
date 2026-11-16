@@ -15,7 +15,7 @@ lib/StrongSORT/
 # WongKinYiu/yolov7 @ a207844: model code needed to load the SCB behaviour checkpoints
 lib/yolov7/
 
-# pipeline outputs are shared, except the large regenerable caches (detections, ReID embeddings)
+# pipeline outputs are shared, except the large regenerable caches (detections, ReID embeddings, frame-pass tracks, window features)
 outputs/cache/
 
 # scratch space for working files that need to live for a while (tests, intermediate runs)

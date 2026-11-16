@@ -9,13 +9,21 @@ from pathlib import Path
 from typing import Any
 
 # None of these changes what a run produces: output_dir is where it goes; tuning and benchmark only
-# drive their own scripts.
-HASH_EXCLUDED_KEYS = ("output_dir", "tuning", "benchmark")
+# drive their own scripts; derived / derived_from name where derived values came from (the values
+# themselves are in the config, and hashed).
+HASH_EXCLUDED_KEYS = ("output_dir", "tuning", "benchmark", "derived", "derived_from")
 
 
 def load_config(path: str | Path, overrides: dict[str, Any] | None = None) -> dict:
-    """Load a JSON config and apply dotted-key overrides, e.g. {"window.length_s": 10}."""
+    """Load a JSON config, apply its derived module (key `derived`, src/core/derive.py: values that
+    come from experiment results), then dotted-key overrides, e.g. {"window.length_s": 10}."""
     cfg = json.loads(Path(path).read_text(encoding="utf-8"))
+    if cfg.get("derived"):
+        from .derive import derived_values
+        values, sources = derived_values(cfg["derived"])
+        for dotted, value in values.items():
+            set_dotted(cfg, dotted, copy.deepcopy(value))
+        cfg["derived_from"] = sources
     for dotted, value in (overrides or {}).items():
         set_dotted(cfg, dotted, value)
     return cfg
