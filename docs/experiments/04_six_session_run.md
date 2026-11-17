@@ -30,7 +30,7 @@ Commands, per session, then once:
 python -m scripts.run_pipeline extract --reuse --session <group>/<experiment>/context_cam_01 \
     --set output_dir="tmp/e2e6" labels.tau_att=3 labels.tau_share=0.6
 python -m scripts.train_models --set output_dir="tmp/e2e6" labels.tau_att=3 labels.tau_share=0.6
-python -m scripts.plot_results --set output_dir="tmp/e2e6" labels.tau_att=3 labels.tau_share=0.6
+python -m scripts.reporting.plot_results --set output_dir="tmp/e2e6" labels.tau_att=3 labels.tau_share=0.6
 python -m scripts.run_pipeline infer --zip data/DIPSER/DIPSEER/group_01/experiment_03/context_cam_01.zip \
     --models outputs/cache/e2e6/models/<hash>.joblib --out outputs/experiments/04_six_session/infer_g1e3 --set ...
 ```

@@ -16,7 +16,7 @@ tracker-scans
   1. prepare  every session's floor-level detections and, where a scan can use ReID, its embeddings,
               in GPU worker processes: each session's frames are decoded and augmented ONCE for both
               (tune_tracker would read them twice, one session at a time).
-  2. search   one thread per scan runs that scan's beam bisection (scripts/tune_tracker.py, Scan).
+  2. search   one thread per scan runs that scan's beam bisection (scripts/tuning/tune_tracker.py, Scan).
               Their trials go to one pool of worker processes that works session by session: a
               worker takes ALL pending trials of ALL scans for one session, decodes and augments
               each frame once and feeds it to every one of those trackers (run_trackers). Every
@@ -50,7 +50,7 @@ from src.core.config import load_config
 def prepare_session(cfg: dict, key_str: str, max_frames, floor: float, aug_params, aug_tag, reid_tracker):
     """Detections at the floor and, if reid_tracker is given, ReID embeddings for one session, from one
     pass of decoded (and augmented) frames. Writes the caches tune_tracker reads; skips what exists."""
-    from scripts.tune_tracker import REID_MODEL, SessionDetections
+    from scripts.tuning.tune_tracker import REID_MODEL, SessionDetections
     from src.core.pipeline import Pipeline
     from src.core.types import SessionKey
     from src.datasets import DipserIndex
@@ -99,7 +99,7 @@ def track_session(spec: dict, requests: list[tuple[str, dict, float]]) -> list[d
     returns their tracking metrics in order."""
     from pathlib import Path
 
-    from scripts.tune_tracker import SessionDetections, run_trackers
+    from scripts.tuning.tune_tracker import SessionDetections, run_trackers
     from src.core.types import SessionKey
     from src.evaluation import tracking_metrics
 
@@ -224,12 +224,12 @@ class SessionPool:
 # ----------------------------------------------------------------------------- tracker-scans
 
 def tracker_scans(args) -> None:
-    from scripts.tune_tracker import Scan, needs_embeddings, profile_setup
+    from scripts.tuning.tune_tracker import Scan, needs_embeddings, profile_setup
     from src.core.types import SessionKey
     from src.datasets import DipserIndex
     from src.ingestion import aug_tag, sample_augmentation
 
-    from scripts.tune_tracker import apply_det_conf
+    from scripts.tuning.tune_tracker import apply_det_conf
 
     cfg = load_config(args.config, parse_sets(args.set))
     fix = apply_det_conf(cfg, args.det_conf_from) or args.fix_det_conf

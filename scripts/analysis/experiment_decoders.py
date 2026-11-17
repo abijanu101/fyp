@@ -1,9 +1,9 @@
 """Experiment 2: every classical decoder, trained on groups 1-2 clean or with augmented copies,
 tested on group 3, clean and augmented (reported separately).
 
-  python -m scripts.experiment_decoders --extract     # long (hours), resumable: features for every
+  python -m scripts.analysis.experiment_decoders --extract     # long (hours), resumable: features for every
                                                       # session, then augmented copies of groups 1-2
-  python -m scripts.experiment_decoders               # evaluation from the caches (resumable)
+  python -m scripts.analysis.experiment_decoders               # evaluation from the caches (resumable)
 
 Training sets (`--copies`, default 0 1 2): groups 1-2 clean, + 1 augmented copy, + 2 copies.
 Splits (training never contains group 3 in any form):

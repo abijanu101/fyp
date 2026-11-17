@@ -3,7 +3,7 @@ import argparse, glob, json, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 import cv2
-import scripts.output_viewer as ov
+import scripts.data_visualization.output_viewer as ov
 
 cfg = json.loads(Path(sorted(glob.glob("outputs/experiments/05_per_labeler/results/*.json"))[-1]).read_text())["config"]
 cfg["output"]["prediction"] = sys.argv[1] if len(sys.argv) > 1 else "per_labeler"

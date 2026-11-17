@@ -1,6 +1,6 @@
 """Save augmentation samples for visual review (config `augmentation`).
 
-  python -m scripts.augment_samples [--sessions g/e/c ...] [--copies 4] [--at 30] [--set ...]
+  python -m scripts.data_visualization.augment_samples [--sessions g/e/c ...] [--copies 4] [--at 30] [--set ...]
 
 For each session, one frame (--at seconds in) rendered through AugmentedZipFrameSource, the same
 code the training copies use, with the manual student boxes drawn (mirrored when flipped):

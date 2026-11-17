@@ -1,8 +1,8 @@
 """Which detector confidence threshold keeps every student? A tracker-free check against the manual boxes.
 
-  python -m scripts.scan_detector                      # binary search for the optimal threshold
-  python -m scripts.scan_detector --grid [--thresholds 0.05 0.1 ...]   # full table instead
-  python -m scripts.scan_detector --augment [--variants 5 5]            # under augmentation (hours, resumable)
+  python -m scripts.tuning.scan_detector                      # binary search for the optimal threshold
+  python -m scripts.tuning.scan_detector --grid [--thresholds 0.05 0.1 ...]   # full table instead
+  python -m scripts.tuning.scan_detector --augment [--variants 5 5]            # under augmentation (hours, resumable)
 
 For a threshold, each frame's boxes with conf >= threshold are matched one-to-one (Hungarian on
 IoU >= association.min_iou) to the manual student boxes, the rule the tracker is scored with. Per
@@ -46,7 +46,7 @@ import pandas as pd
 from scipy.optimize import linear_sum_assignment
 
 from scripts.run_pipeline import parse_sets, session_stem
-from scripts.tune_tracker import SessionDetections
+from scripts.tuning.tune_tracker import SessionDetections
 from src.core.config import config_hash, load_config
 from src.core.pipeline import Pipeline
 from src.core.types import Frame
@@ -192,7 +192,7 @@ def main() -> None:
     def detector():
         if not (args.detect or args.augment):
             raise SystemExit("no cached detections for a session: add --detect to run the detector, or run "
-                             "`python -m scripts.tune_tracker --profile full` (it caches every session first)")
+                             "`python -m scripts.tuning.tune_tracker --profile full` (it caches every session first)")
         return pipe.detector
 
     suffix = "_augmented" if args.augment else ""

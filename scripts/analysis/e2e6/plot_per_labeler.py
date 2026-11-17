@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 import scripts.train_models as tm
-import scripts.plot_results as pr
+import scripts.reporting.plot_results as pr
 from scripts.run_pipeline import parse_sets
 from src.core.config import load_config
 

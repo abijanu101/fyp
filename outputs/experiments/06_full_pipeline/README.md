@@ -2,7 +2,7 @@
 
 Results files are in `outputs/results/<hash>.json`; logs of the training runs are in `logs/`
 (`label_agreement.log` is Part 1's analysis, whose tables are in `outputs/labels/agreement.json`).
-Each arm is `python -m scripts.train_models --config docs/experiments/06_full_pipeline.json` plus the
+Each arm is `python -m scripts.train_models --config docs/experiments/06_full_pipeline_and_labels.json` plus the
 setting shown (docs/experiments/06_full_pipeline_and_labels.md §2.2).
 
 | Arm | Setting | Results |

@@ -9,7 +9,7 @@ grid, and proposes a role for each combination. **The decisions are left open** 
 §6).
 
 Numbers: all 483 labelled student-sessions, step labels (Chapter 13 of the guide, O25),
-`python -m scripts.label_baselines --grid`.
+`python -m scripts.labels.label_baselines --grid`.
 
 ## 1. In short
 
@@ -219,7 +219,7 @@ point of 3" and is much higher than the exact share: per second × median × exp
 | GitHub project | **per frame × majority × experts**, labelers 01–04 only | binary (1–2 / 3–5); tied frames and mixed 10-frame windows dropped | §3.4 |
 | Liu et al. 2025 | unknown | | §3.2 |
 | **This pipeline (training labels)** | **per window × median × experts + self** | thresholded at `tau_att`, then share ≥ `tau_share` | Chapter 13 |
-| `scripts/label_baselines.py` default output | per second × {mean × experts, majority × experts + self, majority × experts, all × experts + self} | | §1 |
+| `scripts/labels/label_baselines.py` default output | per second × {mean × experts, majority × experts + self, majority × experts, all × experts + self} | | §1 |
 | Krippendorff's α (`inspect_labels`) | per window midpoint × all × experts + self, and × experts (point values, not window means) | | Chapter 13, O22 |
 
 No published work uses per label. To compare with them, the unit has to be per second (or per

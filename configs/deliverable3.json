@@ -37,7 +37,7 @@
   "gate_uses_vec": false,
   "context_mode": "classified",
 
-  "expert": {"name": "logreg", "params": {"C": 0.1}},
+  "expert": {"name": "logreg", "pca": null, "params": {"C": 0.1}},
   "hand_weighted": {
     "weights": {"vec.kg.stillness.mean": 1.0, "vec.scb.write.mean": 1.0, "vec.scb.read.mean": 0.5,
                 "vec.scb.hand_raising.mean": 0.5},

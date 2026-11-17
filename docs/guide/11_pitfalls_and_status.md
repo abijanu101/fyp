@@ -119,7 +119,7 @@ nothing. Put comments on their own line.
   smoke-tested on six 100-frame sessions (`tmp/agg_smoke`): extract and train in both modes, infer
   with a late-mode model. Then run end to end on six full-length sessions (extract, train, held-out
   plots, inference on an unseen session; `docs/experiments/04_six_session_run.md`).
-- `scripts/benchmark.py` (per-stage timing per tracker variant).
+- `scripts/tuning/benchmark.py` (per-stage timing per tracker variant).
 - Data augmentation (augmented training copies per session, Chapter 8 §8.4): verified end to end
   on six 100-frame sessions with one copy each; off by default (`augmentation.copies: 0`). Whether
   it helps is untested: it needs the full extraction plus copies (each copy is another frame pass).
@@ -273,7 +273,7 @@ names where the details are.
 - `docs/misc/benchmarks.md` reorganised: trivial baselines first (§1), how numbers are computed
   (§2), published works ranked against the constant (§3), methods explained (sensor GRU,
   fairness-aware training, the GitHub project's filtering).
-- `scripts/label_baselines.py`: the constant baseline on every published target, per second / per
+- `scripts/labels/label_baselines.py`: the constant baseline on every published target, per second / per
   change and pooled / per subject; `--grid` for every target of `docs/misc/targets.md`, with the
   window length from the config.
 - `docs/experiments/04_six_session_run.md` §3.1: the run re-scored with the benchmarks' metrics
@@ -304,7 +304,7 @@ names where the details are.
   `tune_models` ported; inference (`Pipeline.predict`) writes rating graphs with per-labeler curves
   (`build_rating_graph`).
 - `retention_r` removed from `train_models` and `experiment_decoders`.
-- Per-activity metrics in every per-labeler fold; `scripts/compare_results.py`; the full pipeline
+- Per-activity metrics in every per-labeler fold; `scripts/reporting/compare_results.py`; the full pipeline
   experiment (`docs/experiments/06_full_pipeline_and_labels.md`) as the test of the mixture of experts.
 
 - Residual-flow pooling grid 2 × 2 → 3 × 3 (`residual_flow.grid`; Chapter 5): nine flow features per

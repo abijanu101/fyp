@@ -1,11 +1,14 @@
 """Classical classifiers shared by the SPU gate (§7) and the engagement experts (§8).
 
-Every model is wrapped as impute(median) -> standardise -> classifier, so NaN features
-(e.g. windows with no visible tracks) are handled the same way everywhere.
+Every model is wrapped as impute(median) -> standardise -> [PCA] -> classifier, so NaN features
+(e.g. windows with no visible tracks) are handled the same way everywhere. `pca` (optional) is
+sklearn's n_components: an int keeps that many components, a float in (0, 1) keeps enough to explain
+that share of the variance; it is fitted with the rest of the pipeline, on the training rows only.
 """
 
 from __future__ import annotations
 
+from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
@@ -23,11 +26,11 @@ CLASSIFIERS = {
 }
 
 
-def build_classifier(name: str, seed: int = 0, **params) -> Pipeline:
+def build_classifier(name: str, seed: int = 0, pca: int | float | None = None, **params) -> Pipeline:
     if name not in CLASSIFIERS:
         raise KeyError(f"Unknown classifier '{name}'. Options: {sorted(CLASSIFIERS)}")
-    return Pipeline([
-        ("impute", SimpleImputer(strategy="median", keep_empty_features=True)),
-        ("scale", StandardScaler()),
-        ("clf", CLASSIFIERS[name](seed, **params)),
-    ])
+    steps = [("impute", SimpleImputer(strategy="median", keep_empty_features=True)),
+             ("scale", StandardScaler())]
+    if pca:
+        steps.append(("pca", PCA(n_components=pca, random_state=seed)))
+    return Pipeline(steps + [("clf", CLASSIFIERS[name](seed, **params))])

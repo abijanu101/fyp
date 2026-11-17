@@ -7,7 +7,7 @@ before it goes back in. Nothing here is computed by any script.
 ## 1. `retention_r`: does the curve move with the labels?
 
 **Status.** Removed from the code on 16 November 2026 (`scripts/train_models.py`,
-`scripts/experiment_decoders.py`), because it was not understood well enough to be reported.
+`scripts/analysis/experiment_decoders.py`), because it was not understood well enough to be reported.
 Results computed with it before then remain in `docs/experiments/04_six_session_run.md` (§3, §3.1,
 §6.4); they are a historical record, not a current metric.
 

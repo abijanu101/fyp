@@ -1,7 +1,7 @@
 """How much do DIPSER's labelers agree, and how well can one labeler be predicted from the others?
 (docs/experiments/06_full_pipeline_and_labels.md, Part B.)
 
-  python -m scripts.label_agreement [stats|alpha|ceiling|coarse|all]
+  python -m scripts.labels.label_agreement [stats|alpha|ceiling|coarse|all]
          [--model-entries]  [--set ...]  [--out outputs/labels/agreement.json]
 
 Labels are read once per (group, experiment) from every subject ZIP (labels.students = "all"), so

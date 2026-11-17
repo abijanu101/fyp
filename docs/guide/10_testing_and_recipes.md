@@ -95,9 +95,9 @@ For a systematic search, edit `tuning.tracker.space.botsort` and run `tune_track
 §8.6), then paste the resulting `config_patch` into the config:
 
 ```
-python -m scripts.tune_tracker --profile quick --randomize          # explore: seeded random search
-python -m scripts.tune_tracker --profile quick --trials 26          # refine: beam bisection from its winner
-python -m scripts.tune_tracker --profile quick --augment 1          # the same on augmented data
+python -m scripts.tuning.tune_tracker --profile quick --randomize          # explore: seeded random search
+python -m scripts.tuning.tune_tracker --profile quick --trials 26          # refine: beam bisection from its winner
+python -m scripts.tuning.tune_tracker --profile quick --augment 1          # the same on augmented data
 ```
 
 Explore first, refine second: the bisection search starts from the profile's random-search winner
@@ -117,7 +117,7 @@ automatically. Prototype on the `quick` profile (minutes per trial) before a ful
    Check that the Kalman-velocity read in `_kalman_velocities` still applies; if the tracker's
    state layout differs, velocities may be wrong rather than missing.
 2. Otherwise, subclass `Tracker` and implement `update(frame, dets) -> list[TrackState]`.
-3. Add a search space under `tuning.tracker.space.<name>` to tune it. In `scripts/tune_tracker.py`,
+3. Add a search space under `tuning.tracker.space.<name>` to tune it. In `scripts/tuning/tune_tracker.py`,
    check `needs_pixels`, `needs_embeddings` and the encoder construction, which name trackers
    explicitly: a tracker that always uses ReID must be added to `needs_embeddings`. Then run
    `--check` to confirm the cached-embedding path reproduces the tracker's own tracks.
@@ -217,7 +217,7 @@ setting:
                               {"name": "residual_flow", "grid": 2, "scale": 0.25}, {...scb entry...}]}
 ```
 
-then run `python -m scripts.benchmark --name flow --variants botsort_motion flow_quarter_res` on an
+then run `python -m scripts.tuning.benchmark --name flow --variants botsort_motion flow_quarter_res` on an
 idle machine and compare the two rows of `outputs/benchmarks/flow.md`. Check what the change does
 to the features, not only to the time: a faster pipeline that changes Vec needs the downstream
 evaluation re-run.

@@ -1,8 +1,8 @@
 """Compare two per-labeler results files, e.g. the mixture of experts against a single decoder.
 
-  python -m scripts.compare_results outputs/results/<A>.json outputs/results/<B>.json   (or hash prefixes: c5341cb6385e f6dcb84aaa6b)
+  python -m scripts.reporting.compare_results outputs/results/<A>.json outputs/results/<B>.json   (or hash prefixes: c5341cb6385e f6dcb84aaa6b)
          [--names MoE single] [--context classified] [--prediction own_labeler] [--plot]
-  python -m scripts.compare_results --latest      # newest MoE vs newest single-decoder run
+  python -m scripts.reporting.compare_results --latest      # newest MoE vs newest single-decoder run
 
 For each track (expert entries, self entries): the summary metrics of A and B on the configured
 variant, fold by fold (the folds are the same groups in both runs), and per activity (each

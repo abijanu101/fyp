@@ -317,7 +317,7 @@ Neither is "right"; they answer different questions, and a result should say whi
 A quick checklist for any results table in this project:
 
 1. **What is the target?** Window label, labelled share, or student label; which `tau`s.
-2. **What is the baseline on this metric?** If none is shown, compute it (`scripts/label_baselines.py`
+2. **What is the baseline on this metric?** If none is shown, compute it (`scripts/labels/label_baselines.py`
    for label-level constants).
 3. **Does the metric depend on the cut-off?** If yes, is the cut-off principled or tuned?
 4. **How was it aggregated?** Per fold, pooled or per session; per window or per change.

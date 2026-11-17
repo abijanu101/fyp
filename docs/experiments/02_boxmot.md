@@ -55,7 +55,7 @@ stored but never read by BoT-SORT or StrongSORT (BoxMOT 26: only `trackers/commo
 assigns it), so it was removed from the config and from tuning. The detector threshold is therefore
 the setting to check, and it can be checked without any tracker.
 
-**Method, shared by D1–D3** (`scripts/scan_detector.py`). Detections at a 0.05 confidence floor
+**Method, shared by D1–D3** (`scripts/tuning/scan_detector.py`). Detections at a 0.05 confidence floor
 are kept for every frame. For a threshold, each frame's boxes at or above it are matched one-to-one
 to the manual student boxes (Hungarian on IoU ≥ 0.3, the tracker-scoring rule). Per student,
 **recall** is the share of frames in which they are matched; the floor is the reference, since a
@@ -70,7 +70,7 @@ student missed even at 0.05 is not lost to the threshold. Columns:
 #### D1. Full grid scan, clean data
 
 All 52 sessions, every frame, 621 student-sessions (each annotated student in each session), 12
-thresholds. `python -m scripts.scan_detector --grid`; `outputs/tuning/detector_scan.csv`, per
+thresholds. `python -m scripts.tuning.scan_detector --grid`; `outputs/tuning/detector_scan.csv`, per
 student in `detector_scan_students.csv`.
 
 | Threshold | Mean recall | 10th pct | Lowest | Never detected | Below 50% | Largest drop | Lost > 10 pts | Lost > 25 pts | Unmatched boxes |
@@ -102,7 +102,7 @@ defaults.
 
 #### D2. Binary search for the optimal threshold, clean data
 
-Same 52 sessions, every frame, 621 student-sessions. `python -m scripts.scan_detector` (the
+Same 52 sessions, every frame, 621 student-sessions. `python -m scripts.tuning.scan_detector` (the
 default mode); `outputs/tuning/detector_search.{csv,json}`. Criterion for "keeps every student":
 none undetected, none below 50%, none losing more than 10 points against the floor. Recall only
 falls as the threshold rises, so the criterion is monotone and bisection over [0.05, 0.95] finds
@@ -137,7 +137,7 @@ occluders with p 0.5), each detected at the floor, student boxes mirrored for fl
 About 375,000 images (~75,000 frames × 5); only the detections are kept, per session, for resuming.
 The floor reference is the augmented variants' own floor detections. Run in the user's terminal
 (one progress line per frame), roughly 8 hours with 4 workers; `--stride 2` halves it:
-`python -m scripts.scan_detector --augment --workers 4`;
+`python -m scripts.tuning.scan_detector --augment --workers 4`;
 `outputs/tuning/detector_search_augmented.{csv,json}`.
 
 | | Optimal threshold | Configured 0.22 keeps every student | Mean recall at 0.22 | Lowest at 0.22 | Unmatched boxes at 0.22 |
@@ -211,7 +211,7 @@ the one-to-one assignment.
 
 ## 5. Tuning method
 
-`scripts/tune_tracker.py`; details in the contributor's guide, Chapter 8.
+`scripts/tuning/tune_tracker.py`; details in the contributor's guide, Chapter 8.
 
 - **Detections cached once** per session at a confidence floor of 0.05. Each trial filters them at
   its own `det_conf`, so detector confidence is tuned jointly with the tracker at no extra cost,
@@ -437,16 +437,16 @@ preparation included, where the serial tool needed about an hour per trial. The 
 are identical to `tune_tracker`'s (checked trial by trial with CMC on and off).
 
 ```
-python -m scripts.scan_detector --augment --workers 4; if ($?) { python -m scripts.parallel_runs tracker-scans --augment 1 --trials 26 34 22 --workers 5 --gpu-workers 2 --det-conf-from outputs/tuning/detector_search_augmented.json }
+python -m scripts.tuning.scan_detector --augment --workers 4; if ($?) { python -m scripts.parallel_runs tracker-scans --augment 1 --trials 26 34 22 --workers 5 --gpu-workers 2 --det-conf-from outputs/tuning/detector_search_augmented.json }
 ```
 
 A clean BoT-SORT + ReID search was started and stopped before its first trial completed (15
 November 2026): its only purpose was a starting point, and vanilla BoT-SORT's winner serves.
 
 ```
-python -m scripts.tune_tracker --profile full --augment 1 --trials 26
-python -m scripts.tune_tracker --profile full_reid_cmc --augment 1 --trials 34
-python -m scripts.tune_tracker --profile full_strongsort --augment 1 --trials 22
+python -m scripts.tuning.tune_tracker --profile full --augment 1 --trials 26
+python -m scripts.tuning.tune_tracker --profile full_reid_cmc --augment 1 --trials 34
+python -m scripts.tuning.tune_tracker --profile full_strongsort --augment 1 --trials 22
 ```
 
 Results: `outputs/tuning/tracker_<tracker>_<profile>_aug1-4f270e71_bisect.{csv,json}` and the

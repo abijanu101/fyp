@@ -4,9 +4,9 @@ Scores a constant prediction of 3 (and of the target's mean) against each target
 works use: the mean of the experts, the majority vote (with and without the self-report), and
 every labeler's own ratings. Reads only the labels/*.json inside each subject ZIP.
 
-  python -m scripts.label_baselines            # the published targets, four ways (benchmarks.md §1)
-  python -m scripts.label_baselines --grid     # every target of docs/misc/targets.md, as a markdown table
-  python -m scripts.label_baselines --grid --set window.length_s=4   # per-window rows at another window
+  python -m scripts.labels.label_baselines            # the published targets, four ways (benchmarks.md §1)
+  python -m scripts.labels.label_baselines --grid     # every target of docs/misc/targets.md, as a markdown table
+  python -m scripts.labels.label_baselines --grid --set window.length_s=4   # per-window rows at another window
 
 Every metric is computed four ways, because papers differ on both choices and rarely say which:
 

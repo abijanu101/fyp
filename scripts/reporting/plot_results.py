@@ -1,6 +1,6 @@
 """Held-out retention curves, every window predicted by models that never saw its group.
 
-  python -m scripts.plot_results [--config configs/deliverable3.json] [--set key=value ...]
+  python -m scripts.reporting.plot_results [--config configs/deliverable3.json] [--set key=value ...]
 
 For each held-out group (leave-one-group-out, as in train_models), the gate and the models are fit
 on the other groups and predict the held-out group's windows. One PNG per session, plus one

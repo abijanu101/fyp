@@ -1,6 +1,6 @@
 """Time the extraction pipeline per stage, for several tracker variants and sessions (design §11 compute).
 
-  python -m scripts.benchmark [--name NAME] [--variants V ...] [--sessions g/e/c ...] [--max-frames N]
+  python -m scripts.tuning.benchmark [--name NAME] [--variants V ...] [--sessions g/e/c ...] [--max-frames N]
                               [--set key=value ...]
 
 Each (variant, session) runs a fresh extraction (Pipeline.extract: both passes, nothing cached)

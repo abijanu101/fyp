@@ -1,6 +1,6 @@
 """Tune detector confidence + tracker parameters against the manual SID boxes (design §4, §11).
 
-  python -m scripts.tune_tracker [--profile quick|full|full_reid_cmc|full_strongsort] [--tracker NAME]
+  python -m scripts.tuning.tune_tracker [--profile quick|full|full_reid_cmc|full_strongsort] [--tracker NAME]
                                  [--trials N] [--check] [--fresh] [--set key=value ...]
                                  [--randomize] [--beam B] [--start earlier_scan.json] [--augment [COPY]]
 

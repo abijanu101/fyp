@@ -54,7 +54,7 @@ class BoxmotTracker(Tracker):
         return [TrackState(int(r[4]), r[:4].astype(float), float(r[5]), velocities.get(int(r[4])))
                 for r in np.asarray(out).reshape(-1, 8)]
 
-    # -- precomputed ReID embeddings (used by scripts/tune_tracker.py to embed each session once)
+    # -- precomputed ReID embeddings (used by scripts/tuning/tune_tracker.py to embed each session once)
     def embed(self, image: np.ndarray, dets: Detections) -> np.ndarray:
         """(N, D) ReID embeddings for `dets`, computed exactly as the tracker does internally.
         Uses BoxMOT 26's `_resolve_input_embeddings`, a private API: tune_tracker --check verifies

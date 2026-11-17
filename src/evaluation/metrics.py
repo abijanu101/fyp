@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.metrics import (balanced_accuracy_score, confusion_matrix, f1_score, precision_recall_fscore_support,
                              roc_auc_score)
 
+EPS = 1e-9      # a spread below this is a constant (averaging a constant leaves ~1e-16 of rounding noise)
 
 def binary_metrics(y: np.ndarray, p: np.ndarray, tau: float = 0.5) -> dict:
     """Window-level engaged / not engaged: F1, AUC, balanced accuracy, plus support."""
@@ -48,7 +49,7 @@ def spread_metrics(y: np.ndarray, p: np.ndarray) -> dict:
     from ..labels.interp import round_rating
 
     sd_p, sd_y = float(p.std()), float(y.std())
-    r = float(np.corrcoef(p, y)[0, 1]) if sd_p > 0 and sd_y > 0 else np.nan
+    r = float(np.corrcoef(p, y)[0, 1]) if sd_p > EPS and sd_y > EPS else np.nan
     cls = round_rating(p).astype(int)
     out = {"pred_mean": float(p.mean()), "label_mean": float(y.mean()),
            "pred_median": float(np.median(p)), "label_median": float(np.median(y)),
@@ -80,7 +81,7 @@ def rating_metrics(rating: np.ndarray, pred: np.ndarray, tau_att: float) -> dict
     yi = np.rint(y).astype(int)
     yb, pb = (y >= tau_att).astype(int), (cls >= tau_att).astype(int)
     both = len(np.unique(yb)) == 2
-    varied = np.ptp(p) > 0 and np.ptp(y) > 0
+    varied = np.ptp(p) > EPS and np.ptp(y) > EPS      # a constant averaged over duplicates is not "varied"
     return {
         "n": int(len(y)),
         "mae": float(np.mean(np.abs(p - y))),

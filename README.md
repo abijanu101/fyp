@@ -89,15 +89,15 @@ Run from the repo root.
 ```
 python -m unittest discover -s tests -t .              # tests
 
-python -m scripts.tune_tracker [--profile full]        # detector conf + tracker params vs manual boxes
-python -m scripts.scan_detector                        # does the detector threshold drop students? (cached detections)
+python -m scripts.tuning.tune_tracker [--profile full]        # detector conf + tracker params vs manual boxes
+python -m scripts.tuning.scan_detector                        # does the detector threshold drop students? (cached detections)
 python -m scripts.run_pipeline extract [--reuse]       # features for all in-scope sessions (+ augmented copies if augmentation.copies > 0)
-python -m scripts.augment_samples                      # augmentation examples and extremes -> outputs/augmentation/
+python -m scripts.data_visualization.augment_samples                      # augmentation examples and extremes -> outputs/augmentation/
 python -m scripts.train_models                         # LOGO evaluation + final models
-python -m scripts.plot_results                         # held-out engagement curves vs labels, per session
-python -m scripts.output_viewer group_01 experiment_03 context_cam_01   # play a session with its predictions
-python -m scripts.tune_models [--component gate|expert]   # nested-LOGO hyperparameter search
-python -m scripts.benchmark [--name trackers]            # per-stage timing per tracker variant (resumable)
+python -m scripts.reporting.plot_results                         # held-out engagement curves vs labels, per session
+python -m scripts.data_visualization.output_viewer group_01 experiment_03 context_cam_01   # play a session with its predictions
+python -m scripts.tuning.tune_models [--component gate|expert]   # nested-LOGO hyperparameter search
+python -m scripts.tuning.benchmark [--name trackers]            # per-stage timing per tracker variant (resumable)
 python -m scripts.run_pipeline infer --zip <camera.zip> --models outputs/models/<hash>.joblib --out <dir>
 ```
 

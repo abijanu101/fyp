@@ -57,6 +57,22 @@ class TestRatings(unittest.TestCase):
         self.assertEqual((perfect["mae"], perfect["accuracy"], perfect["auc"]), (0.0, 1.0, 1.0))
         self.assertEqual((constant["auc"], constant["balanced_acc"]), (0.5, 0.5))
         self.assertTrue(np.isnan(constant["spearman"]))
+        noisy = rating_metrics(y, np.full(8, 2.91) + np.r_[0, 4e-16, 0, 0, 0, 0, 0, 0], 3)   # rounding noise
+        self.assertTrue(np.isnan(noisy["spearman"]) and np.isnan(noisy["pearson"]))
+
+    def test_expert_pca_step(self):
+        from src.core.classifiers import build_classifier
+        from src.experts.expert import SklearnExpert
+        rng = np.random.default_rng(0)
+        X = rng.normal(size=(400, 12))
+        X[:, 6:] = X[:, :6] + rng.normal(0, 0.01, (400, 6))          # 6 duplicated columns
+        y = (X[:, 0] > 0).astype(float)
+        self.assertNotIn("pca", build_classifier("logreg").named_steps)
+        pipe = build_classifier("logreg", pca=0.99).fit(X, y)
+        self.assertLessEqual(pipe.named_steps["pca"].n_components_, 7)  # duplicates collapse
+        e = SklearnExpert("logreg", pca=3).fit(X, np.clip(y * 0.8 + 0.1, 0, 1))   # soft-label path
+        self.assertEqual(e.model.named_steps["pca"].n_components_, 3)
+        self.assertEqual(e.predict_proba(X).shape, (400,))
 
     def test_scores_per_perspective(self):
         import pandas as pd

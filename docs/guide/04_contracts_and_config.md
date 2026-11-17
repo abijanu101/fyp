@@ -169,7 +169,7 @@ The other three fields:
   per pixel-level extractor (for example `bfmu_frame.ResidualFlow`), and `scene`. The feature pass
   adds its own entries, and both end up in `manifest.json`. These times belong to the run that
   **built** the cache: a session loaded with `--reuse` reports the original run's frame-pass times,
-  not a new measurement. That is why `scripts/benchmark.py` runs with caching off.
+  not a new measurement. That is why `scripts/tuning/benchmark.py` runs with caching off.
 
 ### `SessionFeatures`: output of the feature pass
 
@@ -231,7 +231,7 @@ must re-run after changing it.
 | `labels` | label pipeline | `tau_att`, `tau_share`, minimum labelled students, offset, `students`, `train_target`, `interp` |
 | `output` | inference, `plot_results` | PNG smoothing; prediction mode (`per_labeler` or `majority`) and majority resolution |
 | `tuning` | tuning scripts only | search profiles and spaces |
-| `benchmark` | `scripts/benchmark.py` only | sessions and tracker variants to time |
+| `benchmark` | `scripts/tuning/benchmark.py` only | sessions and tracker variants to time |
 | `output_dir` | scripts | where caches and results go |
 
 At inference, `Pipeline.predict` takes the gate, its columns, the mixture, the aggregation mode and

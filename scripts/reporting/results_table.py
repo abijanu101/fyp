@@ -1,12 +1,11 @@
 """The standard result tables of per-labeler runs (markdown), as used in docs/experiments/ from 06 on.
 
-  python -m scripts.results_table single=c5341cb6385e pooled=fdb140e9477e rf=5df1987449dd
+  python -m scripts.reporting.results_table single=c5341cb6385e pooled=fdb140e9477e rf=5df1987449dd
          [--track experts] [--variant configured] [--results outputs/results] [--by-labeler]
 
-One table: predictors as columns (the runs, then constant 3 and the training mean, then the labels'
-own profile), metrics as rows under four bold heading rows (profile held-out / train, metrics
-held-out / train):
-  Prediction profile: mean, median and SD of the predictions.
+One table: predictors as columns (the runs, then constant 3 and the training mean), metrics as rows
+under four bold heading rows (profile held-out / train, metrics held-out / train):
+  Profile: mean, median and SD of the predictions, then of the labels that column is scored on.
   Metrics: MAE, RMSE, AUC*, Spearman, macro F1**, accuracy**.
     *  uses a threshold: AUC ranks the raw prediction against labels split at tau_att (engaged =
        rating >= 3), so it depends on where the labels are cut.
@@ -27,7 +26,7 @@ import argparse
 
 import numpy as np
 
-from scripts.compare_results import load, resolve
+from scripts.reporting.compare_results import load, resolve
 
 PROFILE = (("pred_mean", "Mean"), ("pred_median", "Median"), ("pred_sd", "SD"))
 LABEL_PROFILE = ("label_mean", "label_median", "label_sd")
@@ -53,24 +52,21 @@ def fmt(x: float) -> str:
 
 def tables(cols: list[tuple[str, dict, str, str, list[str] | None]], label_ref: tuple | None = None) -> None:
     """One table, metrics as rows and predictors as columns. cols: (header, evaluation, held-out key,
-    train key, macro labelers or None). A last "Labels" column gives the labels' own profile, taken
-    from `label_ref` (a column tuple without the header) or else from the first column. Bold heading
-    rows split the table: prediction profile held-out / train, then metrics held-out / train."""
-    ref = label_ref or cols[0][1:]
-    print("| | " + " | ".join(h for h, *_ in cols) + " | Labels |")
-    print("|---|" + "---|" * (len(cols) + 1))
-    blank = " | ".join("" for _ in range(len(cols) + 1))
-    for section, rows in (("Prediction profile", PROFILE), ("Metrics", METRICS)):
+    train key, macro labelers or None). Bold heading rows split it: profile held-out / train (the
+    prediction's mean, median and SD, then the same for the labels each column is scored on), then
+    metrics held-out / train. `label_ref` is accepted for compatibility and unused: every column
+    carries its own labels' profile."""
+    print("| | " + " | ".join(h for h, *_ in cols) + " |")
+    print("|---|" + "---|" * len(cols))
+    blank = " | ".join("" for _ in cols)
+    profile = [(c, f"Prediction {n if n.isupper() else n.lower()}") for c, n in PROFILE] + \
+              [(c, f"Label {n if n.isupper() else n.lower()}") for c, (_, n) in zip(LABEL_PROFILE, PROFILE)]
+    for section, rows in (("Profile", profile), ("Metrics", METRICS)):
         for split, i in (("held-out", 1), ("train", 2)):
             print(f"| **{section}, {split}** | {blank} |")
             for c, name in rows:
                 vals = [fmt(value(ev, hk if i == 1 else tk, c, labs)) for _, ev, hk, tk, labs in cols]
-                if section == "Prediction profile":
-                    ev, hk, tk, labs = ref
-                    lab = fmt(value(ev, hk if i == 1 else tk, LABEL_PROFILE[[p for p, _ in PROFILE].index(c)], labs))
-                else:
-                    lab = ""
-                print(f"| {name} | " + " | ".join(vals) + f" | {lab} |")
+                print(f"| {name} | " + " | ".join(vals) + " |")
     print(f"\n{LEGEND}")
 
 

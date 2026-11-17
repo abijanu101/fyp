@@ -1,10 +1,10 @@
-"""Label agreement analysis (scripts/label_agreement.py) on synthetic labelers."""
+"""Label agreement analysis (scripts/labels/label_agreement.py) on synthetic labelers."""
 
 import unittest
 
 import numpy as np
 
-from scripts.label_agreement import (LABELERS, Student, ceiling_rows, coarse, fast_alpha, others, stack_pairs,
+from scripts.labels.label_agreement import (LABELERS, Student, ceiling_rows, coarse, fast_alpha, others, stack_pairs,
                                      unit_values)
 from src.evaluation import krippendorff_alpha_ordinal
 from src.labels.interp import interpolate

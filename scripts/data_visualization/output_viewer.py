@@ -1,7 +1,7 @@
 """Pipeline output viewer: play a session with what the pipeline made of it.
 
-    python -m scripts.output_viewer group_01 experiment_03 context_cam_01 [--set output_dir=\"tmp/e2e6\" ...]
-    python -m scripts.output_viewer group_02 experiment_05 context_cam_01 --models outputs/models/<hash>.joblib
+    python -m scripts.data_visualization.output_viewer group_01 experiment_03 context_cam_01 [--set output_dir=\"tmp/e2e6\" ...]
+    python -m scripts.data_visualization.output_viewer group_02 experiment_05 context_cam_01 --models outputs/models/<hash>.joblib
 
 Reads only cached results, so scrubbing is instant: the frame pass (`tracks/<hash>/<session>.npz`),
 the feature pass (`features/<hash>/<session>.csv` and `.tracks.csv`, from `run_pipeline extract`)

@@ -37,10 +37,11 @@ class SklearnExpert(EngagementExpert):
     # threshold soft labels at 0.5 instead.
     SOFT = ("logreg", "random_forest")
 
-    def __init__(self, model: str, seed: int = 0, max_train_rows: int | None = None, **params):
+    def __init__(self, model: str, seed: int = 0, max_train_rows: int | None = None,
+                 pca: int | float | None = None, **params):
         self.name, self.seed, self.max_train_rows = model, seed, max_train_rows
         balance = {"class_weight": "balanced"} if model in self.WEIGHTED else {}
-        self.model = build_classifier(model, seed, **{**balance, **params})     # params may override
+        self.model = build_classifier(model, seed, pca=pca, **{**balance, **params})   # params may override
         self._constant: float | None = None
 
     def fit(self, X, y):

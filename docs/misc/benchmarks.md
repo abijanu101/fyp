@@ -29,7 +29,7 @@ computed, and why the same metric can mean different things · §3 published wor
 > count per frame or per second (§2.2) are not comparable with either line.
 
 None of the published works reports a constant-prediction baseline for every metric it uses, so
-we computed them (`python -m scripts.label_baselines`): all 483 labelled student-sessions, scored
+we computed them (`python -m scripts.labels.label_baselines`): all 483 labelled student-sessions, scored
 against each target used in §3.
 
 **The headline numbers** (per second, pooled; §2 explains both choices):

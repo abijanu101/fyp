@@ -175,7 +175,7 @@ centre velocity (vx, vy) in pixels per frame, for both trackers in BoxMOT 26. Th
 access" the design asked us to verify (§4). If a future BoxMOT changes its internals, the
 velocity becomes `None` and the motion features fall back to finite differences automatically.
 
-Two more methods, `embed()` and `update_with_embeddings()`, let `scripts/tune_tracker.py` compute
+Two more methods, `embed()` and `update_with_embeddings()`, let `scripts/tuning/tune_tracker.py` compute
 ReID embeddings once per session and feed them back on every trial (Chapter 8).
 
 ## 5.5 Stage 4 (first half): collecting tracklets
@@ -275,5 +275,5 @@ roughly 14× over the design's 3-minute target. Residual flow is the largest sin
 computes dense flow over the whole half-resolution frame but only uses it inside student boxes.
 
 ReID tracking (StrongSORT, or BoT-SORT with `use_embeddings`) adds roughly 120–165 ms per frame on
-top. `scripts/benchmark.py` measures all of this per tracker variant on several sessions
+top. `scripts/tuning/benchmark.py` measures all of this per tracker variant on several sessions
 (Chapter 8). Every extraction run's manifest records these stage times per session.

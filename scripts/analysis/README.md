@@ -21,5 +21,5 @@ write scratch output to `tmp/`.
 | `e2e6/analyse.py` | feature-level analysis of the six-session run | experiment 04 |
 
 Analyses that are part of the current pipeline live in `scripts/` itself, for example
-`scripts/label_agreement.py` (label agreement and the human ceiling, experiment 06 Part B) and
-`scripts/label_baselines.py` (`docs/misc/targets.md`, `docs/misc/benchmarks.md`).
+`scripts/labels/label_agreement.py` (label agreement and the human ceiling, experiment 06 Part B) and
+`scripts/labels/label_baselines.py` (`docs/misc/targets.md`, `docs/misc/benchmarks.md`).

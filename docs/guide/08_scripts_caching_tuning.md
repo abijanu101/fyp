@@ -137,10 +137,10 @@ modes.
    `infer` loads. It contains the gate, the mixture, `gate_cols`, `row_cols`, the aggregation mode
    (`aggregate`), `fill` (score for windows with nobody visible) and `tau` (the engaged cut-off).
 
-### Seeing the curves: `plot_results` (`scripts/plot_results.py`)
+### Seeing the curves: `plot_results` (`scripts/reporting/plot_results.py`)
 
 ```
-python -m scripts.plot_results [--set ...]        # same --set values as train_models
+python -m scripts.reporting.plot_results [--set ...]        # same --set values as train_models
 ```
 
 `train_models` reports averages. `plot_results` draws, per session, out-of-sample curves with the
@@ -155,12 +155,12 @@ leave-one-group-out fits (seconds) and plots each group from models that never s
 title gives the true activity, the gate's hit rate and the correlation r with the labelled
 share. Output: `<output_dir>/plots/<config hash>/`, one PNG per session plus `overview.png`.
 
-### Comparing two runs: `compare_results` (`scripts/compare_results.py`)
+### Comparing two runs: `compare_results` (`scripts/reporting/compare_results.py`)
 
 ```
-python -m scripts.compare_results outputs/results/<A>.json outputs/results/<B>.json --names A B [--plot]
-python -m scripts.compare_results c5341cb6385e 5df1987449dd     # config-hash prefixes work too
-python -m scripts.compare_results --latest                      # newest MoE vs newest single decoder
+python -m scripts.reporting.compare_results outputs/results/<A>.json outputs/results/<B>.json --names A B [--plot]
+python -m scripts.reporting.compare_results c5341cb6385e 5df1987449dd     # config-hash prefixes work too
+python -m scripts.reporting.compare_results --latest                      # newest MoE vs newest single decoder
 ```
 
 For two per-labeler results files: both runs' summary metrics on the configured variant (AUC,
@@ -172,10 +172,10 @@ median|majority` pick other rows. Then the confusion matrices summed over the he
 row shares, per-rating precision and recall, and the binary matrix); `--plot` saves them as heatmaps
 to `outputs/plots/compare_<A>_<B>.png`. Made for `docs/experiments/06_full_pipeline_and_labels.md`.
 
-### Label agreement: `label_agreement` (`scripts/label_agreement.py`)
+### Label agreement: `label_agreement` (`scripts/labels/label_agreement.py`)
 
 ```
-python -m scripts.label_agreement [stats|alpha|ceiling|coarse|all] [--model-entries]
+python -m scripts.labels.label_agreement [stats|alpha|ceiling|coarse|all] [--model-entries]
 ```
 
 How much the labelers agree, and how well one labeler is predicted by the others, scored exactly like
@@ -187,10 +187,10 @@ also on exactly the entries the pipeline is scored on; `coarse`: agreement on st
 student x k-minute means. Writes `outputs/labels/agreement.json` (about 9 minutes for `all`). Run it
 on any new dataset before training: it says what score is achievable at all.
 
-### Watching a session: `output_viewer` (`scripts/output_viewer.py`)
+### Watching a session: `output_viewer` (`scripts/data_visualization/output_viewer.py`)
 
 ```
-python -m scripts.output_viewer group_01 experiment_03 context_cam_01 [--set ...] [--models <bundle>]
+python -m scripts.data_visualization.output_viewer group_01 experiment_03 context_cam_01 [--set ...] [--models <bundle>]
 ```
 
 Plays a session with what the pipeline made of it, from cached results only (the frame-pass `.npz`,
@@ -276,7 +276,7 @@ models are trained on originals and copies. Per-labeler results report
 share of copy rows linked to a labelled student; it should be close to the originals', which
 confirms the mirrored boxes line up). `tune_models` does not use copies.
 
-**Looking at it.** `python -m scripts.augment_samples` writes, for three sessions, the original
+**Looking at it.** `python -m scripts.data_visualization.augment_samples` writes, for three sessions, the original
 frame, the first copies this config produces, and two *extremes* (every range at its bright or
 dark end at once, maximum noise, maximum masks, flipped) to
 `outputs/augmentation/<settings hash>/`, as PNGs, a contact sheet and the exact parameters.
@@ -356,13 +356,13 @@ finally: search on all groups                                   -> the params to
 
 It returns both the selected parameters and the nested estimate. Report the nested number.
 
-## 8.6 `tune_tracker` (`scripts/tune_tracker.py`)
+## 8.6 `tune_tracker` (`scripts/tuning/tune_tracker.py`)
 
 ```
-python -m scripts.tune_tracker --profile <profile> [--trials N] [--fresh]       # beam bisection (default)
-python -m scripts.tune_tracker --profile <profile> --randomize                   # seeded random search
-python -m scripts.tune_tracker --profile <profile> --augment [COPY]              # on augmented data
-python -m scripts.tune_tracker --profile <profile> --check
+python -m scripts.tuning.tune_tracker --profile <profile> [--trials N] [--fresh]       # beam bisection (default)
+python -m scripts.tuning.tune_tracker --profile <profile> --randomize                   # seeded random search
+python -m scripts.tuning.tune_tracker --profile <profile> --augment [COPY]              # on augmented data
+python -m scripts.tuning.tune_tracker --profile <profile> --check
 ```
 
 **Search method.** The default is the beam bisection search (§8.5), starting from the best trial of
@@ -439,7 +439,7 @@ the search space. Trial 0 runs the profile's `base_options` if it has them, othe
 trackers start from their best known settings (BoxMOT's StrongSORT default `min_conf` of 0.6 would
 drop whole students; `docs/experiments/02_boxmot.md`, §3).
 
-**Is the detector the limit?** `python -m scripts.scan_detector` checks, without any tracker, what
+**Is the detector the limit?** `python -m scripts.tuning.scan_detector` checks, without any tracker, what
 detector confidence thresholds cost, from the cached floor detections. A student's recall is the
 share of frames in which they are detected; the 0.05 floor is the reference.
 
@@ -483,10 +483,10 @@ point, the number of numeric parameters and the trials per level.
 per-group scores) and `.json` (the search method, the dataset, the baseline and best scores, and a
 `config_patch` to paste into the config). Random-search results keep the names without `_bisect`.
 
-## 8.7 `tune_models` (`scripts/tune_models.py`)
+## 8.7 `tune_models` (`scripts/tuning/tune_models.py`)
 
 ```
-python -m scripts.tune_models [--component gate|expert|both] [--trials N]
+python -m scripts.tuning.tune_models [--component gate|expert|both] [--trials N]
 ```
 
 Runs `nested_logo_search` on cached features. The gate is scored by 6-way macro-F1. The experts
@@ -517,10 +517,10 @@ local copy against the FTP server without re-downloading it: Python's `zipfile` 
 archive through FTP byte ranges, so only the archive directories and the label files are fetched
 (about 0.5 MB per 1 GB archive). `docs/experiments/01_dipser.md`, §7 lists the checks and results.
 
-## 8.9 `benchmark` (`scripts/benchmark.py`)
+## 8.9 `benchmark` (`scripts/tuning/benchmark.py`)
 
 ```
-python -m scripts.benchmark [--name trackers] [--variants V ...] [--sessions g/e/c ...] [--max-frames N]
+python -m scripts.tuning.benchmark [--name trackers] [--variants V ...] [--sessions g/e/c ...] [--max-frames N]
 ```
 
 Times the extraction pipeline per stage. For each variant in the config's `benchmark` section (a

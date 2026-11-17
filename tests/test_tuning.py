@@ -110,7 +110,7 @@ class TestSharedFrames(unittest.TestCase):
     def test_several_trackers_on_one_pass_match_each_run_alone(self):
         from pathlib import Path
 
-        from scripts.tune_tracker import SessionDetections, run_tracker, run_trackers
+        from scripts.tuning.tune_tracker import SessionDetections, run_tracker, run_trackers
         from src.core.types import Detections, SessionKey
         rng = np.random.default_rng(0)
         dets = []

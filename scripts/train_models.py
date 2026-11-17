@@ -173,7 +173,9 @@ def expert_factory(cfg: dict, feature_names: list[str], name: str | None = None)
             hw["weights"] = {student_key(k): v for k, v in hw["weights"].items()}
             hw["phone_key"] = student_key(hw["phone_key"]) if hw.get("phone_key") else None
         return lambda exp_id: HandWeightedExpert(feature_names, exp_id=exp_id, **hw)
-    return lambda exp_id: EXPERTS.build(name, seed=cfg["seed"], **cfg["expert"].get("params", {}))
+    pca = cfg["expert"].get("pca")             # optional PCA inside the expert's pipeline (classifiers.py)
+    return lambda exp_id: EXPERTS.build(name, seed=cfg["seed"], **({"pca": pca} if pca else {}),
+                                        **cfg["expert"].get("params", {}))
 
 
 def mixture_factory(cfg: dict, rows: EngagementRows, expert_name: str | None, scope: str, mode: str):

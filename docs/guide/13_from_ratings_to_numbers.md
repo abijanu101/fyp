@@ -69,7 +69,7 @@ value holds forever. Two ways to read it:
 > **O25.** The step function reads each event as "from now on, the value is v". Whether that is
 > what a rating means is open: a rating may instead summarise what the labeler *has just seen*
 > (retrospective), and every rating is entered after a reaction delay. What the files show
-> (all 483 labelled student-sessions, `scripts/label_baselines.py` data):
+> (all 483 labelled student-sessions, `scripts/labels/label_baselines.py` data):
 >
 > | | Expert labelers | Self-report |
 > |---|---|---|
@@ -419,7 +419,7 @@ then averaged over folds (§13.12).
 ## 13.14 Label agreement (Krippendorff's α)
 
 > **Superseded by experiment 06 Part 1** (`docs/experiments/06_full_pipeline_and_labels.md` §1.5–1.7,
-> `scripts/label_agreement.py`): α on entry moments, per second, window midpoints and window means,
+> `scripts/labels/label_agreement.py`): α on entry moments, per second, window midpoints and window means,
 > under step, ramp and Gaussian interpolation, raw and binary, with sample sizes, plus the human
 > ceiling. It reproduces the numbers below exactly, answers O22 (binary α is lower than raw: −0.03 to
 > −0.06 for the experts) and finds α between −0.06 and +0.04 overall in every setting.

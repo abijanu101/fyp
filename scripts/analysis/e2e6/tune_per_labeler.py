@@ -3,7 +3,7 @@ import json, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 import scripts.train_models as tm
-import scripts.tune_models as tu
+import scripts.tuning.tune_models as tu
 
 cfg = json.loads(Path(sorted(Path("outputs/experiments/05_per_labeler/results").glob("*.json"))[-1]).read_text())["config"]
 Path("outputs/experiments/05_per_labeler/tuning/tune_cfg.json").write_text(json.dumps(cfg))

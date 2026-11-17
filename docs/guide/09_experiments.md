@@ -301,7 +301,7 @@ Values are the current ones. "Re-run" uses the marks of §9.5.
 | `ingestion.stride` | 1 | keep every n-th frame. Faster, but lowers the measured fps, and frame-counted tracker settings (`max_lost_frames`) then span more seconds | F |
 | `ingestion.max_frames` | null | stop after n frames (smoke tests); null = all | F |
 | `detector.weights` | `models/yolo11n.pt` | YOLO checkpoint; only the person class is kept | F |
-| `detector.conf` | 0.22 | confidence a person box needs to reach the tracker; the only confidence filter before tracking. Lower = more people found, more false boxes. Verified not to drop any student (`docs/experiments/02_boxmot.md`, §3; `scripts/scan_detector.py`) | F |
+| `detector.conf` | 0.22 | confidence a person box needs to reach the tracker; the only confidence filter before tracking. Lower = more people found, more false boxes. Verified not to drop any student (`docs/experiments/02_boxmot.md`, §3; `scripts/tuning/scan_detector.py`) | F |
 | `detector.imgsz` | 640 | YOLO input size in pixels. Higher = far students found better, slower | F |
 | `detector.half` | true | half precision on the GPU (ignored on CPU) | F |
 | `scene.size` | [64, 36] | the frame is shrunk to this many pixels before the gate's scene features are computed | F |
@@ -480,7 +480,7 @@ The search-space syntax is in Chapter 8, §8.5: a list is a choice, `{low, high}
 | `tuning.tracker.profiles.<name>` | `tracker`, `sessions` (`"all"` or a list), `max_frames`, `n_trials` (the trial budget of either search; `--trials` overrides it), `fixed` options pinned for every trial, and optionally `base_options`, trial 0's settings (otherwise `tracker.options` for the configured tracker, BoxMOT defaults for another). The bisection search starts from the profile's random-search winner when one exists, or from another profile's winner named by `start_from` (`full_reid_cmc` starts from `full`) (§8.6) |
 | `tuning.tracker.space.<tracker>` | ranges per option. `det_conf` here stands in for `detector.conf`: the winning value is patched there |
 | `tuning.gate` / `tuning.expert` | `n_trials` per search, and `space.<model name>`; only the space matching `gate.name` / `expert.name` is used |
-| `benchmark.sessions` | sessions timed by `scripts/benchmark.py` |
+| `benchmark.sessions` | sessions timed by `scripts/tuning/benchmark.py` |
 | `benchmark.variants.<name>` | overrides per variant. A dotted key (`"tracker.options.use_cmc": true`) changes one value; a plain key with a dict (`"tracker": {...}`) replaces the whole section. Results resume by variant name, so rename a variant after editing it |
 
 A tracker tuning log refuses to resume when anything in its fingerprint changed, which includes

@@ -1,6 +1,6 @@
 """Tune SPU gate and engagement-expert hyperparameters with nested leave-one-group-out.
 
-  python -m scripts.tune_models [--component gate|expert|both] [--trials N] [--set key=value ...]
+  python -m scripts.tuning.tune_models [--component gate|expert|both] [--trials N] [--set key=value ...]
 
 Objectives:  gate   -> 6-way macro-F1 of the configured gate model
              expert -> under the ORACLE context, which isolates expert quality from gate errors:
