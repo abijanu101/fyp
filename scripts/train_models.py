@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 import joblib
@@ -210,11 +211,21 @@ def label_rows(cfg: dict, df: pd.DataFrame) -> pd.DataFrame:
         st = load_track(tracks_dir(cfg) / f"{stem}.npz")
         centres, windows = entry_windows(entries, length)
         cache = features_dir(cfg) / f"{stem}.labelwin.csv"
-        feats = pd.read_csv(cache) if cache.exists() else None
-        if feats is None or not set(np.round(centres, 3)) <= set(np.round(feats["t_centre"], 3)):
+        built = cache.with_name(f"{stem}.labelwin.centres.npy")   # every centre the cache covers, rows or not
+        feats = None
+        if cache.exists() and built.exists() and set(np.round(centres, 3)) <= set(np.round(np.load(built), 3)):
+            feats = pd.read_csv(cache)
+        if feats is None:
             pipe = pipe or Pipeline(cfg)
             feats = label_window_features(*pipe.window_features(st, windows), centres)
-            feats.to_csv(cache, index=False)
+            # write-then-rename, the centre list last: a reader never sees a half-written cache, and
+            # centres where no student is tracked (no rows) no longer make the cache look stale
+            tmp = cache.with_name(f"{cache.name}.{os.getpid()}.tmp")
+            feats.to_csv(tmp, index=False)
+            os.replace(tmp, cache)
+            tmp = built.with_name(f"{stem}.labelwin.centres.{os.getpid()}.tmp.npy")
+            np.save(tmp, np.asarray(centres, float))
+            os.replace(tmp, built)
         subjects = index.annotations(key)
         width = int(sdf["flip_width"].iloc[0])
         if width:                                                   # mirrored copy: mirror the manual boxes
@@ -237,6 +248,30 @@ def per_entry(rows: pd.DataFrame, pred: np.ndarray) -> tuple[np.ndarray, np.ndar
     t = pd.DataFrame({"e": rows["entry_id"].to_numpy(), "y": rows["rating"].to_numpy(float), "p": pred})
     t = t[np.isfinite(t["p"])].groupby("e").agg(y=("y", "first"), p=("p", "mean"))
     return t["y"].to_numpy(), t["p"].to_numpy()
+
+
+def score_with_perspectives(folds: dict, key: str, g, rows: pd.DataFrame, pred: np.ndarray, tau_att: float,
+                            **extra) -> None:
+    """Append one fold's scores under `key` (every entry of the track pooled), and under
+    `key/by_labeler/<labeler>` for each labeler's own entries (perspectivism: each labeler is scored
+    separately; the aggregate rows are the pooled key and the macro mean of the per-labeler keys)."""
+    from src.evaluation import rating_metrics
+
+    folds.setdefault(key, []).append({"held_out": g, **rating_metrics(*per_entry(rows, pred), tau_att), **extra})
+    labelers = rows["labeler"].to_numpy()
+    for lab in sorted(set(labelers.tolist())):
+        m = labelers == lab
+        y, p = per_entry(rows.iloc[np.flatnonzero(m)], pred[m])
+        if len(y):
+            folds.setdefault(f"{key}/by_labeler/{lab}", []).append({"held_out": g, **rating_metrics(y, p, tau_att)})
+
+
+LABEL_CENTRED = ("per_labeler", "pooled")      # engagement.labelers values trained on label-centred windows
+
+
+def is_pooled(cfg: dict) -> bool:
+    """engagement.labelers = "pooled": one model on every labeler's rows, scored per labeler."""
+    return cfg["engagement"].get("labelers") == "pooled"
 
 
 def per_labeler_factory(cfg: dict, row_cols: list[str], scope: str):
@@ -286,7 +321,7 @@ def heldout_curves(cfg: dict, df: pd.DataFrame, rows: pd.DataFrame | None = None
         rtr = rows["group"].to_numpy() != grp
         model = PerLabelerModel.fit(per_labeler_factory(cfg, row_cols, mcfg["expert_scope"]), X[rtr],
                                     rows["target"].to_numpy(float)[rtr], rows["exp"].to_numpy()[rtr],
-                                    rows["labeler"].to_numpy()[rtr])
+                                    rows["labeler"].to_numpy()[rtr], pooled=is_pooled(cfg))
         pos = np.full(n, -1)
         pos[te] = np.arange(len(te))
         sel = np.isin(wgrid, te)
@@ -340,12 +375,25 @@ def main_per_labeler(cfg: dict) -> None:
                 continue
             in_track = is_self if track == "self" else ~is_self
             train_mean = float(to_rating(target[tr & in_track].mean()))
+            fit_sub = rows[tr & ~aug_r & in_track]                 # the same constants on the training entries
             for name, value in (("constant_3", 3.0), ("train_mean", train_mean)):
-                y, p = per_entry(sub, np.full(len(sub), value))
-                folds.setdefault(f"{track}/{name}", []).append({"held_out": g, **rating_metrics(y, p, tau_att)})
+                score_with_perspectives(folds, f"{track}/{name}", g, sub, np.full(len(sub), value), tau_att)
+                if not fit_sub.empty:
+                    score_with_perspectives(folds, f"{track}/{name}/train", g, fit_sub,
+                                            np.full(len(fit_sub), value), tau_att)
         for vname, scope in variants.items():
             model = PerLabelerModel.fit(per_labeler_factory(cfg, row_cols, scope),
-                                        X[tr], target[tr], exp_r[tr], labeler[tr])
+                                        X[tr], target[tr], exp_r[tr], labeler[tr], pooled=is_pooled(cfg))
+            # the same model on its own training entries (originals only, classified context): train
+            # against held-out tells underfitting (both near chance) from overfitting
+            fit_rows = tr & ~aug_r
+            p_fit = model.predict(X[fit_rows], gate.predict_proba(Xg_rows[fit_rows]))
+            own_fit = np.array([to_rating(p_fit[l][i]) if l in p_fit else np.nan
+                                for i, l in enumerate(labeler[fit_rows])])
+            for track, sel in (("experts", ~is_self[fit_rows]), ("self", is_self[fit_rows])):
+                sub = rows[fit_rows].iloc[np.flatnonzero(sel)]
+                if not sub.empty:
+                    score_with_perspectives(folds, f"{track}/{vname}/train/own_labeler", g, sub, own_fit[sel], tau_att)
             for ctx, G in contexts.items():
                 ratings = {n: to_rating(p) for n, p in model.predict(X[te], G).items()}
                 own = np.array([ratings[l][i] if l in ratings else np.nan for i, l in enumerate(labeler[te])])
@@ -365,13 +413,17 @@ def main_per_labeler(cfg: dict) -> None:
                             if m.any():
                                 by_exp[c] = rating_metrics(*per_entry(sub.iloc[np.flatnonzero(m)], pred[sel][m]),
                                                            tau_att)
-                        folds.setdefault(f"{track}/{vname}/{ctx}/{kind}", []).append(
-                            {"held_out": g, **rating_metrics(y, p, tau_att), "per_experiment": by_exp})
+                        if kind == "own_labeler":
+                            score_with_perspectives(folds, f"{track}/{vname}/{ctx}/{kind}", g, sub, pred[sel],
+                                                    tau_att, per_experiment=by_exp)
+                        else:
+                            folds.setdefault(f"{track}/{vname}/{ctx}/{kind}", []).append(
+                                {"held_out": g, **rating_metrics(y, p, tau_att), "per_experiment": by_exp})
         print(f"  fold {g}: {int(te.sum())} held-out rows, {int(tr.sum())} training rows", flush=True)
 
     entries = rows[~aug_r].drop_duplicates("entry_id")
     results = {
-        "config_hash": h, "config": cfg, "mode": "per_labeler",
+        "config_hash": h, "config": cfg, "mode": "per_labeler", "labelers": cfg["engagement"]["labelers"],
         "data": {"n_entry_rows": int((~aug_r).sum()), "n_entries": int(len(entries)),
                  "entries_by_labeler": entries["labeler"].value_counts().to_dict(),
                  "augmented_rows_for_training": int(aug_r.sum()),
@@ -386,19 +438,61 @@ def main_per_labeler(cfg: dict) -> None:
 
     gate = GATES.build(cfg["gate"]["name"], classes=classes, seed=cfg["seed"],
                        **cfg["gate"].get("params", {})).fit(Xg, exp_w)
-    model = PerLabelerModel.fit(per_labeler_factory(cfg, row_cols, mcfg["expert_scope"]), X, target, exp_r, labeler)
+    model = PerLabelerModel.fit(per_labeler_factory(cfg, row_cols, mcfg["expert_scope"]), X, target, exp_r, labeler,
+                                pooled=is_pooled(cfg))
     (out / "models").mkdir(parents=True, exist_ok=True)
     joblib.dump({"config_hash": h, "kind": "per_labeler", "gate": gate, "gate_cols": gate_cols,
                  "model": model, "row_cols": row_cols, "tau_att": tau_att},
                 out / "models" / f"{h}.joblib")
 
-    print(f"config {h[:12]}  per_labeler  entries={len(entries)}  rows={int((~aug_r).sum())}"
+    print(f"config {h[:12]}  {cfg['engagement']['labelers']}  entries={len(entries)}  rows={int((~aug_r).sum())}"
           f"  window={cfg['window']['length_s']}s  target={cfg['labels']['train_target']}")
     print("gate (classified) accuracy:", results["gate"]["summary"]["accuracy"])
-    for k, v in results["evaluation"].items():
+    print_train_test(results["evaluation"])
+
+
+def print_train_test(ev: dict) -> None:
+    """Held-out and training scores side by side (mean over held-out groups), for the model's own
+    labeler (classified context) and the two constants. sd = prediction SD; r = Pearson."""
+    cols = ("mae", "rmse", "pred_sd", "sd_ratio", "pearson", "calib_ratio", "share_pred_3", "auc", "spearman")
+    def fmt(key):
+        if key not in ev:
+            return " ".join(f"{'-':>6s}" for _ in cols)
+        m = ev[key]["summary"]
+        return " ".join(f"{m[c]['mean']:6.3f}" if c in m and np.isfinite(m[c]["mean"]) else f"{'-':>6s}"
+                        for c in cols)
+    head = " ".join(f"{c[:6]:>6s}" for c in cols)
+    for track in ("experts", "self"):
+        print(f"\n{track} entries{'':30s}{head}")
+        for label, held, train in (
+                ("model (configured)", f"{track}/configured/classified/own_labeler", f"{track}/configured/train/own_labeler"),
+                ("model (shared expert)", f"{track}/shared_expert/classified/own_labeler",
+                 f"{track}/shared_expert/train/own_labeler"),
+                ("constant 3", f"{track}/constant_3", f"{track}/constant_3/train"),
+                ("training mean", f"{track}/train_mean", f"{track}/train_mean/train")):
+            print(f"  {label:24s} held-out  {fmt(held)}")
+            print(f"  {'':24s} train     {fmt(train)}")
+        held, train = f"{track}/configured/classified/own_labeler", f"{track}/configured/train/own_labeler"
+        labs = sorted({k.rsplit("/", 1)[1] for k in ev if k.startswith(held + "/by_labeler/")})
+        if len(labs) > 1:
+            print(f"\n  by labeler (model, configured){'':12s}{head}")
+            for lab in labs:
+                print(f"  {lab:24s} held-out  {fmt(f'{held}/by_labeler/{lab}')}")
+                print(f"  {'':24s} train     {fmt(f'{train}/by_labeler/{lab}')}")
+            for split, key in (("held-out", held), ("train", train)):
+                macro = {c: np.nanmean([ev[f"{key}/by_labeler/{l}"]["summary"][c]["mean"] for l in labs
+                                        if f"{key}/by_labeler/{l}" in ev]) for c in cols}
+                print(f"  {'macro (mean of labelers)':24s} {split:9s} "
+                      + " ".join(f"{macro[c]:6.3f}" if np.isfinite(macro[c]) else f"{'-':>6s}" for c in cols))
+            print(f"  {'pooled (all entries)':24s} held-out  {fmt(held)}")
+    print("\nall pooled keys (held-out unless /train):")
+    for k, v in ev.items():
+        if "/by_labeler/" in k:
+            continue
         m = v["summary"]
-        print(f"  {k:44s} MAE {m['mae']['mean']:.3f}  acc {m['accuracy']['mean']:.3f}  "
-              f"macroF1 {m['macro_f1']['mean']:.3f}  AUC {m['auc']['mean']:.3f}  rho {m['spearman']['mean']:.3f}")
+        print(f"  {k:44s} MAE {m['mae']['mean']:.3f}  RMSE {m['rmse']['mean']:.3f}  sd {m['pred_sd']['mean']:.3f}  "
+              f"acc {m['accuracy']['mean']:.3f}  macroF1 {m['macro_f1']['mean']:.3f}  AUC {m['auc']['mean']:.3f}  "
+              f"rho {m['spearman']['mean']:.3f}")
 
 
 def main() -> None:
@@ -407,7 +501,7 @@ def main() -> None:
     ap.add_argument("--set", nargs="*", default=[])
     args = ap.parse_args()
     cfg = load_config(args.config, parse_sets(args.set))
-    if cfg["engagement"].get("labelers") == "per_labeler":
+    if cfg["engagement"].get("labelers") in LABEL_CENTRED:
         return main_per_labeler(cfg)
     h, classes, mcfg = config_hash(cfg), cfg["classes"], cfg["mixture"]
     tau = decision_threshold(cfg["engagement"]["aggregate"], mcfg["tau"], cfg["labels"]["tau_share"])

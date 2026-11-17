@@ -18,6 +18,16 @@ computed, and why the same metric can mean different things · §3 published wor
 
 ## 1. Trivial baselines: predicting 3 every time
 
+> **Update 17–18 November 2026: a human ceiling.** Experiment 06 Part 1
+> (`docs/experiments/06_full_pipeline_and_labels.md` §1.6, Appendix A) adds the other reference line:
+> humans predicting a rating entry, scored like the pipeline. On the self-report (the reference for a
+> student's own state, §1.6), the experts' mean reaches AUC 0.613, Spearman 0.232, MAE 0.693
+> (constant 3: 0.670; our pipeline: 0.508 / 0.007 / 0.720). On the per-label expert target, the
+> other experts' mean reaches MAE 0.668, AUC 0.564, Spearman 0.145 (constant 3: 0.619 / 0.500 / –;
+> our pipeline: 0.674 / 0.527 / 0.072). No published DIPSER work reports inter-rater agreement;
+> Krippendorff's α is between −0.06 and +0.04 on every unit we measured. Results that pool folds or
+> count per frame or per second (§2.2) are not comparable with either line.
+
 None of the published works reports a constant-prediction baseline for every metric it uses, so
 we computed them (`python -m scripts.label_baselines`): all 483 labelled student-sessions, scored
 against each target used in §3.

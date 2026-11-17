@@ -23,7 +23,12 @@ chapter covers each entry point, what it caches where, and how the tuning machin
  checking:  scan_detector (detector threshold vs manual boxes)   plot_results (held-out curves)
             output_viewer (a session with tracks, per-student scores and labels)
             label_baselines (constant predictions vs the published label targets, benchmarks.md §1)
+            label_agreement (labeler agreement and the human ceiling, experiment 06 Part 1)
+            compare_results (two results files side by side, with confusion matrices)
 ```
+
+One-off analyses behind specific doc tables are kept, frozen, in `scripts/analysis/` (see its
+README); they are not maintained like the scripts here.
 
 Every script takes `--config` (default `configs/deliverable3.json`) and `--set key=value`
 overrides (Chapter 4).
@@ -88,19 +93,27 @@ Two details matter:
 python -m scripts.train_models [--set labels.tau_att=3]
 ```
 
-**Per-labeler mode (the default, `engagement.labelers = "per_labeler"`; Chapter 7 §7.9):**
+**Per-labeler mode (the default, `engagement.labelers = "per_labeler"`; Chapter 7 §7.9; also
+`"pooled"`, one model trained on every labeler's rows that answers for all of them):**
 
 1. **Load** the window table (gate features, as below) and every session's **rating entries**
    (`label_entries`): every entry of every labeler of the camera's students, the shared
    session-start entry excluded, with its training value (`labels.train_target`).
 2. **Label-centred windows**: one window of `window.length_s` per entry time;
    `Pipeline.window_features` computes their features from the cached `.npz`, cached as
-   `<session>.labelwin.csv` next to the window CSVs (recomputed if an entry time is missing). Each
-   entry joins its student's linked track(s) in its window (`join_entries`).
+   `<session>.labelwin.csv` next to the window CSVs, with `<session>.labelwin.centres.npy` listing
+   every centre the cache covers (windows where nobody is tracked have no rows, so the rows alone
+   cannot tell a complete cache from a stale one). Both are written to a temporary file and renamed,
+   so parallel runs never read a half-written cache; the cache is rebuilt if an entry time is not in
+   the centre list. Each entry joins its student's linked track(s) in its window (`join_entries`).
 3. **Leave-one-group-out**: per held-out group, the gate on the window grid and one model per
    labeler (`PerLabelerModel`) for the configured and the shared scope; every held-out entry scored
    per label (`rating_metrics`) in two tracks (experts, self) for three predictions (own labeler,
-   median, majority) and two baselines (constant 3, training mean).
+   median, majority) and two baselines (constant 3, training mean). The same fold model is also
+   scored on its own training entries (originals only, own labeler, classified context:
+   `<track>/<variant>/train/own_labeler`), so held-out scores can be read against training ones
+   (underfitting against overfitting). Every score carries the 5 x 5 rating confusion matrix and the
+   engaged / not-engaged one at `tau_att`.
 4. **Write** the results JSON (`"mode": "per_labeler"`, an `evaluation` block keyed
    `<track>/<variant>/<context>/<prediction>`), and the bundle with `"kind": "per_labeler"`, the
    gate, the per-labeler model, `gate_cols`, `row_cols` and `tau_att`.
@@ -145,14 +158,34 @@ share. Output: `<output_dir>/plots/<config hash>/`, one PNG per session plus `ov
 ### Comparing two runs: `compare_results` (`scripts/compare_results.py`)
 
 ```
-python -m scripts.compare_results outputs/results/<A>.json outputs/results/<B>.json --names MoE single
+python -m scripts.compare_results outputs/results/<A>.json outputs/results/<B>.json --names A B [--plot]
+python -m scripts.compare_results c5341cb6385e 5df1987449dd     # config-hash prefixes work too
+python -m scripts.compare_results --latest                      # newest MoE vs newest single decoder
 ```
 
-For two per-labeler results files: both runs' summary metrics on the configured variant, with the
-constant-3 and training-mean baselines; AUC per held-out group with the difference; AUC and
+For two per-labeler results files: both runs' summary metrics on the configured variant (AUC,
+Spearman, balanced accuracy, macro F1, MAE, RMSE), with the constant-3 and training-mean baselines,
+and the same on the training entries; AUC per held-out group with the difference; AUC and
 Spearman per activity (each activity scored in the fold that holds it out; per-labeler results
 carry a `per_experiment` breakdown in every fold). `--context oracle` and `--prediction
-median|majority` pick other rows. Made for `docs/experiments/06_full_pipeline.md`.
+median|majority` pick other rows. Then the confusion matrices summed over the held-out folds (counts,
+row shares, per-rating precision and recall, and the binary matrix); `--plot` saves them as heatmaps
+to `outputs/plots/compare_<A>_<B>.png`. Made for `docs/experiments/06_full_pipeline_and_labels.md`.
+
+### Label agreement: `label_agreement` (`scripts/label_agreement.py`)
+
+```
+python -m scripts.label_agreement [stats|alpha|ceiling|coarse|all] [--model-entries]
+```
+
+How much the labelers agree, and how well one labeler is predicted by the others, scored exactly like
+the model (experiment 06 Part 1). `stats`: entries, rating shares, timing and co-occurrence per
+labeler; `alpha`: Krippendorff's ordinal alpha over unit x interpolation x labeler set x scale;
+`ceiling`: every entry predicted from the other labelers (each interpolation, lags, a best-match
+upper bound, a learned combination) and from the labeler's own other ratings, with `--model-entries`
+also on exactly the entries the pipeline is scored on; `coarse`: agreement on student x activity and
+student x k-minute means. Writes `outputs/labels/agreement.json` (about 9 minutes for `all`). Run it
+on any new dataset before training: it says what score is achievable at all.
 
 ### Watching a session: `output_viewer` (`scripts/output_viewer.py`)
 

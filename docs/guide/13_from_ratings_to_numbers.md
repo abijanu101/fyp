@@ -92,7 +92,7 @@ value holds forever. Two ways to read it:
 >
 > **Alternatives, compared but not implemented in the pipeline.** Each labeler's events turned into a
 > curve in six ways, then the pipeline's student consensus (median of 8-second means) and label
-> (consensus ≥ 3), over all 34,285 student-windows (`tmp/label_interp/compare.py`):
+> (consensus ≥ 3), over all 34,285 student-windows (`scripts/analysis/label_interp_compare.py`):
 >
 > | Mode | How events become a curve | Consensus vs step: mean diff / r | Student labels that flip | Engaged rate (step: 0.680) |
 > |---|---|---|---|---|
@@ -417,6 +417,12 @@ then averaged over folds (§13.12).
 > (Chapter 12, §12.6). No reported metric is computed inside each session.
 
 ## 13.14 Label agreement (Krippendorff's α)
+
+> **Superseded by experiment 06 Part 1** (`docs/experiments/06_full_pipeline_and_labels.md` §1.5–1.7,
+> `scripts/label_agreement.py`): α on entry moments, per second, window midpoints and window means,
+> under step, ramp and Gaussian interpolation, raw and binary, with sample sizes, plus the human
+> ceiling. It reproduces the numbers below exactly, answers O22 (binary α is lower than raw: −0.03 to
+> −0.06 for the experts) and finds α between −0.06 and +0.04 overall in every setting.
 
 **Code:** `src/evaluation/agreement.py`, `krippendorff_alpha_ordinal`;
 `scripts/data_visualization/inspect_labels.py` (units from line 61).

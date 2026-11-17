@@ -58,7 +58,7 @@
 
   "labels": {"tau_att": 4, "tau_share": 0.5, "min_labeled_students": 3,
              "exclude_self": false, "offset_s": 0.0, "students": "camera",
-             "train_target": "train_with_interp",
+             "train_target": "train_vanilla",
              "interp": {"mode": "step", "ramp_s": 3.0, "sigma_s": 2.0}},
 
   "tuning": {

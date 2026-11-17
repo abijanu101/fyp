@@ -26,6 +26,7 @@ design document.
 | 11 | [Pitfalls and status](11_pitfalls_and_status.md) | Environment quirks, data quirks, what is open |
 | 12 | [Reading the results: a primer](12_reading_results.md) | The thresholds, label agreement (Krippendorff's α), evaluation set-up and metrics needed to read `docs/experiments/`, from scratch |
 | 13 | [From ratings to reported numbers](13_from_ratings_to_numbers.md) | Exactly what the code does from a labeler's rating to a results file and the inference curve, with every implementation choice listed (O1–O26) for checking against the design |
+| 14 | [Dynamic clustering for synchrony features](14_dynamic_clustering.md) | Why class-relative features, the constraints of our data (7–20 students per window), every clustering family considered, and what experiment 10 tests |
 
 ## Conventions used in this guide
 

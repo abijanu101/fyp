@@ -1,0 +1,39 @@
+{
+  "selected": {
+    "C": 0.1
+  },
+  "selected_cv_score": 0.5,
+  "nested_mean": 0.5,
+  "nested_std": 0.0,
+  "outer": [
+    {
+      "held_out": "group_01",
+      "params": {
+        "C": 0.1
+      },
+      "inner_score": 0.5,
+      "outer_score": 0.5
+    },
+    {
+      "held_out": "group_02",
+      "params": {
+        "C": 0.1
+      },
+      "inner_score": 0.5,
+      "outer_score": 0.5
+    },
+    {
+      "held_out": "group_03",
+      "params": {
+        "C": 0.1
+      },
+      "inner_score": 0.5,
+      "outer_score": 0.5
+    }
+  ],
+  "config_patch": {
+    "expert.params": {
+      "C": 0.1
+    }
+  }
+}

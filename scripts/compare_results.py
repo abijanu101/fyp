@@ -22,7 +22,8 @@ from pathlib import Path
 
 import numpy as np
 
-METRICS = ("auc", "spearman", "balanced_acc", "macro_f1", "mae")
+METRICS = ("mae", "rmse", "pred_sd", "sd_ratio", "pearson", "calib_ratio", "share_pred_3", "auc", "spearman",
+           "macro_f1")
 RATINGS = ["1", "2", "3", "4", "5"]
 BINARY = ["not engaged", "engaged"]
 
@@ -52,7 +53,8 @@ def newest(folder: str, scope: str) -> str:
             r = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        if r.get("mode") == "per_labeler" and r["config"]["mixture"]["expert_scope"] == scope:
+        if r.get("mode") == "per_labeler" and r.get("labelers", "per_labeler") == "per_labeler" \
+                and r["config"]["mixture"]["expert_scope"] == scope:
             found.append(f)
     if not found:
         raise SystemExit(f"no per-labeler results with expert_scope '{scope}' in {folder}")
@@ -144,10 +146,25 @@ def main() -> None:
         print(f"\n## {track} entries, {key}\n\n{head}")
         for name, r in runs.items():
             ev = r["evaluation"]
-            print(row(name, {m: ev[f"{track}/{key}"]["summary"][m]["mean"] for m in METRICS}))
+            s_ = ev[f"{track}/{key}"]["summary"]
+            print(row(name, {m: s_[m]["mean"] if m in s_ else None for m in METRICS}))
         first = next(iter(runs.values()))["evaluation"]
         for base in ("constant_3", "train_mean"):
-            print(row(base, {m: first[f"{track}/{base}"]["summary"][m]["mean"] for m in METRICS}))
+            s_ = first[f"{track}/{base}"]["summary"]
+            print(row(base, {m: s_[m]["mean"] if m in s_ else None for m in METRICS}))
+        fit_key = f"{track}/configured/train/own_labeler"
+        if all(fit_key in r["evaluation"] for r in runs.values()):
+            print(f"\nTraining entries (each fold's model on its own training groups, own labeler, classified):\n")
+            print(head)
+            for name, r in runs.items():
+                print(row(f"{name} (train)", {m: r["evaluation"][fit_key]["summary"][m].get("mean")
+                                              if m in r["evaluation"][fit_key]["summary"] else None for m in METRICS}))
+            for base in ("constant_3", "train_mean"):
+                if f"{track}/{base}/train" in first:
+                    s_ = first[f"{track}/{base}/train"]["summary"]
+                    print(row(f"{base} (train)", {m: s_[m]["mean"] if m in s_ else None for m in METRICS}))
+        else:
+            print("\n(training-entry scores not stored: results written before they were added)")
 
         print(f"\nBy fold (AUC; difference {args.names[0]} - {args.names[1]}):\n")
         folds = {n: {f["held_out"]: f for f in r["evaluation"][f"{track}/{key}"]["folds"]} for n, r in runs.items()}

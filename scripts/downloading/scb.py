@@ -2,7 +2,7 @@
 from pathlib import Path
 from huggingface_hub import snapshot_download
 
-DEST = Path(r"E:\Coding\Projects\fyp\data\SCB-ST-Dataset4")
+DEST = Path(__file__).resolve().parents[2] / "data" / "SCB-ST-Dataset4"     # <repo>/data/SCB-ST-Dataset4
 REPO_ID = "wintonYF/SCB-Dataset"
 
 def main():

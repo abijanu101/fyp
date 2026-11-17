@@ -305,7 +305,7 @@ names where the details are.
   (`build_rating_graph`).
 - `retention_r` removed from `train_models` and `experiment_decoders`.
 - Per-activity metrics in every per-labeler fold; `scripts/compare_results.py`; the full pipeline
-  experiment (`docs/experiments/06_full_pipeline.md`) as the test of the mixture of experts.
+  experiment (`docs/experiments/06_full_pipeline_and_labels.md`) as the test of the mixture of experts.
 
 - Residual-flow pooling grid 2 × 2 → 3 × 3 (`residual_flow.grid`; Chapter 5): nine flow features per
   student, Vec 58 → 68 columns; no extra cost.

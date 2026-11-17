@@ -1,0 +1,502 @@
+{
+  "session": null,
+  "timing": {
+    "n_frames": 1470,
+    "t_first": 39377.16472,
+    "t_last": 39676.887103,
+    "duration_s": 299.72238300000026,
+    "fps": 4.999925001172351,
+    "median_dt_s": 0.20000299999810522,
+    "max_dt_s": 1.9090769999966142,
+    "gaps": [
+      {
+        "t": 39386.762523,
+        "length_s": 1.256003000002238
+      },
+      {
+        "t": 39405.757208,
+        "length_s": 0.950420999994094
+      },
+      {
+        "t": 39430.949236,
+        "length_s": 0.7366610000026412
+      },
+      {
+        "t": 39441.0892,
+        "length_s": 0.9193649999942863
+      },
+      {
+        "t": 39500.931791,
+        "length_s": 1.4139409999988857
+      },
+      {
+        "t": 39507.129008,
+        "length_s": 1.7110029999967082
+      },
+      {
+        "t": 39527.123904,
+        "length_s": 1.9090769999966142
+      },
+      {
+        "t": 39563.117838,
+        "length_s": 1.0400169999993523
+      },
+      {
+        "t": 39583.113473,
+        "length_s": 0.7021860000022571
+      },
+      {
+        "t": 39603.50374,
+        "length_s": 0.9281560000017635
+      },
+      {
+        "t": 39623.098583,
+        "length_s": 0.830777000002854
+      },
+      {
+        "t": 39642.693695,
+        "length_s": 1.0942139999970095
+      },
+      {
+        "t": 39663.689067,
+        "length_s": 0.9984299999996438
+      }
+    ]
+  },
+  "n_raw_tracks": 26,
+  "n_tracklets": 20,
+  "frame_wh": [
+    1280,
+    720
+  ],
+  "stage_seconds": {
+    "ingestion_index": 0.097,
+    "ingestion_decode": 62.356,
+    "detection": 42.453,
+    "tracking": 3.28,
+    "bfmu_frame.ResidualFlow": 80.314,
+    "bfmu_frame.ScbBehaviour": 75.903,
+    "scene": 2.677,
+    "tracklets": 0.003,
+    "aggregation": 0.851
+  },
+  "config_hash": "563448790abad1e52ef97fdb5c48e205cc2124288f2f7f137078ae8296af42d5",
+  "tracking_hash": "45b6b074948862426a23a68f49ba3e2d6e8f05a309d2dcf4cd97ae0144837be5",
+  "feature_hash": "efe2df0a22d8c5b50f60da2e560140421c4522d2b7c61266bf34f3b7c45b54c6",
+  "config": {
+    "seed": 0,
+    "dataset": {
+      "root": "data/DIPSER",
+      "groups": [
+        "group_01",
+        "group_02",
+        "group_03"
+      ],
+      "experiments": [
+        "experiment_01",
+        "experiment_02",
+        "experiment_03",
+        "experiment_04",
+        "experiment_05",
+        "experiment_06"
+      ],
+      "cameras": [
+        "context_cam_01",
+        "context_cam_02",
+        "context_cam_03"
+      ]
+    },
+    "classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06"
+    ],
+    "ingestion": {
+      "name": "zip",
+      "stride": 1,
+      "max_frames": null
+    },
+    "detector": {
+      "name": "yolo",
+      "weights": "models/yolo11n.pt",
+      "conf": 0.22,
+      "imgsz": 640,
+      "half": true
+    },
+    "tracker": {
+      "name": "botsort",
+      "options": {
+        "det_thresh": 0.22,
+        "track_high_thresh": 0.25,
+        "track_low_thresh": 0.21,
+        "new_track_thresh": 0.67,
+        "match_thresh": 0.8,
+        "max_lost_frames": 17,
+        "proximity_thresh": 0.48,
+        "appearance_thresh": 0.55,
+        "use_embeddings": false,
+        "use_cmc": false
+      }
+    },
+    "tracklets": {
+      "min_visible_s": 3.0,
+      "max_gap_s": 1.0
+    },
+    "association": {
+      "min_iou": 0.3,
+      "min_match_share": 0.5
+    },
+    "bfmu": [
+      {
+        "name": "kalman_geometry",
+        "still_threshold": 0.05,
+        "use_kalman": true
+      },
+      {
+        "name": "residual_flow",
+        "grid": 2,
+        "scale": 0.5
+      },
+      {
+        "name": "scb",
+        "mode": "soft",
+        "min_overlap": 0.5,
+        "models": [
+          {
+            "weights": "data/SCB-ST-Dataset4/SCB5-Handrise-Read-write-2024-9-17/exp/weights/best.pt",
+            "classes": [
+              "hand_raising",
+              "read",
+              "write"
+            ],
+            "conf": 0.25
+          }
+        ]
+      }
+    ],
+    "cfmu": {
+      "name": "null"
+    },
+    "scene": {
+      "name": "global_stats",
+      "size": [
+        64,
+        36
+      ],
+      "grid": 3
+    },
+    "window": {
+      "length_s": 8,
+      "overlap": 0.5
+    },
+    "aggregation": {
+      "heatmap_grid": 3,
+      "min_coverage": 0.5,
+      "thresholds": {
+        "kg.stillness": 0.8,
+        "scb.hand_raising": 0.1,
+        "scb.read": 0.5,
+        "scb.write": 0.5
+      }
+    },
+    "gate": {
+      "name": "random_forest",
+      "params": {
+        "n_estimators": 300,
+        "min_samples_leaf": 5
+      }
+    },
+    "gate_uses_vec": false,
+    "context_mode": "classified",
+    "expert": {
+      "name": "logreg",
+      "params": {
+        "C": 0.1
+      }
+    },
+    "hand_weighted": {
+      "weights": {
+        "vec.kg.stillness.mean": 1.0,
+        "vec.scb.write.mean": 1.0,
+        "vec.scb.read.mean": 0.5,
+        "vec.scb.hand_raising.mean": 0.5
+      },
+      "phone_key": "vec.scb.using_phone.mean",
+      "phone_sign": {
+        "01": 1,
+        "02": -1,
+        "03": -1,
+        "04": 1,
+        "05": 1,
+        "06": 0
+      }
+    },
+    "mixture": {
+      "mode": "soft",
+      "expert_scope": "per_experiment",
+      "tau": 0.5
+    },
+    "engagement": {
+      "aggregate": "late",
+      "late_context": true
+    },
+    "labels": {
+      "tau_att": 3,
+      "tau_share": 0.6,
+      "min_labeled_students": 3,
+      "exclude_self": false,
+      "offset_s": 0.0,
+      "students": "camera"
+    },
+    "tuning": {
+      "seed": 0,
+      "tracker": {
+        "det_conf_floor": 0.05,
+        "objective": "idf1",
+        "profiles": {
+          "quick": {
+            "sessions": [
+              "group_01/experiment_03/context_cam_02",
+              "group_02/experiment_04/context_cam_03",
+              "group_03/experiment_01/context_cam_01"
+            ],
+            "max_frames": 300,
+            "n_trials": 25
+          },
+          "full": {
+            "tracker": "botsort",
+            "sessions": "all",
+            "max_frames": null,
+            "n_trials": 20,
+            "fixed": {
+              "use_embeddings": false,
+              "use_cmc": true
+            }
+          },
+          "full_reid_cmc": {
+            "tracker": "botsort",
+            "sessions": "all",
+            "max_frames": null,
+            "n_trials": 20,
+            "fixed": {
+              "use_embeddings": true,
+              "use_cmc": true
+            }
+          },
+          "full_strongsort": {
+            "tracker": "strongsort",
+            "sessions": "all",
+            "max_frames": null,
+            "n_trials": 20,
+            "fixed": {
+              "use_cmc": true
+            },
+            "base_options": {
+              "min_conf": 0.2153,
+              "max_cos_dist": 0.3252,
+              "max_iou_dist": 0.8583,
+              "max_age": 15,
+              "n_init": 3
+            }
+          }
+        },
+        "space": {
+          "botsort": {
+            "det_conf": {
+              "low": 0.1,
+              "high": 0.5
+            },
+            "track_high_thresh": {
+              "low": 0.2,
+              "high": 0.7
+            },
+            "track_low_thresh": {
+              "low": 0.05,
+              "high": 0.3
+            },
+            "new_track_thresh": {
+              "low": 0.2,
+              "high": 0.7
+            },
+            "max_lost_frames": {
+              "low": 10,
+              "high": 150,
+              "int": true,
+              "log": true
+            },
+            "match_thresh": {
+              "low": 0.5,
+              "high": 0.95
+            },
+            "proximity_thresh": {
+              "low": 0.3,
+              "high": 0.8
+            },
+            "appearance_thresh": {
+              "low": 0.2,
+              "high": 0.8
+            },
+            "use_embeddings": [
+              true,
+              false
+            ],
+            "use_cmc": [
+              true,
+              false
+            ]
+          },
+          "strongsort": {
+            "det_conf": {
+              "low": 0.1,
+              "high": 0.5
+            },
+            "min_conf": {
+              "low": 0.1,
+              "high": 0.6
+            },
+            "max_cos_dist": {
+              "low": 0.1,
+              "high": 0.6
+            },
+            "max_iou_dist": {
+              "low": 0.5,
+              "high": 0.95
+            },
+            "max_age": {
+              "low": 10,
+              "high": 150,
+              "int": true,
+              "log": true
+            },
+            "n_init": [
+              1,
+              2,
+              3
+            ],
+            "use_cmc": [
+              true,
+              false
+            ]
+          }
+        }
+      },
+      "gate": {
+        "n_trials": 30,
+        "space": {
+          "random_forest": {
+            "n_estimators": [
+              100,
+              300,
+              500
+            ],
+            "max_depth": [
+              null,
+              4,
+              8,
+              16
+            ],
+            "min_samples_leaf": {
+              "low": 1,
+              "high": 20,
+              "int": true
+            },
+            "max_features": [
+              "sqrt",
+              "log2",
+              0.3
+            ]
+          },
+          "svm": {
+            "C": {
+              "low": 0.01,
+              "high": 100,
+              "log": true
+            }
+          },
+          "logreg": {
+            "C": {
+              "low": 0.001,
+              "high": 10,
+              "log": true
+            }
+          },
+          "knn": {
+            "n_neighbors": {
+              "low": 3,
+              "high": 50,
+              "int": true
+            },
+            "weights": [
+              "uniform",
+              "distance"
+            ]
+          }
+        }
+      },
+      "expert": {
+        "n_trials": 30,
+        "space": {
+          "logreg": {
+            "C": {
+              "low": 0.001,
+              "high": 10,
+              "log": true
+            }
+          },
+          "random_forest": {
+            "n_estimators": [
+              200
+            ],
+            "max_depth": [
+              2,
+              3,
+              4,
+              6
+            ],
+            "min_samples_leaf": {
+              "low": 5,
+              "high": 50,
+              "int": true
+            }
+          }
+        }
+      }
+    },
+    "benchmark": {
+      "sessions": [
+        "group_01/experiment_03/context_cam_02",
+        "group_02/experiment_04/context_cam_03",
+        "group_03/experiment_01/context_cam_01"
+      ],
+      "variants": {
+        "botsort_motion": {
+          "tracker.options.use_embeddings": false,
+          "tracker.options.use_cmc": true
+        },
+        "strongsort": {
+          "tracker": {
+            "name": "strongsort",
+            "options": {
+              "use_cmc": true,
+              "min_conf": 0.2153,
+              "max_cos_dist": 0.3252,
+              "max_iou_dist": 0.8583,
+              "max_age": 15,
+              "n_init": 3
+            }
+          }
+        },
+        "botsort_reid_cmc": {
+          "tracker.options.use_embeddings": true,
+          "tracker.options.use_cmc": true
+        }
+      }
+    },
+    "output_dir": "tmp/e2e6"
+  },
+  "models": "tmp/e2e6/models/563448790abad1e52ef97fdb5c48e205cc2124288f2f7f137078ae8296af42d5.joblib",
+  "label_offset_s": 0.0
+}

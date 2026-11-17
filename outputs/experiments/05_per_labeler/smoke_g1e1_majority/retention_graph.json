@@ -1,0 +1,1535 @@
+[
+  {
+    "t_start": 0.0,
+    "t_end": 8.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9941
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.85,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6053,
+      "labeler_02": 3.1259,
+      "labeler_03": 2.8293,
+      "labeler_04": 2.9138,
+      "labeler_05": 2.9984,
+      "self_labeling": 2.5282
+    },
+    "n_visible_tracks": 10
+  },
+  {
+    "t_start": 4.0,
+    "t_end": 12.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9841
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.65,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.63,
+      "labeler_02": 3.377,
+      "labeler_03": 2.7135,
+      "labeler_04": 2.8116,
+      "labeler_05": 3.0042,
+      "self_labeling": 2.584
+    },
+    "n_visible_tracks": 10
+  },
+  {
+    "t_start": 8.0,
+    "t_end": 16.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9949
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6103,
+      "labeler_02": 3.3532,
+      "labeler_03": 2.7575,
+      "labeler_04": 2.8192,
+      "labeler_05": 2.9996,
+      "self_labeling": 2.6037
+    },
+    "n_visible_tracks": 10
+  },
+  {
+    "t_start": 12.0,
+    "t_end": 20.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9825
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.7727,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6329,
+      "labeler_02": 3.1051,
+      "labeler_03": 2.6967,
+      "labeler_04": 2.9217,
+      "labeler_05": 3.003,
+      "self_labeling": 2.6158
+    },
+    "n_visible_tracks": 11
+  },
+  {
+    "t_start": 16.0,
+    "t_end": 24.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.982
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.7692,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.9172,
+      "labeler_02": 3.119,
+      "labeler_03": 2.4951,
+      "labeler_04": 2.6244,
+      "labeler_05": 3.0025,
+      "self_labeling": 2.6477
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 20.0,
+    "t_end": 28.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9052
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7978,
+      "labeler_02": 3.2266,
+      "labeler_03": 2.6363,
+      "labeler_04": 2.8244,
+      "labeler_05": 3.0285,
+      "self_labeling": 2.6422
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 24.0,
+    "t_end": 32.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9031
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.4022,
+      "labeler_02": 3.3392,
+      "labeler_03": 2.5906,
+      "labeler_04": 2.7817,
+      "labeler_05": 3.0256,
+      "self_labeling": 2.4886
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 28.0,
+    "t_end": 36.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9542
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.7308,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6701,
+      "labeler_02": 3.2126,
+      "labeler_03": 2.6598,
+      "labeler_04": 2.7463,
+      "labeler_05": 3.0158,
+      "self_labeling": 2.59
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 32.0,
+    "t_end": 40.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.924
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7066,
+      "labeler_02": 3.0928,
+      "labeler_03": 2.7675,
+      "labeler_04": 2.8358,
+      "labeler_05": 2.9826,
+      "self_labeling": 2.5485
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 36.0,
+    "t_end": 44.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9762
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.7692,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6352,
+      "labeler_02": 3.1831,
+      "labeler_03": 2.7551,
+      "labeler_04": 2.8523,
+      "labeler_05": 3.008,
+      "self_labeling": 2.5324
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 40.0,
+    "t_end": 48.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9652
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6004,
+      "labeler_02": 3.2844,
+      "labeler_03": 2.733,
+      "labeler_04": 2.8788,
+      "labeler_05": 3.009,
+      "self_labeling": 2.5363
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 44.0,
+    "t_end": 52.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9866
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6923,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.5823,
+      "labeler_02": 3.1102,
+      "labeler_03": 2.708,
+      "labeler_04": 2.7653,
+      "labeler_05": 3.0046,
+      "self_labeling": 2.6073
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 48.0,
+    "t_end": 56.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9981
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.625,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6843,
+      "labeler_02": 3.1872,
+      "labeler_03": 2.7026,
+      "labeler_04": 2.5169,
+      "labeler_05": 2.9996,
+      "self_labeling": 2.566
+    },
+    "n_visible_tracks": 12
+  },
+  {
+    "t_start": 52.0,
+    "t_end": 60.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9982
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6154,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.587,
+      "labeler_02": 3.0861,
+      "labeler_03": 2.5392,
+      "labeler_04": 2.5509,
+      "labeler_05": 2.9991,
+      "self_labeling": 2.6125
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 56.0,
+    "t_end": 64.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9921
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7768,
+      "labeler_02": 2.8466,
+      "labeler_03": 2.6412,
+      "labeler_04": 2.6359,
+      "labeler_05": 3.0001,
+      "self_labeling": 2.5866
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 60.0,
+    "t_end": 68.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9865
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8846,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.9102,
+      "labeler_02": 2.9007,
+      "labeler_03": 2.7352,
+      "labeler_04": 2.5584,
+      "labeler_05": 3.0046,
+      "self_labeling": 2.5494
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 64.0,
+    "t_end": 72.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9968
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6538,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7205,
+      "labeler_02": 3.0233,
+      "labeler_03": 2.6265,
+      "labeler_04": 2.6111,
+      "labeler_05": 3.0021,
+      "self_labeling": 2.5543
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 68.0,
+    "t_end": 76.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9938
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8462,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.5767,
+      "labeler_02": 2.8896,
+      "labeler_03": 2.6659,
+      "labeler_04": 2.7088,
+      "labeler_05": 2.9983,
+      "self_labeling": 2.5127
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 72.0,
+    "t_end": 80.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 1.0
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5385,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.581,
+      "labeler_02": 3.0288,
+      "labeler_03": 2.5869,
+      "labeler_04": 2.5714,
+      "labeler_05": 3.0,
+      "self_labeling": 2.5614
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 76.0,
+    "t_end": 84.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9974
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.8067,
+      "labeler_02": 3.3447,
+      "labeler_03": 2.6486,
+      "labeler_04": 2.5411,
+      "labeler_05": 2.9994,
+      "self_labeling": 2.7354
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 80.0,
+    "t_end": 88.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9961
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8462,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.9042,
+      "labeler_02": 3.2249,
+      "labeler_03": 2.708,
+      "labeler_04": 2.6042,
+      "labeler_05": 2.9994,
+      "self_labeling": 2.6477
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 84.0,
+    "t_end": 92.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9974
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.9615,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.9308,
+      "labeler_02": 3.3699,
+      "labeler_03": 2.8424,
+      "labeler_04": 2.7293,
+      "labeler_05": 2.9994,
+      "self_labeling": 2.564
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 88.0,
+    "t_end": 96.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9989
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.8489,
+      "labeler_02": 3.4456,
+      "labeler_03": 2.7572,
+      "labeler_04": 2.7634,
+      "labeler_05": 2.9995,
+      "self_labeling": 2.5549
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 92.0,
+    "t_end": 100.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 1.0
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.918,
+      "labeler_02": 3.5159,
+      "labeler_03": 2.72,
+      "labeler_04": 2.7198,
+      "labeler_05": 3.0,
+      "self_labeling": 2.5883
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 96.0,
+    "t_end": 104.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9967
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6923,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.8434,
+      "labeler_02": 3.4895,
+      "labeler_03": 2.6936,
+      "labeler_04": 2.6466,
+      "labeler_05": 3.0007,
+      "self_labeling": 2.6251
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 100.0,
+    "t_end": 108.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9948
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.9231,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 3.0236,
+      "labeler_02": 3.0337,
+      "labeler_03": 2.5477,
+      "labeler_04": 2.82,
+      "labeler_05": 3.0003,
+      "self_labeling": 2.6276
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 104.0,
+    "t_end": 112.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9748
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6154,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.71,
+      "labeler_02": 2.9632,
+      "labeler_03": 2.4438,
+      "labeler_04": 2.8,
+      "labeler_05": 3.0073,
+      "self_labeling": 2.581
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 108.0,
+    "t_end": 116.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9767
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5769,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6453,
+      "labeler_02": 3.2083,
+      "labeler_03": 2.482,
+      "labeler_04": 2.5661,
+      "labeler_05": 3.0063,
+      "self_labeling": 2.541
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 112.0,
+    "t_end": 120.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.994
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5385,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6292,
+      "labeler_02": 3.2649,
+      "labeler_03": 2.5204,
+      "labeler_04": 2.5453,
+      "labeler_05": 3.0026,
+      "self_labeling": 2.4894
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 116.0,
+    "t_end": 124.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9193
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6154,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6373,
+      "labeler_02": 3.1014,
+      "labeler_03": 2.4197,
+      "labeler_04": 2.5189,
+      "labeler_05": 3.0387,
+      "self_labeling": 2.6492
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 120.0,
+    "t_end": 128.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9612
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5769,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6699,
+      "labeler_02": 2.976,
+      "labeler_03": 2.4075,
+      "labeler_04": 2.5734,
+      "labeler_05": 3.0216,
+      "self_labeling": 2.6868
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 124.0,
+    "t_end": 132.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9975
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6154,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.5851,
+      "labeler_02": 3.2099,
+      "labeler_03": 2.5126,
+      "labeler_04": 2.6311,
+      "labeler_05": 3.0017,
+      "self_labeling": 2.6326
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 128.0,
+    "t_end": 136.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 1.0
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6923,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6282,
+      "labeler_02": 3.2927,
+      "labeler_03": 2.712,
+      "labeler_04": 2.5866,
+      "labeler_05": 3.0,
+      "self_labeling": 2.6653
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 132.0,
+    "t_end": 140.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9879
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5385,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6039,
+      "labeler_02": 3.2377,
+      "labeler_03": 2.5661,
+      "labeler_04": 2.5509,
+      "labeler_05": 3.0013,
+      "self_labeling": 2.673
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 136.0,
+    "t_end": 144.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9934
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6538,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.751,
+      "labeler_02": 3.1499,
+      "labeler_03": 2.5183,
+      "labeler_04": 2.5015,
+      "labeler_05": 2.9991,
+      "self_labeling": 2.6907
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 140.0,
+    "t_end": 148.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 1.0
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5769,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7968,
+      "labeler_02": 3.2561,
+      "labeler_03": 2.5629,
+      "labeler_04": 2.4932,
+      "labeler_05": 3.0,
+      "self_labeling": 2.7085
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 144.0,
+    "t_end": 152.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 1.0
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6538,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7483,
+      "labeler_02": 3.4376,
+      "labeler_03": 2.638,
+      "labeler_04": 2.4781,
+      "labeler_05": 3.0,
+      "self_labeling": 2.6578
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 148.0,
+    "t_end": 156.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.998
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.7308,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7577,
+      "labeler_02": 3.3841,
+      "labeler_03": 2.7056,
+      "labeler_04": 2.4702,
+      "labeler_05": 3.0006,
+      "self_labeling": 2.6833
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 152.0,
+    "t_end": 160.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9988
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.7308,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.745,
+      "labeler_02": 3.3822,
+      "labeler_03": 2.6996,
+      "labeler_04": 2.4775,
+      "labeler_05": 2.9991,
+      "self_labeling": 2.7123
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 156.0,
+    "t_end": 164.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9991
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6154,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6977,
+      "labeler_02": 3.3075,
+      "labeler_03": 2.7282,
+      "labeler_04": 2.5981,
+      "labeler_05": 3.0005,
+      "self_labeling": 2.6801
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 160.0,
+    "t_end": 168.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9737
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5769,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.5742,
+      "labeler_02": 3.1434,
+      "labeler_03": 2.5187,
+      "labeler_04": 2.6483,
+      "labeler_05": 3.0038,
+      "self_labeling": 2.6348
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 164.0,
+    "t_end": 172.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9924
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6538,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.5998,
+      "labeler_02": 3.0252,
+      "labeler_03": 2.5122,
+      "labeler_04": 2.5258,
+      "labeler_05": 3.0023,
+      "self_labeling": 2.5728
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 168.0,
+    "t_end": 176.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9987
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.7692,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7998,
+      "labeler_02": 3.0918,
+      "labeler_03": 2.5985,
+      "labeler_04": 2.56,
+      "labeler_05": 3.0008,
+      "self_labeling": 2.5355
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 172.0,
+    "t_end": 180.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 1.0
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6154,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.722,
+      "labeler_02": 3.3702,
+      "labeler_03": 2.6619,
+      "labeler_04": 2.5408,
+      "labeler_05": 3.0,
+      "self_labeling": 2.5767
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 176.0,
+    "t_end": 184.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9933
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.7692,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.8593,
+      "labeler_02": 3.3325,
+      "labeler_03": 2.7021,
+      "labeler_04": 2.6413,
+      "labeler_05": 3.0034,
+      "self_labeling": 2.6095
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 180.0,
+    "t_end": 188.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9969
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6923,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7807,
+      "labeler_02": 3.2144,
+      "labeler_03": 2.6058,
+      "labeler_04": 2.5419,
+      "labeler_05": 2.9997,
+      "self_labeling": 2.6213
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 184.0,
+    "t_end": 192.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9969
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5385,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6936,
+      "labeler_02": 3.2092,
+      "labeler_03": 2.5255,
+      "labeler_04": 2.5111,
+      "labeler_05": 3.0014,
+      "self_labeling": 2.5485
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 188.0,
+    "t_end": 196.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9981
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6538,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6684,
+      "labeler_02": 3.3346,
+      "labeler_03": 2.6265,
+      "labeler_04": 2.6035,
+      "labeler_05": 3.0009,
+      "self_labeling": 2.5321
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 192.0,
+    "t_end": 200.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9932
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5769,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6939,
+      "labeler_02": 3.39,
+      "labeler_03": 2.5834,
+      "labeler_04": 2.4504,
+      "labeler_05": 3.0029,
+      "self_labeling": 2.4427
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 196.0,
+    "t_end": 204.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9939
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.5313,
+      "labeler_02": 3.3964,
+      "labeler_03": 2.6136,
+      "labeler_04": 2.4594,
+      "labeler_05": 3.0025,
+      "self_labeling": 2.5676
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 200.0,
+    "t_end": 208.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9952
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6154,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7155,
+      "labeler_02": 3.4473,
+      "labeler_03": 2.691,
+      "labeler_04": 2.5536,
+      "labeler_05": 3.0014,
+      "self_labeling": 2.6588
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 204.0,
+    "t_end": 212.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9817
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.8379,
+      "labeler_02": 3.5424,
+      "labeler_03": 2.6482,
+      "labeler_04": 2.636,
+      "labeler_05": 3.0003,
+      "self_labeling": 2.6544
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 208.0,
+    "t_end": 216.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9737
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6154,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7778,
+      "labeler_02": 3.5246,
+      "labeler_03": 2.6043,
+      "labeler_04": 2.5437,
+      "labeler_05": 3.004,
+      "self_labeling": 2.6498
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 212.0,
+    "t_end": 220.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9807
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5385,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.728,
+      "labeler_02": 3.4761,
+      "labeler_03": 2.5191,
+      "labeler_04": 2.4764,
+      "labeler_05": 3.0027,
+      "self_labeling": 2.5538
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 216.0,
+    "t_end": 224.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9822
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5385,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.713,
+      "labeler_02": 3.5576,
+      "labeler_03": 2.6669,
+      "labeler_04": 2.4291,
+      "labeler_05": 2.9969,
+      "self_labeling": 2.5967
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 220.0,
+    "t_end": 228.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9979
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8846,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.8388,
+      "labeler_02": 3.6291,
+      "labeler_03": 2.9051,
+      "labeler_04": 2.5812,
+      "labeler_05": 2.9993,
+      "self_labeling": 2.6882
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 224.0,
+    "t_end": 232.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9787
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.9231,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.8877,
+      "labeler_02": 3.3844,
+      "labeler_03": 2.9937,
+      "labeler_04": 2.6807,
+      "labeler_05": 3.0054,
+      "self_labeling": 2.6547
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 228.0,
+    "t_end": 236.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9783
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.7308,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.792,
+      "labeler_02": 3.2055,
+      "labeler_03": 2.7114,
+      "labeler_04": 2.6253,
+      "labeler_05": 3.008,
+      "self_labeling": 2.6042
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 232.0,
+    "t_end": 240.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9885
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.7692,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7746,
+      "labeler_02": 3.1937,
+      "labeler_03": 2.7311,
+      "labeler_04": 2.7364,
+      "labeler_05": 3.0046,
+      "self_labeling": 2.6045
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 236.0,
+    "t_end": 244.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9953
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7799,
+      "labeler_02": 3.3284,
+      "labeler_03": 2.9666,
+      "labeler_04": 2.7621,
+      "labeler_05": 3.0014,
+      "self_labeling": 2.5373
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 240.0,
+    "t_end": 248.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9944
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8462,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.8759,
+      "labeler_02": 3.43,
+      "labeler_03": 2.7344,
+      "labeler_04": 2.7118,
+      "labeler_05": 3.0014,
+      "self_labeling": 2.4956
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 244.0,
+    "t_end": 252.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9766
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.8226,
+      "labeler_02": 3.1839,
+      "labeler_03": 2.8789,
+      "labeler_04": 2.7352,
+      "labeler_05": 3.0056,
+      "self_labeling": 2.5628
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 248.0,
+    "t_end": 256.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9816
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7953,
+      "labeler_02": 3.1575,
+      "labeler_03": 2.8696,
+      "labeler_04": 2.7483,
+      "labeler_05": 3.0079,
+      "self_labeling": 2.5116
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 252.0,
+    "t_end": 260.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9701
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.8077,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.8624,
+      "labeler_02": 3.3124,
+      "labeler_03": 2.7596,
+      "labeler_04": 2.6369,
+      "labeler_05": 3.0129,
+      "self_labeling": 2.5201
+    },
+    "n_visible_tracks": 13
+  },
+  {
+    "t_start": 256.0,
+    "t_end": 264.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9328
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5357,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.4958,
+      "labeler_02": 3.2913,
+      "labeler_03": 2.3763,
+      "labeler_04": 2.4677,
+      "labeler_05": 3.0315,
+      "self_labeling": 2.5683
+    },
+    "n_visible_tracks": 14
+  },
+  {
+    "t_start": 260.0,
+    "t_end": 268.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9688
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.5302,
+      "labeler_02": 3.2861,
+      "labeler_03": 2.3984,
+      "labeler_04": 2.4104,
+      "labeler_05": 3.0099,
+      "self_labeling": 2.5895
+    },
+    "n_visible_tracks": 14
+  },
+  {
+    "t_start": 264.0,
+    "t_end": 272.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9907
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5357,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.5576,
+      "labeler_02": 3.2225,
+      "labeler_03": 2.4444,
+      "labeler_04": 2.4296,
+      "labeler_05": 3.001,
+      "self_labeling": 2.505
+    },
+    "n_visible_tracks": 14
+  },
+  {
+    "t_start": 268.0,
+    "t_end": 276.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9853
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6786,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7735,
+      "labeler_02": 3.2012,
+      "labeler_03": 2.5979,
+      "labeler_04": 2.6223,
+      "labeler_05": 2.9995,
+      "self_labeling": 2.5501
+    },
+    "n_visible_tracks": 14
+  },
+  {
+    "t_start": 272.0,
+    "t_end": 280.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9941
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6071,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6823,
+      "labeler_02": 3.2273,
+      "labeler_03": 2.6729,
+      "labeler_04": 2.5641,
+      "labeler_05": 3.0019,
+      "self_labeling": 2.5157
+    },
+    "n_visible_tracks": 14
+  },
+  {
+    "t_start": 276.0,
+    "t_end": 284.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9928
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5357,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.5622,
+      "labeler_02": 3.355,
+      "labeler_03": 2.5802,
+      "labeler_04": 2.485,
+      "labeler_05": 3.0033,
+      "self_labeling": 2.5473
+    },
+    "n_visible_tracks": 14
+  },
+  {
+    "t_start": 280.0,
+    "t_end": 288.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9928
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5357,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.5261,
+      "labeler_02": 3.2707,
+      "labeler_03": 2.5272,
+      "labeler_04": 2.4769,
+      "labeler_05": 3.0041,
+      "self_labeling": 2.6068
+    },
+    "n_visible_tracks": 14
+  },
+  {
+    "t_start": 284.0,
+    "t_end": 292.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9889
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.5714,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.6203,
+      "labeler_02": 2.9308,
+      "labeler_03": 2.4869,
+      "labeler_04": 2.5252,
+      "labeler_05": 3.0022,
+      "self_labeling": 2.4777
+    },
+    "n_visible_tracks": 14
+  },
+  {
+    "t_start": 288.0,
+    "t_end": 296.0,
+    "predicted_context": {
+      "label": "01",
+      "confidence": 0.9839
+    },
+    "layout_family": "grid",
+    "prediction": "majority",
+    "rating": 2.6429,
+    "engaged": "N",
+    "labeler_ratings": {
+      "labeler_01": 2.7696,
+      "labeler_02": 2.9863,
+      "labeler_03": 2.4441,
+      "labeler_04": 2.6469,
+      "labeler_05": 2.9973,
+      "self_labeling": 2.628
+    },
+    "n_visible_tracks": 14
+  }
+]

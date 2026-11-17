@@ -13,6 +13,13 @@ Numbers: all 483 labelled student-sessions, step labels (Chapter 13 of the guide
 
 ## 1. In short
 
+> **Update 17 November 2026.** Experiment 06 Part 1 (`docs/experiments/06_full_pipeline_and_labels.md`)
+> measures how well the labelers agree on these targets. For the per-label targets, a second human is
+> a worse predictor than constant 3 on MAE (one other expert 0.75, the other experts' mean 0.67,
+> constant 3 0.62), and the ranking ceiling is low (the other experts' mean: AUC 0.56, Spearman 0.15).
+> The tables below should be read with that second reference line; the decisions in §7 stand. The
+> student counts here (483) include experiments 07–09; the pipeline's six activities have 321.
+
 - **The full grid** is 4 units × 4 aggregations × 3 labeler groups (experts, self, experts + self)
   = **48 combinations**. For self, **[unit] × {median, mean, majority, all} × self are redundant**:
   the median, mean and mode of one rating are that rating, and "all" keeps just that rating. Each
@@ -387,7 +394,7 @@ session, so trying several lengths is cheap.
 Items 1–9 are implemented and are the default (`engagement.labelers = "per_labeler"`); the guide's
 §7.9 describes the code. `plot_results`, `output_viewer` and `tune_models` support it (Chapter 8). Config keys: `labels.train_target`, `labels.interp.{mode,ramp_s,sigma_s}`,
 `output.prediction`, `output.majority_resolution` (Chapter 9). The window length is 4 s (`window.length_s`, §7.2). Still open: a curve-shape metric (`docs/misc/proposed_metrics.md`).
-A first run on the six-session caches (`tmp/e2e6/run_per_labeler.py`, 8 s windows, step labels,
+A first run on the six-session caches (`scripts/analysis/e2e6/run_per_labeler.py`, 8 s windows, step labels,
 `train_with_interp`) works end to end: 4,769 entries with a linked track, every prediction at chance
 level, as expected from one session per activity (04 §4).
 

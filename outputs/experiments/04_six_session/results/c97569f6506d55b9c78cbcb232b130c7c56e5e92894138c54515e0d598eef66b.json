@@ -1,0 +1,2153 @@
+{
+  "config_hash": "c97569f6506d55b9c78cbcb232b130c7c56e5e92894138c54515e0d598eef66b",
+  "config": {
+    "seed": 0,
+    "dataset": {
+      "root": "data/DIPSER",
+      "groups": [
+        "group_01",
+        "group_02",
+        "group_03"
+      ],
+      "experiments": [
+        "experiment_01",
+        "experiment_02",
+        "experiment_03",
+        "experiment_04",
+        "experiment_05",
+        "experiment_06"
+      ],
+      "cameras": [
+        "context_cam_01",
+        "context_cam_02",
+        "context_cam_03"
+      ]
+    },
+    "classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06"
+    ],
+    "ingestion": {
+      "name": "zip",
+      "stride": 1,
+      "max_frames": null
+    },
+    "detector": {
+      "name": "yolo",
+      "weights": "models/yolo11n.pt",
+      "conf": 0.22,
+      "imgsz": 640,
+      "half": true
+    },
+    "tracker": {
+      "name": "botsort",
+      "options": {
+        "track_high_thresh": 0.25,
+        "track_low_thresh": 0.21,
+        "new_track_thresh": 0.67,
+        "match_thresh": 0.8,
+        "max_lost_frames": 17,
+        "proximity_thresh": 0.48,
+        "appearance_thresh": 0.55,
+        "use_embeddings": false,
+        "use_cmc": false
+      }
+    },
+    "tracklets": {
+      "min_visible_s": 3.0,
+      "max_gap_s": 1.0
+    },
+    "association": {
+      "min_iou": 0.3,
+      "min_match_share": 0.5
+    },
+    "bfmu": [
+      {
+        "name": "kalman_geometry",
+        "still_threshold": 0.05,
+        "use_kalman": true
+      },
+      {
+        "name": "residual_flow",
+        "grid": 2,
+        "scale": 0.5
+      },
+      {
+        "name": "scb",
+        "mode": "soft",
+        "min_overlap": 0.5,
+        "models": [
+          {
+            "weights": "data/SCB-ST-Dataset4/SCB5-Handrise-Read-write-2024-9-17/exp/weights/best.pt",
+            "classes": [
+              "hand_raising",
+              "read",
+              "write"
+            ],
+            "conf": 0.25
+          }
+        ]
+      }
+    ],
+    "cfmu": {
+      "name": "null"
+    },
+    "scene": {
+      "name": "global_stats",
+      "size": [
+        64,
+        36
+      ],
+      "grid": 3
+    },
+    "window": {
+      "length_s": 8,
+      "overlap": 0.5
+    },
+    "aggregation": {
+      "heatmap_grid": 3,
+      "min_coverage": 0.5,
+      "thresholds": {
+        "kg.stillness": 0.8,
+        "scb.hand_raising": 0.1,
+        "scb.read": 0.5,
+        "scb.write": 0.5
+      }
+    },
+    "gate": {
+      "name": "random_forest",
+      "params": {
+        "n_estimators": 300,
+        "min_samples_leaf": 5
+      }
+    },
+    "gate_uses_vec": false,
+    "context_mode": "classified",
+    "expert": {
+      "name": "logreg",
+      "params": {
+        "C": 0.1
+      }
+    },
+    "hand_weighted": {
+      "weights": {
+        "vec.kg.stillness.mean": 1.0,
+        "vec.scb.write.mean": 1.0,
+        "vec.scb.read.mean": 0.5,
+        "vec.scb.hand_raising.mean": 0.5
+      },
+      "phone_key": "vec.scb.using_phone.mean",
+      "phone_sign": {
+        "01": 1,
+        "02": -1,
+        "03": -1,
+        "04": 1,
+        "05": 1,
+        "06": 0
+      }
+    },
+    "mixture": {
+      "mode": "soft",
+      "expert_scope": "per_experiment",
+      "tau": 0.5
+    },
+    "engagement": {
+      "aggregate": "late",
+      "late_context": false
+    },
+    "labels": {
+      "tau_att": 3,
+      "tau_share": 0.6,
+      "min_labeled_students": 3,
+      "exclude_self": false,
+      "offset_s": 0.0,
+      "students": "camera"
+    },
+    "tuning": {
+      "seed": 0,
+      "tracker": {
+        "det_conf_floor": 0.05,
+        "objective": "idf1",
+        "profiles": {
+          "quick": {
+            "sessions": [
+              "group_01/experiment_03/context_cam_02",
+              "group_02/experiment_04/context_cam_03",
+              "group_03/experiment_01/context_cam_01"
+            ],
+            "max_frames": 300,
+            "n_trials": 25
+          },
+          "full": {
+            "tracker": "botsort",
+            "sessions": "all",
+            "max_frames": null,
+            "n_trials": 20,
+            "fixed": {
+              "use_embeddings": false,
+              "use_cmc": true
+            }
+          },
+          "full_reid_cmc": {
+            "tracker": "botsort",
+            "sessions": "all",
+            "max_frames": null,
+            "n_trials": 20,
+            "fixed": {
+              "use_embeddings": true,
+              "use_cmc": true
+            }
+          },
+          "full_strongsort": {
+            "tracker": "strongsort",
+            "sessions": "all",
+            "max_frames": null,
+            "n_trials": 20,
+            "fixed": {
+              "use_cmc": true
+            },
+            "base_options": {
+              "min_conf": 0.2153,
+              "max_cos_dist": 0.3252,
+              "max_iou_dist": 0.8583,
+              "max_age": 15,
+              "n_init": 3
+            }
+          }
+        },
+        "space": {
+          "botsort": {
+            "det_conf": {
+              "low": 0.1,
+              "high": 0.5
+            },
+            "track_high_thresh": {
+              "low": 0.2,
+              "high": 0.7
+            },
+            "track_low_thresh": {
+              "low": 0.05,
+              "high": 0.3
+            },
+            "new_track_thresh": {
+              "low": 0.2,
+              "high": 0.7
+            },
+            "max_lost_frames": {
+              "low": 10,
+              "high": 150,
+              "int": true,
+              "log": true
+            },
+            "match_thresh": {
+              "low": 0.5,
+              "high": 0.95
+            },
+            "proximity_thresh": {
+              "low": 0.3,
+              "high": 0.8
+            },
+            "appearance_thresh": {
+              "low": 0.2,
+              "high": 0.8
+            },
+            "use_embeddings": [
+              true,
+              false
+            ],
+            "use_cmc": [
+              true,
+              false
+            ]
+          },
+          "strongsort": {
+            "det_conf": {
+              "low": 0.1,
+              "high": 0.5
+            },
+            "min_conf": {
+              "low": 0.1,
+              "high": 0.6
+            },
+            "max_cos_dist": {
+              "low": 0.1,
+              "high": 0.6
+            },
+            "max_iou_dist": {
+              "low": 0.5,
+              "high": 0.95
+            },
+            "max_age": {
+              "low": 10,
+              "high": 150,
+              "int": true,
+              "log": true
+            },
+            "n_init": [
+              1,
+              2,
+              3
+            ],
+            "use_cmc": [
+              true,
+              false
+            ]
+          }
+        }
+      },
+      "gate": {
+        "n_trials": 30,
+        "space": {
+          "random_forest": {
+            "n_estimators": [
+              100,
+              300,
+              500
+            ],
+            "max_depth": [
+              null,
+              4,
+              8,
+              16
+            ],
+            "min_samples_leaf": {
+              "low": 1,
+              "high": 20,
+              "int": true
+            },
+            "max_features": [
+              "sqrt",
+              "log2",
+              0.3
+            ]
+          },
+          "svm": {
+            "C": {
+              "low": 0.01,
+              "high": 100,
+              "log": true
+            }
+          },
+          "logreg": {
+            "C": {
+              "low": 0.001,
+              "high": 10,
+              "log": true
+            }
+          },
+          "knn": {
+            "n_neighbors": {
+              "low": 3,
+              "high": 50,
+              "int": true
+            },
+            "weights": [
+              "uniform",
+              "distance"
+            ]
+          }
+        }
+      },
+      "expert": {
+        "n_trials": 30,
+        "space": {
+          "logreg": {
+            "C": {
+              "low": 0.001,
+              "high": 10,
+              "log": true
+            }
+          },
+          "random_forest": {
+            "n_estimators": [
+              200
+            ],
+            "max_depth": [
+              2,
+              3,
+              4,
+              6
+            ],
+            "min_samples_leaf": {
+              "low": 5,
+              "high": 50,
+              "int": true
+            }
+          }
+        }
+      }
+    },
+    "benchmark": {
+      "sessions": [
+        "group_01/experiment_03/context_cam_02",
+        "group_02/experiment_04/context_cam_03",
+        "group_03/experiment_01/context_cam_01"
+      ],
+      "variants": {
+        "botsort_motion": {
+          "tracker.options.use_embeddings": false,
+          "tracker.options.use_cmc": true
+        },
+        "strongsort": {
+          "tracker": {
+            "name": "strongsort",
+            "options": {
+              "use_cmc": true,
+              "min_conf": 0.2153,
+              "max_cos_dist": 0.3252,
+              "max_iou_dist": 0.8583,
+              "max_age": 15,
+              "n_init": 3
+            }
+          }
+        },
+        "botsort_reid_cmc": {
+          "tracker.options.use_embeddings": true,
+          "tracker.options.use_cmc": true
+        }
+      }
+    },
+    "output_dir": "tmp/e2e6"
+  },
+  "data": {
+    "n_sessions": 6,
+    "n_windows": 438,
+    "label_coverage": 0.997716894977169,
+    "pos_rate": 0.5835240274599542,
+    "pos_rate_by_exp": {
+      "01": 0.2465753424657534,
+      "02": 0.9452054794520548,
+      "03": 0.9178082191780822,
+      "04": 0.0,
+      "05": 0.4383561643835616,
+      "06": 0.9583333333333334
+    },
+    "aggregate": "late",
+    "n_rows": 4929,
+    "row_label_coverage": 0.920470683708663,
+    "row_pos_rate": 0.6405113511130703
+  },
+  "gate": {
+    "summary": {
+      "accuracy": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "macro_f1": {
+        "mean": 0.0,
+        "std": 0.0
+      }
+    },
+    "folds": [
+      {
+        "held_out": "group_01",
+        "accuracy": 0.0,
+        "macro_f1": 0.0,
+        "detail": {
+          "accuracy": 0.0,
+          "macro_f1": 0.0,
+          "per_class": {
+            "01": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 73
+            },
+            "02": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "03": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "04": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 73
+            },
+            "05": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "06": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            }
+          }
+        }
+      },
+      {
+        "held_out": "group_02",
+        "accuracy": 0.0,
+        "macro_f1": 0.0,
+        "detail": {
+          "accuracy": 0.0,
+          "macro_f1": 0.0,
+          "per_class": {
+            "01": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "02": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 73
+            },
+            "03": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "04": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "05": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 73
+            },
+            "06": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            }
+          }
+        }
+      },
+      {
+        "held_out": "group_03",
+        "accuracy": 0.0,
+        "macro_f1": 0.0,
+        "detail": {
+          "accuracy": 0.0,
+          "macro_f1": 0.0,
+          "per_class": {
+            "01": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "02": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "03": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 73
+            },
+            "04": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "05": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "06": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 73
+            }
+          }
+        }
+      }
+    ]
+  },
+  "engagement": {
+    "majority": {
+      "summary": {
+        "n": {
+          "mean": 145.66666666666666,
+          "std": 0.4714045207910317
+        },
+        "pos_rate": {
+          "mean": 0.5843331758778145,
+          "std": 0.3411448370818682
+        },
+        "f1": {
+          "mean": 0.3457753201013791,
+          "std": 0.3456024895527075
+        },
+        "auc": {
+          "mean": 0.5,
+          "std": 0.0
+        },
+        "balanced_acc": {
+          "mean": 0.5,
+          "std": 0.0
+        }
+      },
+      "folds": [
+        {
+          "held_out": "group_01",
+          "n": 146,
+          "pos_rate": 0.1232876712328767,
+          "f1": 0.21951219512195122,
+          "auc": 0.5,
+          "balanced_acc": 0.5
+        },
+        {
+          "held_out": "group_02",
+          "n": 146,
+          "pos_rate": 0.6917808219178082,
+          "f1": 0.8178137651821862,
+          "auc": 0.5,
+          "balanced_acc": 0.5
+        },
+        {
+          "held_out": "group_03",
+          "n": 145,
+          "pos_rate": 0.9379310344827586,
+          "f1": 0.0,
+          "auc": 0.5,
+          "balanced_acc": 0.5
+        }
+      ]
+    },
+    "configured/classified": {
+      "summary": {
+        "n": {
+          "mean": 145.66666666666666,
+          "std": 0.4714045207910317
+        },
+        "pos_rate": {
+          "mean": 0.5843331758778145,
+          "std": 0.3411448370818682
+        },
+        "f1": {
+          "mean": 0.011145369418750715,
+          "std": 0.008107252610037922
+        },
+        "auc": {
+          "mean": 0.4829779209538601,
+          "std": 0.21753760318444113
+        },
+        "balanced_acc": {
+          "mean": 0.45472750706443194,
+          "std": 0.04545690869208744
+        },
+        "retention_r": {
+          "mean": 0.12104266203680618,
+          "std": 0.12635745913283608
+        }
+      },
+      "folds": [
+        {
+          "held_out": "group_01",
+          "n": 146,
+          "pos_rate": 0.1232876712328767,
+          "f1": 0.0,
+          "auc": 0.7838541666666666,
+          "balanced_acc": 0.5,
+          "retention_r": 0.20467919949128655,
+          "per_experiment": {
+            "01": {
+              "n": 73,
+              "pos_rate": 0.2465753424657534,
+              "f1": 0.0,
+              "auc": 0.7333333333333333,
+              "balanced_acc": 0.5
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 73,
+              "pos_rate": 0.0,
+              "f1": 0.0,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_02",
+          "n": 146,
+          "pos_rate": 0.6917808219178082,
+          "f1": 0.01904761904761905,
+          "auc": 0.3881188118811881,
+          "balanced_acc": 0.47161716171617163,
+          "retention_r": 0.2159833360509037,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 73,
+              "pos_rate": 0.9452054794520548,
+              "f1": 0.0,
+              "auc": 0.2681159420289855,
+              "balanced_acc": 0.5
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 73,
+              "pos_rate": 0.4383561643835616,
+              "f1": 0.05555555555555555,
+              "auc": 0.6760670731707317,
+              "balanced_acc": 0.4790396341463415
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_03",
+          "n": 145,
+          "pos_rate": 0.9379310344827586,
+          "f1": 0.014388489208633094,
+          "auc": 0.2769607843137255,
+          "balanced_acc": 0.3925653594771242,
+          "retention_r": -0.05753454943177172,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 73,
+              "pos_rate": 0.9178082191780822,
+              "f1": 0.0,
+              "auc": 0.027363184079601983,
+              "balanced_acc": 0.3333333333333333
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 72,
+              "pos_rate": 0.9583333333333334,
+              "f1": 0.02857142857142857,
+              "auc": 0.7342995169082125,
+              "balanced_acc": 0.5072463768115942
+            }
+          }
+        }
+      ]
+    },
+    "configured/oracle": {
+      "summary": {
+        "n": {
+          "mean": 145.66666666666666,
+          "std": 0.4714045207910317
+        },
+        "pos_rate": {
+          "mean": 0.5843331758778145,
+          "std": 0.3411448370818682
+        },
+        "f1": {
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "auc": {
+          "mean": 0.5,
+          "std": 0.0
+        },
+        "balanced_acc": {
+          "mean": 0.5,
+          "std": 0.0
+        },
+        "retention_r": {
+          "mean": NaN,
+          "std": NaN
+        }
+      },
+      "folds": [
+        {
+          "held_out": "group_01",
+          "n": 146,
+          "pos_rate": 0.1232876712328767,
+          "f1": 0.0,
+          "auc": 0.5,
+          "balanced_acc": 0.5,
+          "retention_r": NaN,
+          "per_experiment": {
+            "01": {
+              "n": 73,
+              "pos_rate": 0.2465753424657534,
+              "f1": 0.0,
+              "auc": 0.5,
+              "balanced_acc": 0.5
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 73,
+              "pos_rate": 0.0,
+              "f1": 0.0,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_02",
+          "n": 146,
+          "pos_rate": 0.6917808219178082,
+          "f1": 0.0,
+          "auc": 0.5,
+          "balanced_acc": 0.5,
+          "retention_r": NaN,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 73,
+              "pos_rate": 0.9452054794520548,
+              "f1": 0.0,
+              "auc": 0.5,
+              "balanced_acc": 0.5
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 73,
+              "pos_rate": 0.4383561643835616,
+              "f1": 0.0,
+              "auc": 0.5,
+              "balanced_acc": 0.5
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_03",
+          "n": 145,
+          "pos_rate": 0.9379310344827586,
+          "f1": 0.0,
+          "auc": 0.5,
+          "balanced_acc": 0.5,
+          "retention_r": NaN,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 73,
+              "pos_rate": 0.9178082191780822,
+              "f1": 0.0,
+              "auc": 0.5,
+              "balanced_acc": 0.5
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 72,
+              "pos_rate": 0.9583333333333334,
+              "f1": 0.0,
+              "auc": 0.5,
+              "balanced_acc": 0.5
+            }
+          }
+        }
+      ]
+    },
+    "hard_top1/classified": {
+      "summary": {
+        "n": {
+          "mean": 145.66666666666666,
+          "std": 0.4714045207910317
+        },
+        "pos_rate": {
+          "mean": 0.5843331758778145,
+          "std": 0.3411448370818682
+        },
+        "f1": {
+          "mean": 0.09787648548607053,
+          "std": 0.07164305939556552
+        },
+        "auc": {
+          "mean": 0.42877276391854874,
+          "std": 0.07789616602279241
+        },
+        "balanced_acc": {
+          "mean": 0.4990009693371298,
+          "std": 0.025509639007584385
+        },
+        "retention_r": {
+          "mean": 0.12709242985525956,
+          "std": 0.08316927693726976
+        }
+      },
+      "folds": [
+        {
+          "held_out": "group_01",
+          "n": 146,
+          "pos_rate": 0.1232876712328767,
+          "f1": 0.0,
+          "auc": 0.5355902777777777,
+          "balanced_acc": 0.4921875,
+          "retention_r": 0.24365824337778513,
+          "per_experiment": {
+            "01": {
+              "n": 73,
+              "pos_rate": 0.2465753424657534,
+              "f1": 0.0,
+              "auc": 0.7292929292929293,
+              "balanced_acc": 0.5
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 73,
+              "pos_rate": 0.0,
+              "f1": 0.0,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_02",
+          "n": 146,
+          "pos_rate": 0.6917808219178082,
+          "f1": 0.1694915254237288,
+          "auc": 0.3520352035203521,
+          "balanced_acc": 0.4717271727172717,
+          "retention_r": 0.08241104057464026,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 73,
+              "pos_rate": 0.9452054794520548,
+              "f1": 0.15384615384615385,
+              "auc": 0.13405797101449274,
+              "balanced_acc": 0.16847826086956522
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 73,
+              "pos_rate": 0.4383561643835616,
+              "f1": 0.2,
+              "auc": 0.7035060975609757,
+              "balanced_acc": 0.5137195121951219
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_03",
+          "n": 145,
+          "pos_rate": 0.9379310344827586,
+          "f1": 0.12413793103448276,
+          "auc": 0.39869281045751637,
+          "balanced_acc": 0.5330882352941176,
+          "retention_r": 0.055208005613353234,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 73,
+              "pos_rate": 0.9178082191780822,
+              "f1": 0.0,
+              "auc": 0.10199004975124376,
+              "balanced_acc": 0.5
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 72,
+              "pos_rate": 0.9583333333333334,
+              "f1": 0.23076923076923078,
+              "auc": 0.7681159420289856,
+              "balanced_acc": 0.5652173913043478
+            }
+          }
+        }
+      ]
+    },
+    "hard_top1/oracle": {
+      "summary": {
+        "n": {
+          "mean": 145.66666666666666,
+          "std": 0.4714045207910317
+        },
+        "pos_rate": {
+          "mean": 0.5843331758778145,
+          "std": 0.3411448370818682
+        },
+        "f1": {
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "auc": {
+          "mean": 0.5,
+          "std": 0.0
+        },
+        "balanced_acc": {
+          "mean": 0.5,
+          "std": 0.0
+        },
+        "retention_r": {
+          "mean": NaN,
+          "std": NaN
+        }
+      },
+      "folds": [
+        {
+          "held_out": "group_01",
+          "n": 146,
+          "pos_rate": 0.1232876712328767,
+          "f1": 0.0,
+          "auc": 0.5,
+          "balanced_acc": 0.5,
+          "retention_r": NaN,
+          "per_experiment": {
+            "01": {
+              "n": 73,
+              "pos_rate": 0.2465753424657534,
+              "f1": 0.0,
+              "auc": 0.5,
+              "balanced_acc": 0.5
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 73,
+              "pos_rate": 0.0,
+              "f1": 0.0,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_02",
+          "n": 146,
+          "pos_rate": 0.6917808219178082,
+          "f1": 0.0,
+          "auc": 0.5,
+          "balanced_acc": 0.5,
+          "retention_r": NaN,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 73,
+              "pos_rate": 0.9452054794520548,
+              "f1": 0.0,
+              "auc": 0.5,
+              "balanced_acc": 0.5
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 73,
+              "pos_rate": 0.4383561643835616,
+              "f1": 0.0,
+              "auc": 0.5,
+              "balanced_acc": 0.5
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_03",
+          "n": 145,
+          "pos_rate": 0.9379310344827586,
+          "f1": 0.0,
+          "auc": 0.5,
+          "balanced_acc": 0.5,
+          "retention_r": NaN,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 73,
+              "pos_rate": 0.9178082191780822,
+              "f1": 0.0,
+              "auc": 0.5,
+              "balanced_acc": 0.5
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 72,
+              "pos_rate": 0.9583333333333334,
+              "f1": 0.0,
+              "auc": 0.5,
+              "balanced_acc": 0.5
+            }
+          }
+        }
+      ]
+    },
+    "shared_expert/classified": {
+      "summary": {
+        "n": {
+          "mean": 145.66666666666666,
+          "std": 0.4714045207910317
+        },
+        "pos_rate": {
+          "mean": 0.5843331758778145,
+          "std": 0.3411448370818682
+        },
+        "f1": {
+          "mean": 0.11339339339339338,
+          "std": 0.08060337530971345
+        },
+        "auc": {
+          "mean": 0.5681459169201234,
+          "std": 0.18790809267867487
+        },
+        "balanced_acc": {
+          "mean": 0.4928684121475873,
+          "std": 0.04761492938989798
+        },
+        "retention_r": {
+          "mean": 0.2412474610144545,
+          "std": 0.21430951809698587
+        }
+      },
+      "folds": [
+        {
+          "held_out": "group_01",
+          "n": 146,
+          "pos_rate": 0.1232876712328767,
+          "f1": 0.0,
+          "auc": 0.5078125,
+          "balanced_acc": 0.49609375,
+          "retention_r": 0.35961225002794295,
+          "per_experiment": {
+            "01": {
+              "n": 73,
+              "pos_rate": 0.2465753424657534,
+              "f1": 0.0,
+              "auc": 0.694949494949495,
+              "balanced_acc": 0.5
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 73,
+              "pos_rate": 0.0,
+              "f1": 0.0,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_02",
+          "n": 146,
+          "pos_rate": 0.6917808219178082,
+          "f1": 0.18018018018018017,
+          "auc": 0.8224422442244225,
+          "balanced_acc": 0.5495049504950495,
+          "retention_r": 0.42369533543482074,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 73,
+              "pos_rate": 0.9452054794520548,
+              "f1": 0.25316455696202533,
+              "auc": 0.8659420289855073,
+              "balanced_acc": 0.572463768115942
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 73,
+              "pos_rate": 0.4383561643835616,
+              "f1": 0.0,
+              "auc": 0.756859756097561,
+              "balanced_acc": 0.5
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_03",
+          "n": 145,
+          "pos_rate": 0.9379310344827586,
+          "f1": 0.16,
+          "auc": 0.3741830065359477,
+          "balanced_acc": 0.43300653594771243,
+          "retention_r": -0.05956520241940021,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 73,
+              "pos_rate": 0.9178082191780822,
+              "f1": 0.0,
+              "auc": 0.06716417910447761,
+              "balanced_acc": 0.3333333333333333
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 72,
+              "pos_rate": 0.9583333333333334,
+              "f1": 0.2962962962962963,
+              "auc": 0.8067632850241545,
+              "balanced_acc": 0.5869565217391304
+            }
+          }
+        }
+      ]
+    },
+    "shared_expert/oracle": {
+      "summary": {
+        "n": {
+          "mean": 145.66666666666666,
+          "std": 0.4714045207910317
+        },
+        "pos_rate": {
+          "mean": 0.5843331758778145,
+          "std": 0.3411448370818682
+        },
+        "f1": {
+          "mean": 0.11339339339339338,
+          "std": 0.08060337530971345
+        },
+        "auc": {
+          "mean": 0.5681459169201234,
+          "std": 0.18790809267867487
+        },
+        "balanced_acc": {
+          "mean": 0.4928684121475873,
+          "std": 0.04761492938989798
+        },
+        "retention_r": {
+          "mean": 0.24124746101445457,
+          "std": 0.21430951809698587
+        }
+      },
+      "folds": [
+        {
+          "held_out": "group_01",
+          "n": 146,
+          "pos_rate": 0.1232876712328767,
+          "f1": 0.0,
+          "auc": 0.5078125,
+          "balanced_acc": 0.49609375,
+          "retention_r": 0.35961225002794295,
+          "per_experiment": {
+            "01": {
+              "n": 73,
+              "pos_rate": 0.2465753424657534,
+              "f1": 0.0,
+              "auc": 0.694949494949495,
+              "balanced_acc": 0.5
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 73,
+              "pos_rate": 0.0,
+              "f1": 0.0,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_02",
+          "n": 146,
+          "pos_rate": 0.6917808219178082,
+          "f1": 0.18018018018018017,
+          "auc": 0.8224422442244225,
+          "balanced_acc": 0.5495049504950495,
+          "retention_r": 0.4236953354348209,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 73,
+              "pos_rate": 0.9452054794520548,
+              "f1": 0.25316455696202533,
+              "auc": 0.8659420289855073,
+              "balanced_acc": 0.572463768115942
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 73,
+              "pos_rate": 0.4383561643835616,
+              "f1": 0.0,
+              "auc": 0.756859756097561,
+              "balanced_acc": 0.5
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_03",
+          "n": 145,
+          "pos_rate": 0.9379310344827586,
+          "f1": 0.16,
+          "auc": 0.3741830065359477,
+          "balanced_acc": 0.43300653594771243,
+          "retention_r": -0.05956520241940012,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 73,
+              "pos_rate": 0.9178082191780822,
+              "f1": 0.0,
+              "auc": 0.06716417910447761,
+              "balanced_acc": 0.3333333333333333
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 72,
+              "pos_rate": 0.9583333333333334,
+              "f1": 0.2962962962962963,
+              "auc": 0.8067632850241545,
+              "balanced_acc": 0.5869565217391304
+            }
+          }
+        }
+      ]
+    },
+    "hand_weighted/classified": {
+      "summary": {
+        "n": {
+          "mean": 145.66666666666666,
+          "std": 0.4714045207910317
+        },
+        "pos_rate": {
+          "mean": 0.5843331758778145,
+          "std": 0.3411448370818682
+        },
+        "f1": {
+          "mean": 0.09263090448031885,
+          "std": 0.09671499650484054
+        },
+        "auc": {
+          "mean": 0.5250574322138096,
+          "std": 0.19502881024785837
+        },
+        "balanced_acc": {
+          "mean": 0.5132157287419918,
+          "std": 0.010038050121024197
+        },
+        "retention_r": {
+          "mean": 0.12269690169498171,
+          "std": 0.044387495594029276
+        }
+      },
+      "folds": [
+        {
+          "held_out": "group_01",
+          "n": 146,
+          "pos_rate": 0.1232876712328767,
+          "f1": 0.22929936305732485,
+          "auc": 0.6180555555555556,
+          "balanced_acc": 0.52734375,
+          "retention_r": 0.17443631391832937,
+          "per_experiment": {
+            "01": {
+              "n": 73,
+              "pos_rate": 0.2465753424657534,
+              "f1": 0.3956043956043956,
+              "auc": 0.4424242424242424,
+              "balanced_acc": 0.5
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 73,
+              "pos_rate": 0.0,
+              "f1": 0.0,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_02",
+          "n": 146,
+          "pos_rate": 0.6917808219178082,
+          "f1": 0.0196078431372549,
+          "auc": 0.2536853685368537,
+          "balanced_acc": 0.504950495049505,
+          "retention_r": 0.06604327827650903,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 73,
+              "pos_rate": 0.9452054794520548,
+              "f1": 0.02857142857142857,
+              "auc": 0.5905797101449275,
+              "balanced_acc": 0.5072463768115942
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 73,
+              "pos_rate": 0.4383561643835616,
+              "f1": 0.0,
+              "auc": 0.4496951219512196,
+              "balanced_acc": 0.5
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_03",
+          "n": 145,
+          "pos_rate": 0.9379310344827586,
+          "f1": 0.028985507246376812,
+          "auc": 0.7034313725490196,
+          "balanced_acc": 0.5073529411764706,
+          "retention_r": 0.12761111289010676,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 73,
+              "pos_rate": 0.9178082191780822,
+              "f1": 0.0,
+              "auc": 0.9875621890547264,
+              "balanced_acc": 0.5
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 72,
+              "pos_rate": 0.9583333333333334,
+              "f1": 0.056338028169014086,
+              "auc": 0.2560386473429952,
+              "balanced_acc": 0.5144927536231884
+            }
+          }
+        }
+      ]
+    },
+    "hand_weighted/oracle": {
+      "summary": {
+        "n": {
+          "mean": 145.66666666666666,
+          "std": 0.4714045207910317
+        },
+        "pos_rate": {
+          "mean": 0.5843331758778145,
+          "std": 0.3411448370818682
+        },
+        "f1": {
+          "mean": 0.6684324968510825,
+          "std": 0.32329956859534487
+        },
+        "auc": {
+          "mean": 0.3742728791874286,
+          "std": 0.19994963381301073
+        },
+        "balanced_acc": {
+          "mean": 0.5,
+          "std": 0.0
+        },
+        "retention_r": {
+          "mean": 0.18241919418681637,
+          "std": 0.04500249157739228
+        }
+      },
+      "folds": [
+        {
+          "held_out": "group_01",
+          "n": 146,
+          "pos_rate": 0.1232876712328767,
+          "f1": 0.21951219512195122,
+          "auc": 0.2417534722222222,
+          "balanced_acc": 0.5,
+          "retention_r": 0.14819696774338648,
+          "per_experiment": {
+            "01": {
+              "n": 73,
+              "pos_rate": 0.2465753424657534,
+              "f1": 0.3956043956043956,
+              "auc": 0.4191919191919192,
+              "balanced_acc": 0.5
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 73,
+              "pos_rate": 0.0,
+              "f1": 0.0,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_02",
+          "n": 146,
+          "pos_rate": 0.6917808219178082,
+          "f1": 0.8178137651821862,
+          "auc": 0.2242024202420242,
+          "balanced_acc": 0.5,
+          "retention_r": 0.24600035997145459,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 73,
+              "pos_rate": 0.9452054794520548,
+              "f1": 0.971830985915493,
+              "auc": 0.5579710144927537,
+              "balanced_acc": 0.5
+            },
+            "03": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 73,
+              "pos_rate": 0.4383561643835616,
+              "f1": 0.6095238095238096,
+              "auc": 0.5449695121951219,
+              "balanced_acc": 0.5
+            },
+            "06": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            }
+          }
+        },
+        {
+          "held_out": "group_03",
+          "n": 145,
+          "pos_rate": 0.9379310344827586,
+          "f1": 0.9679715302491103,
+          "auc": 0.6568627450980393,
+          "balanced_acc": 0.5,
+          "retention_r": 0.1530602548456081,
+          "per_experiment": {
+            "01": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "02": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "03": {
+              "n": 73,
+              "pos_rate": 0.9178082191780822,
+              "f1": 0.9571428571428572,
+              "auc": 0.9651741293532339,
+              "balanced_acc": 0.5
+            },
+            "04": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "05": {
+              "n": 0,
+              "pos_rate": NaN,
+              "f1": NaN,
+              "auc": NaN,
+              "balanced_acc": NaN
+            },
+            "06": {
+              "n": 72,
+              "pos_rate": 0.9583333333333334,
+              "f1": 0.9787234042553191,
+              "auc": 0.22705314009661837,
+              "balanced_acc": 0.5
+            }
+          }
+        }
+      ]
+    }
+  }
+}

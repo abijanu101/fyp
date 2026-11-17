@@ -58,6 +58,37 @@ class TestRatings(unittest.TestCase):
         self.assertEqual((constant["auc"], constant["balanced_acc"]), (0.5, 0.5))
         self.assertTrue(np.isnan(constant["spearman"]))
 
+    def test_scores_per_perspective(self):
+        import pandas as pd
+
+        from scripts.train_models import score_with_perspectives
+        rows = pd.DataFrame({"entry_id": ["a", "a", "b", "c", "d"], "rating": [2, 2, 3, 4, 3.0],
+                             "labeler": ["l1", "l1", "l1", "l2", "l2"]})
+        pred = np.array([2.0, 3.0, 3.0, 4.0, 2.0])
+        folds = {}
+        score_with_perspectives(folds, "k", "g1", rows, pred, 3)
+        self.assertEqual(set(folds), {"k", "k/by_labeler/l1", "k/by_labeler/l2"})
+        self.assertEqual(folds["k"][0]["n"], 4)                       # entry a counted once
+        self.assertAlmostEqual(folds["k/by_labeler/l1"][0]["mae"], 0.25)   # a: 2.5 vs 2, b: exact
+        self.assertAlmostEqual(folds["k/by_labeler/l2"][0]["mae"], 0.5)    # c exact, d off by 1
+
+    def test_spread_metrics_decompose_the_squared_error(self):
+        rng = np.random.default_rng(1)
+        y = rng.integers(1, 6, 400).astype(float)
+        for p in (np.clip(3 + 0.3 * (y - 3) + rng.normal(0, 0.4, 400), 1, 5), np.full(400, 2.8)):
+            m = rating_metrics(y, p, 3)
+            self.assertAlmostEqual(m["mse_bias2"] + m["mse_spread"] + m["mse_floor"], m["rmse"] ** 2)
+        const = rating_metrics(y, np.full(400, 3.0), 3)
+        self.assertEqual((const["pred_sd"], const["share_pred_3"]), (0.0, 1.0))
+        self.assertTrue(np.isnan(const["calib_ratio"]))
+        self.assertAlmostEqual(sum(const["pred_shares"]), 1.0)
+        # the MSE-optimal spread for a given r: calib_ratio 1, spread term 0
+        p = 3 + (y - y.mean()) * 0.5
+        opt = y.mean() + np.corrcoef(p, y)[0, 1] * y.std() * (p - p.mean()) / p.std()
+        m = rating_metrics(y, opt, 3)
+        self.assertAlmostEqual(m["calib_ratio"], 1.0, places=6)
+        self.assertAlmostEqual(m["mse_spread"], 0.0, places=9)
+
 
 class TestSoftLabels(unittest.TestCase):
     def setUp(self):
@@ -96,6 +127,15 @@ class TestPerLabeler(unittest.TestCase):
         p = self.model.predict(self.X, np.ones((len(self.X), 1)))
         self.assertGreater(np.corrcoef(p["labeler_01"], self.X[:, 0])[0, 1], 0.9)
         self.assertLess(np.corrcoef(p["labeler_02"], self.X[:, 0])[0, 1], -0.9)
+
+    def test_a_pooled_model_answers_the_same_for_every_labeler(self):
+        mix = lambda: ExpertMixture(["01"], lambda e: SklearnExpert("logreg"), "shared", "soft")
+        pooled = PerLabelerModel.fit(mix, self.X, self.target, self.exp, self.labeler, pooled=True)
+        p = pooled.predict(self.X, np.ones((len(self.X), 1)))
+        self.assertEqual(set(p), {"labeler_01", "labeler_02", "self_labeling"})
+        np.testing.assert_array_equal(p["labeler_01"], p["labeler_02"])
+        # labeler_02 contradicts the other two: pooled, the majority view wins for everyone
+        self.assertGreater(np.corrcoef(p["labeler_02"], self.X[:, 0])[0, 1], 0.5)
 
     def test_window_curves_in_both_modes(self):
         window = np.repeat(np.arange(len(self.X) // 4), 4)

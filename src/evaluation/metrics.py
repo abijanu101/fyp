@@ -35,6 +35,34 @@ def context_metrics(y: np.ndarray, pred: np.ndarray, classes: list[str]) -> dict
     }
 
 
+def spread_metrics(y: np.ndarray, p: np.ndarray) -> dict:
+    """How the prediction's spread compares with the labels' (population SDs, ddof 0).
+
+    The squared error splits exactly into three parts (r = Pearson correlation of p and y):
+        MSE = (mean_p - mean_y)^2  +  (sd_p - r * sd_y)^2  +  (1 - r^2) * sd_y^2
+              mse_bias2              mse_spread              mse_floor
+    For a given r, the error is smallest at sd_p = r * sd_y: with little signal the right prediction
+    stays near the middle, and spreading it further only adds error. `calib_ratio` = sd_p / (r sd_y)
+    is 1 for that optimum, < 1 for an over-shrunk model, > 1 for an overconfident one. `share_pred_3`
+    is the share of predictions that round to 3 (halves toward 3), the median-hugging check."""
+    from ..labels.interp import round_rating
+
+    sd_p, sd_y = float(p.std()), float(y.std())
+    r = float(np.corrcoef(p, y)[0, 1]) if sd_p > 0 and sd_y > 0 else np.nan
+    cls = round_rating(p).astype(int)
+    out = {"pred_mean": float(p.mean()), "label_mean": float(y.mean()),
+           "pred_median": float(np.median(p)), "label_median": float(np.median(y)),
+           "pred_sd": sd_p, "label_sd": sd_y, "sd_ratio": sd_p / sd_y if sd_y > 0 else np.nan,
+           "pearson": r, "mse_bias2": float((p.mean() - y.mean()) ** 2),
+           "share_pred_3": float(np.mean(cls == 3)),
+           "pred_shares": [float(np.mean(cls == k)) for k in range(1, 6)]}
+    rr = 0.0 if np.isnan(r) else r                       # constant prediction: no correlation term
+    out["mse_spread"] = float((sd_p - rr * sd_y) ** 2)
+    out["mse_floor"] = float((1 - rr ** 2) * sd_y ** 2)
+    out["calib_ratio"] = sd_p / (r * sd_y) if np.isfinite(r) and r > 0 else np.nan
+    return out
+
+
 def rating_metrics(rating: np.ndarray, pred: np.ndarray, tau_att: float) -> dict:
     """Per-label scores (docs/misc/targets.md §7.1 items 2 and 7): `rating` = the entries as made
     (1-5), `pred` = predicted ratings (1-5, continuous or already discrete). Regression view on the
@@ -57,6 +85,7 @@ def rating_metrics(rating: np.ndarray, pred: np.ndarray, tau_att: float) -> dict
         "n": int(len(y)),
         "mae": float(np.mean(np.abs(p - y))),
         "rmse": float(np.sqrt(np.mean((p - y) ** 2))),
+        **spread_metrics(y, p),
         "spearman": float(spearmanr(p, y).statistic) if varied else np.nan,
         "accuracy": float(np.mean(cls == yi)),
         "within_1": float(np.mean(np.abs(cls - yi) <= 1)),

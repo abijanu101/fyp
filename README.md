@@ -16,16 +16,45 @@ conda env create -f abi_local.yml        # env "fyp-local": Python 3.13, torch 2
 conda activate fyp-local
 ```
 
-Data is expected under `data/DIPSER/` (`DIPSEER/group_XX/experiment_YY/{context_cam_ZZ.zip, subjects/}`
-plus the manual annotations in `abi_labels/`). Model weights live in `models/` (git-ignored); the SCB
-behaviour checkpoints are read from `data/SCB-ST-Dataset4/` and need the YOLOv7 model code:
+### Data
+
+DIPSER is expected under `data/DIPSER/DIPSEER/group_XX/experiment_YY/{context_cam_ZZ.zip, subjects/}`.
+Our manual box annotations (`data/DIPSER/abi_labels/`) are in the repository. The dataset itself
+comes from its FTP server, with the credentials the dataset authors issue, in a `.env` file at the
+repository root (`FTP_USER=...`, `FTP_PASSWORD=...`; git-ignored):
 
 ```
+python scripts/downloading/dipser.py                    # context cameras + per-student labels (filters at the top of the file)
+python scripts/downloading/validate_dipser_remote.py    # optional: check the local copy against the server
+```
+
+### Model weights (`models/`, git-ignored)
+
+| File | What | How to get it |
+|---|---|---|
+| `models/yolo11n.pt` | person detector (`detector.weights`) | Ultralytics release asset: `curl -L -o models/yolo11n.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt` |
+| `models/osnet_x0_25_msmt17.pt` | ReID appearance model of the tracker (BoT-SORT with `use_embeddings`, the tuned T2 setting) | BoxMOT's default ReID model, downloaded by BoxMOT itself the first time a tracker with ReID runs from the repo root |
+
+### SCB behaviour checkpoints (`data/SCB-ST-Dataset4/`, git-ignored)
+
+The behaviour models (`bfmu` `scb`) are YOLOv7 checkpoints from the SCB dataset on Hugging Face, and
+need the YOLOv7 model code to load:
+
+```
+python scripts/downloading/scb.py                       # wintonYF/SCB-Dataset -> data/SCB-ST-Dataset4/ (large; resumable)
 git clone https://github.com/WongKinYiu/yolov7 lib/yolov7 && git -C lib/yolov7 checkout a207844
 ```
 
 SCB checkpoints are third-party pickles; `src/bfmu/yolov7.py` loads them with torch's weights-only
 unpickler restricted to an allowlist of model classes, and refuses anything else.
+
+### Trained models (`outputs/models/`)
+
+Trained bundles (`outputs/models/<config hash>.joblib`, 15–30 MB each) are rebuilt from a config with
+`python -m scripts.train_models --config <config>`: each experiment document names its config
+(`docs/experiments/NN_name.json`) and the result hash, and the same config gives the same hash.
+Training needs the feature cache (`outputs/cache/`, git-ignored), which `scripts.run_pipeline
+extract` rebuilds from the data above. A download for the bundles themselves is not set up yet.
 
 ## Layout
 
@@ -74,7 +103,7 @@ python -m scripts.run_pipeline infer --zip <camera.zip> --models outputs/models/
 
 The contributor's guide (`docs/guide/`) explains how all of this works; Chapter 9 covers running
 experiments and every config key. `docs/experiments/` records what was tried and found;
-`docs/progress/` holds dated progress updates (latest: `docs/progress/2026-11-16.md`).
+`docs/progress/` holds dated progress updates (latest: `docs/progress/2026-11-17.md`).
 `docs/misc/benchmarks.md` surveys published results on DIPSER; `docs/misc/targets.md` lays out the
 possible attention targets (unit × aggregation × self-report) and where each work sits.
 `docs/misc/proposed_metrics.md` holds metrics proposed for review but not computed (currently

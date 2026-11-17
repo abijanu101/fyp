@@ -418,7 +418,7 @@ columns change.
 | `mixture.tau` | 0.5 | engaged cut-off in **early** aggregation (unused in late) | T |
 | `engagement.aggregate` | `late` | `late`: score each student, average per window; `early`: score Vec (§7.5) | T |
 | `engagement.late_context` | true | late only: append the window's Vec to every student row | T |
-| `engagement.labelers` | `per_labeler` | `per_labeler`: one model per labeler, trained on windows centred on each rating entry and evaluated per label (§7.9, `docs/misc/targets.md` §7); `consensus`: train on the median-of-labelers window label; `ensemble`: one model per labeler on the window grid, averaged over the labelers who rated each student (§7.5). `consensus` and `ensemble` are the window-grid paths. `plot_results`, `tune_models` and the output viewer support all three | T |
+| `engagement.labelers` | `per_labeler` | `per_labeler`: one model per labeler, trained on windows centred on each rating entry and evaluated per label (§7.9, `docs/misc/targets.md` §7); `pooled`: the same windows and evaluation, but one model trained on every labeler's rows that answers for all of them (the aggregated ablation of experiment 06); `consensus`: train on the median-of-labelers window label; `ensemble`: one model per labeler on the window grid, averaged over the labelers who rated each student (§7.5). `consensus` and `ensemble` are the window-grid paths. `plot_results`, `tune_models` and the output viewer support all three | T |
 | `engagement.ensemble_exclude` | `["self_labeling"]` | labelers left out of the ensemble (the self-ratings by default) | T |
 | `context_mode` | `classified` | **unused**: training always reports both, inference always uses classified | T |
 
@@ -460,7 +460,7 @@ All **T**, so label experiments are cheap.
 | `labels.exclude_self` | false | window-grid only: leave each student's self-rating out of the consensus (per-labeler mode trains a separate self model instead) |
 | `labels.offset_s` | 0.0 | seconds added to every label timestamp, to align labels with the camera clock |
 | `labels.students` | `camera` | `camera`: only students annotated as visible in this camera; any other value (e.g. `all`): every student of the session |
-| `labels.train_target` | `train_with_interp` | per-labeler training value of a window centred on a rating entry: `train_with_interp` = that labeler's interpolated curve averaged over the window; `train_vanilla` = the entry's own rating. Either way normalised to (rating − 1) / 4 |
+| `labels.train_target` | `train_vanilla` | per-labeler training value of a window centred on a rating entry: `train_vanilla` = the entry's own rating (the default since 18 Nov 2026: interpolation in training made no difference in experiment 06 §2.4); `train_with_interp` = that labeler's interpolated curve averaged over the window. Either way normalised to (rating − 1) / 4 |
 | `labels.interp.mode` | `step` | how a labeler's entries become a value between entries: `step`, `ramp`, `linear`, `pchip`, `cubic`, `gauss` (Chapter 13, O25; the label viewer shows each) |
 | `labels.interp.ramp_s`, `.sigma_s` | 3.0, 2.0 | `ramp`: seconds of the ramp before each change; `gauss`: width of the Gaussian, in seconds |
 

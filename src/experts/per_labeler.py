@@ -60,24 +60,31 @@ def join_entries(entries: pd.DataFrame, feats: pd.DataFrame, tid_to_sid: dict[in
 
 
 class PerLabelerModel:
-    """One mixture per labeler, each trained only on its own rows (soft targets)."""
+    """One mixture per labeler, each trained only on its own rows (soft targets). With `pooled`
+    (config engagement.labelers = "pooled"), one mixture is trained on every labeler's rows together
+    and answers for all of them: the aggregated counterpart of the per-labeler design, evaluated
+    the same way (docs/experiments/06_full_pipeline_and_labels.md, perspectivism)."""
 
-    def __init__(self, mixtures: dict[str, object], fills: dict[str, float]):
-        self.mixtures = mixtures            # {labeler: fitted ExpertMixture}
+    def __init__(self, mixtures: dict[str, object], fills: dict[str, float], pooled: bool = False):
+        self.mixtures = mixtures            # {labeler: fitted ExpertMixture} (one shared object if pooled)
         self.fills = fills                  # {labeler: mean training target}: windows with no rows
+        self.pooled = pooled
 
     @classmethod
     def fit(cls, make_mixture: Callable[[], object], X: np.ndarray, target: np.ndarray, exp: np.ndarray,
-            labeler: np.ndarray) -> "PerLabelerModel":
+            labeler: np.ndarray, pooled: bool = False) -> "PerLabelerModel":
+        names = sorted(set(labeler.tolist()))
+        if not names:
+            raise ValueError("no labeler has training rows")
+        if pooled:
+            one = make_mixture().fit(X, np.clip(target, 0, 1), exp)
+            fill = float(np.clip(target, 0, 1).mean())
+            return cls({n: one for n in names}, {n: fill for n in names}, pooled=True)
         mixtures, fills = {}, {}
-        for name in sorted(set(labeler.tolist())):
+        for name in names:
             m = labeler == name
-            if not m.any():
-                continue
             mixtures[name] = make_mixture().fit(X[m], np.clip(target[m], 0, 1), exp[m])
             fills[name] = float(np.clip(target[m], 0, 1).mean())
-        if not mixtures:
-            raise ValueError("no labeler has training rows")
         return cls(mixtures, fills)
 
     @property
@@ -85,7 +92,10 @@ class PerLabelerModel:
         return list(self.mixtures)
 
     def predict(self, X: np.ndarray, g: np.ndarray) -> dict[str, np.ndarray]:
-        """{labeler: p in [0, 1] per row}."""
+        """{labeler: p in [0, 1] per row} (the same curve for every labeler when pooled)."""
+        if self.pooled:
+            p = np.clip(next(iter(self.mixtures.values())).predict_proba(X, g), 0, 1)
+            return {n: p for n in self.mixtures}
         return {n: np.clip(m.predict_proba(X, g), 0, 1) for n, m in self.mixtures.items()}
 
 

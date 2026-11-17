@@ -21,7 +21,7 @@ transfer. §7 lists what to change.
 | Unseen session for inference | `group_01/experiment_03/context_cam_01` (a lecture) |
 | Config | `configs/deliverable3.json` as of that day: BoT-SORT with the quick-tuned settings, residual flow, SCB soft mode, **late aggregation**, logistic-regression experts, random-forest gate |
 | Label thresholds | provisional `tau_att=3`, `tau_share=0.6` (the design's 4 / 0.5 give almost no engaged windows; `01_dipser.md`) |
-| Output | `tmp/e2e6/` (not shared); script `tmp/e2e6/run.sh`, log `tmp/e2e6/run.log` |
+| Output | `tmp/e2e6/` (not shared); script `scripts/analysis/e2e6/run.sh`, log `outputs/experiments/04_six_session/run.log` |
 | Config hash of the results | `24387875c765` (after `det_thresh` was dropped; the extraction ran under the previous hash, which differs only by that no-op key) |
 
 Commands, per session, then once:
@@ -32,7 +32,7 @@ python -m scripts.run_pipeline extract --reuse --session <group>/<experiment>/co
 python -m scripts.train_models --set output_dir="tmp/e2e6" labels.tau_att=3 labels.tau_share=0.6
 python -m scripts.plot_results --set output_dir="tmp/e2e6" labels.tau_att=3 labels.tau_share=0.6
 python -m scripts.run_pipeline infer --zip data/DIPSER/DIPSEER/group_01/experiment_03/context_cam_01.zip \
-    --models tmp/e2e6/models/<hash>.joblib --out tmp/e2e6/infer_g1e3 --set ...
+    --models outputs/cache/e2e6/models/<hash>.joblib --out outputs/experiments/04_six_session/infer_g1e3 --set ...
 ```
 
 ## 2. The pipeline at full length
@@ -80,7 +80,7 @@ Each fold trains on four sessions and is scored on the held-out group's two.
 | Gate accuracy (6-way) | | | | **0.00** |
 
 The oracle rows and the gate are not interpretable here (§4). Results file:
-`tmp/e2e6/results/24387875c765….json`.
+`outputs/experiments/04_six_session/results/24387875c765….json`.
 
 ![Held-out curves](figures/04_six_session_heldout.png)
 
@@ -99,7 +99,7 @@ is 03.
 The table above is what `train_models` reports: binary metrics per held-out fold, averaged over
 the three folds. The published DIPSER works (`docs/misc/benchmarks.md`) use other metrics and
 other ways of computing them, so the run's held-out predictions were re-scored with those
-(`tmp/e2e6/benchmark_metrics.py`; it replays the leave-one-group-out loop and reproduces the stored
+(`scripts/analysis/e2e6/benchmark_metrics.py`; it replays the leave-one-group-out loop and reproduces the stored
 per-fold AUCs exactly: 0.604, 0.614, 0.311 for the shared expert). Variants:
 
 - **train mean**: predicts the training folds' mean labelled share for every window; the trivial
@@ -223,7 +223,7 @@ inter-labeler agreement (`01_dipser.md`; contributor's guide, Chapter 11).
 
 Chance-level averages could mean the features carry no information, or that the models and the
 target fail to use it. The cached features and labels of this run allow telling these apart.
-Script: `tmp/e2e6/analyse.py`. Six sessions are few, so everything below is a lead to test on the
+Script: `scripts/analysis/e2e6/analyse.py`. Six sessions are few, so everything below is a lead to test on the
 full extraction, not a result.
 
 ### 6.1 The target is mostly a per-session level

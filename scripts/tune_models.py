@@ -76,7 +76,8 @@ def per_labeler_expert_scorer(cfg, rows, row_cols):
         c = copy.deepcopy(cfg)
         c["expert"]["params"] = params
         model = PerLabelerModel.fit(per_labeler_factory(c, row_cols, mcfg["expert_scope"]),
-                                    X[tr], target[tr], exp[tr], labeler[tr])
+                                    X[tr], target[tr], exp[tr], labeler[tr],
+                                    pooled=c["engagement"].get("labelers") == "pooled")
         preds = model.predict(X[te], context_probs("oracle", classes, exp[te]))
         own = np.array([to_rating(preds[l][i]) if l in preds else np.nan for i, l in enumerate(labeler[te])])
         y, pr = per_entry(rows.iloc[te], own)
@@ -100,7 +101,7 @@ def main() -> None:
     groups, exp = df["group"].to_numpy(), df["exp"].to_numpy()
     labeled = df["y"].notna().to_numpy()
     y = df["y"].fillna(0).to_numpy(int)
-    per_labeler = cfg["engagement"].get("labelers") == "per_labeler"
+    per_labeler = cfg["engagement"].get("labelers") in ("per_labeler", "pooled")
     if args.component in ("expert", "both") and not per_labeler and len(np.unique(y[labeled])) < 2:
         raise SystemExit("Window labels have a single class under the current labels.* thresholds; "
                          "run scripts.data_visualization.inspect_labels and set labels.tau_att / labels.tau_share first.")

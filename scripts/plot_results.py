@@ -151,7 +151,7 @@ def main() -> None:
     ap.add_argument("--set", nargs="*", default=[])
     args = ap.parse_args()
     cfg = load_config(args.config, parse_sets(args.set))
-    if cfg["engagement"].get("labelers") == "per_labeler":
+    if cfg["engagement"].get("labelers") in ("per_labeler", "pooled"):
         return main_per_labeler(cfg, with_augmented(cfg, load_table(cfg)))
     classes = cfg["classes"]
     tau = decision_threshold(cfg["engagement"]["aggregate"], cfg["mixture"]["tau"], cfg["labels"]["tau_share"])
