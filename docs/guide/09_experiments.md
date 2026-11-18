@@ -301,7 +301,7 @@ Values are the current ones. "Re-run" uses the marks of §9.5.
 | `ingestion.stride` | 1 | keep every n-th frame. Faster, but lowers the measured fps, and frame-counted tracker settings (`max_lost_frames`) then span more seconds | F |
 | `ingestion.max_frames` | null | stop after n frames (smoke tests); null = all | F |
 | `detector.weights` | `models/yolo11n.pt` | YOLO checkpoint; only the person class is kept | F |
-| `detector.conf` | 0.22 | confidence a person box needs to reach the tracker; the only confidence filter before tracking. Lower = more people found, more false boxes. Verified not to drop any student (`docs/experiments/02_detection.md`, §3; `scripts/tuning/scan_detector.py`) | F |
+| `detector.conf` | 0.22 | confidence a person box needs to reach the tracker. Not the last filter: BoT-SORT then ignores boxes at or below its own `track_low_thresh` and starts tracks only above `new_track_thresh` (experiment 09 §1). Lower = more people found, more false boxes. Verified not to drop any student (`docs/experiments/02_detection.md`, §3; `scripts/tuning/scan_detector.py`) | F |
 | `detector.imgsz` | 640 | YOLO input size in pixels. Higher = far students found better, slower | F |
 | `detector.half` | true | half precision on the GPU (ignored on CPU) | F |
 | `scene.size` | [64, 36] | the frame is shrunk to this many pixels before the gate's scene features are computed | F |

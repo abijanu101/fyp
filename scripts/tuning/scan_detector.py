@@ -31,7 +31,7 @@ the bisection re-score thresholds without re-running the detector. Roughly (fram
 
 Writes to outputs/tuning/: detector_search[_augmented][_<tag>].csv (every probe) and .json (the
 result), or with --grid detector_scan[_augmented][_<tag>].csv and detector_scan_students[...].csv.
---tag keeps a scan of another detector (e.g. the pose model, experiment 09) apart from D3's files.
+--tag keeps a scan of another detector (e.g. the pose model, experiment 09) apart from D2's files.
 """
 
 from __future__ import annotations
@@ -183,7 +183,7 @@ def main() -> None:
                     help="--augment: sessions processed in parallel (each with its own detector)")
     ap.add_argument("--detect", action="store_true", help="original data: run the detector where not cached")
     ap.add_argument("--tag", help="suffix for the output files, e.g. a scan of another detector (pose), so it "
-                                  "does not overwrite D3's detector_search_augmented.json")
+                                  "does not overwrite D2's detector_search_augmented.json")
     args = ap.parse_args()
     cfg = load_config(args.config, parse_sets(args.set))
     floor = cfg["tuning"]["tracker"]["det_conf_floor"]

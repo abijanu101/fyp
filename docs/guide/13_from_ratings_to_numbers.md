@@ -237,6 +237,11 @@ camera**:
 3. the winner is accepted only if it matched in at least `association.min_match_share` (0.5) of
    **all** the track's frames; otherwise the track stays unlinked.
 
+The static boxes are not right in every frame (experiment 01 §2): students lean, turn and stand,
+and TAs walk through the room, often behind seated students, with no box of their own. A TA crossing
+a student's box can match it for a few frames; the 50% rule above is what keeps such a track from
+being linked to the student.
+
 Unlinked tracks (people not annotated, such as teachers and TAs, or students who moved away from
 their box) get a NaN label and are left out of training.
 

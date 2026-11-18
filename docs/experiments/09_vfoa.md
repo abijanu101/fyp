@@ -2,8 +2,8 @@
 
 *Started 18 November 2026. Config: [`09_vfoa.json`](09_vfoa.json): experiment 08's base
 ([`08_pca.json`](08_pca.json)) with the head-pose unit added and 4 augmented copies. The config has the class context off
-(`engagement.use_class_context=false`); every arm also runs with it on (§5). Hash `850a53fc5494`; frame-pass cache
-`outputs/cache/tracks/5a25412a6dbd/`, features `outputs/cache/features/71efff697372/`. Extraction
+(`engagement.use_class_context=false`); every arm also runs with it on (§5). Hash `4c4c5d6ec4f8` (with D3's threshold);
+frame-pass cache `outputs/cache/tracks/6d9102354e73/`, features `outputs/cache/features/e46e62cfe5f2/`. Extraction
 pending.*
 
 **Why this experiment.** Experiments 07 and 08 tried every transformation of the 95 inputs within
@@ -31,31 +31,57 @@ model; `src/tracking/tracker.py` hands each track its detection's keypoints; the
 them (`mode: "tracks"`). A 40-frame check on `group_03/experiment_01/context_cam_03`: every
 track-frame got its keypoints (pose matched 100%, yaw defined 100%).
 
-But the detector feeds everything after it, and the threshold (D3, 0.1098) and the tracker settings
+But the detector feeds everything after it, and the threshold (D2, 0.1098) and the tracker settings
 (T2, IDF1 0.930) were tuned for YOLO11n (`docs/experiments/02_detection.md`, `03_tracking.md`). So the switch is
 validated the same way, data-driven:
 
-**D4: the augmented detector scan for the pose model.** The method of D3
+**D3: the augmented detector scan for the pose model.** The method of D2
 (`scripts/tuning/scan_detector.py`): every frame of every session, augmented on the fly 5 times,
 detected at the 0.05 floor; each threshold's boxes matched one-to-one to the manual student boxes;
-bisection for the highest threshold that keeps every student. The criterion is stricter than D3's:
+bisection for the highest threshold that keeps every student. The criterion is stricter than D2's:
 in this experiment a missed student costs more than a spurious box, so **no student may lose more
-than 1 point of recall against the floor** (`--max-drop 0.01`, against D3's 0.10).
+than 1 point of recall against the floor** (`--max-drop 0.01`, against D2's 0.10).
 
 ```
 python -m scripts.tuning.scan_detector --config docs/experiments/09_vfoa.json --augment --max-drop 0.01 --tag pose
-python -m scripts.tuning.scan_detector --config docs/experiments/09_vfoa.json --grid --detect --tag pose   # clean data, the full table (D1's)
+python -m scripts.tuning.scan_detector --config docs/experiments/09_vfoa.json --grid --detect --tag pose   # clean data, the full grid table (D1's first step)
 ```
 
 The result (`outputs/tuning/detector_search_augmented_pose.json`) sets `detector.conf` through
-`configs/derived_vfoa.py`, as `configs/derived.py` does with D3: the threshold is read from the scan,
+`configs/derived_vfoa.py`, as `configs/derived.py` does with D2: the threshold is read from the scan,
 never typed in.
 
-**T3: tracking with the pose detector.** T2's tracker and options at D4's threshold, scored against the
-manual boxes on augmented copy 1 (T2's data), to compare with T2's IDF1 0.930. *Command once D4 is
-done.*
+**D3 result (19 November 2026): 0.0535**, essentially the floor. Mean recall barely moves between
+0.05 and 0.11 (0.996 to 0.994), but the hardest student loses 7.5 points by 0.11; keeping them
+costs 41% non-student boxes against 33%. Against YOLO11n on the same images, the pose model finds
+more students on average but its hardest student is harder (0.855 against 0.943 at the floor).
+Every probe and the full reading: experiment 02, D3 (`docs/experiments/02_detection.md`).
 
-*Pending: D4.*
+**But the tracker has its own thresholds, and they come after the detector.** BoT-SORT
+(BoxMOT 26, `trackers/common/detections` `split_by_confidence`) ignores every detection with
+confidence at or below `track_low_thresh`, matches in a second pass those between it and
+`track_high_thresh`, and starts a new track only above `new_track_thresh`. T2's winner, tuned for
+YOLO11n, has 0.1745, 0.2852 and 0.5479. With those, everything D3 keeps between 0.05 and 0.17 would
+be thrown away before tracking. So T2's options cannot simply be reused.
+
+**T3: re-tune the tracker for the pose detector.** T2's search (BoT-SORT + ReID + CMC, beam
+bisection, augmented copy 1, IDF1 against the manual boxes), with the detector threshold fixed at
+D3's, starting from T2's winner, and the threshold ranges widened down to the floor
+(`track_high_thresh` and `new_track_thresh` from 0.05; `track_low_thresh` already is). Run in your
+terminal; the check first verifies the fast path on one session:
+
+```
+python -m scripts.tuning.tune_tracker --config docs/experiments/09_vfoa.json --profile full_reid_cmc --augment 1 --det-conf-from outputs/tuning/detector_search_augmented_pose.json --tag pose --check
+python -m scripts.tuning.tune_tracker --config docs/experiments/09_vfoa.json --profile full_reid_cmc --augment 1 --det-conf-from outputs/tuning/detector_search_augmented_pose.json --tag pose --start outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_bisect.json
+```
+
+Results: `outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_pose_bisect.json`; resumable.
+The first run also detects augmented copy 1 with the pose model at 1280 and embeds every box for
+ReID. Compared with T2's 0.930 IDF1, and on coverage, the share of student-frames on a track
+(T2: 0.958), which is what experiment 09 needs. Its options then replace T2's in
+`configs/derived_vfoa.py`.
+
+*Pending: T3.*
 
 ## 2. The head-pose unit
 
@@ -104,8 +130,10 @@ look down on students who face them, which is why faces are visible in almost ev
 ## 4. Extraction
 
 The unit is a frame unit, so it changes the frame-pass cache key: the 52 recordings and their
-augmented copies are re-extracted from scratch with detection, tracking and every unit, the
-detector and tracker unchanged (D3 threshold, T2 BoT-SORT + ReID + CMC).
+augmented copies are re-extracted from scratch with detection, tracking and every unit: the pose
+model as the detector at D3's threshold, and BoT-SORT + ReID + CMC with T3's options (§1), both read
+by `configs/derived_vfoa.py`. *Not before T3 is done:* until then the module still holds T2's
+options, whose `track_low_thresh` would undo D3.
 
 ```
 python -m scripts.parallel_runs extract --config docs/experiments/09_vfoa.json --workers 3   # resumable

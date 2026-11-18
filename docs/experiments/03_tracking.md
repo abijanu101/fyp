@@ -2,7 +2,7 @@
 
 This document records how multi-object tracking was brought up on DIPSER with BoxMOT, how the
 tracker was evaluated and tuned, and what was found. Its input is experiment 02's detector at the
-D3 threshold ([02_detection.md](02_detection.md)).
+D2 threshold ([02_detection.md](02_detection.md)).
 
 ## 1. Goal
 
@@ -17,7 +17,7 @@ errors propagate into every downstream number.
 |---|---|---|---|
 | T1 | Trackers on clean data: BoT-SORT without ReID, StrongSORT; random search, 20 trials (§6) | done | BoT-SORT 0.905 IDF1, StrongSORT 0.878 |
 | T2 | Trackers on augmented data: BoT-SORT, BoT-SORT + ReID + CMC, StrongSORT; beam bisection (§6) | done | **BoT-SORT + ReID + CMC 0.930 IDF1**, BoT-SORT 0.914, StrongSORT 0.877 |
-| T3 | T2's tracker with the pose model as the detector, at D4's threshold | pending | experiment 09 §1 |
+| T3 | T2's search re-run with the pose model as the detector (experiment 02, D3), thresholds widened to the floor (experiment 09 §1) | running | BoT-SORT's own `track_low_thresh` (T2's 0.1745) would drop every box D3 keeps below it |
 
 ## 2. Phase 1: validation notebook (`notebooks/dipser_tracking.ipynb`)
 
@@ -61,9 +61,16 @@ differences.
 ### Ground truth
 
 The manual static boxes (`abi_labels`, DIPSER document §2): one box per student per camera.
-Assumption: every annotated student is present in every frame of the evaluated span. A student
-who briefly leaves lowers coverage equally for every configuration, so comparisons stay fair even
-though absolute numbers are a lower bound.
+Assumption: every annotated student is present, inside their box, in every frame of the evaluated
+span. That is not true in every frame (experiment 01 §2 lists the cases):
+- a student who leans, turns, stands or briefly leaves is scored as uncovered even when tracked;
+- teaching assistants walking around, often in the background, have no box, so their tracks count
+  as false positives in IDF1 although they are real people;
+- a TA passing through a student's box can be matched to it, so a TA's track can briefly count as
+  that student, inflating coverage or causing an apparent ID switch.
+
+None of these is measured. They act the same way on every configuration scored on the same frames,
+so comparisons between trackers stay fair, but the absolute IDF1 and coverage are approximate.
 
 ### Matching
 
@@ -81,7 +88,7 @@ SID–TID association.
 | subjects found | share of annotated students matched at least once |
 
 Track boxes on people outside the annotation (teacher, TAs) count as false positives in IDF1,
-equally for every configuration.
+equally for every configuration (see Ground truth above).
 
 An early version mapped tracks to students many-to-one (majority vote) when computing IDF1, which
 gave a fragmented student full credit for both fragments. A unit test caught it, and IDF1 now uses
@@ -210,7 +217,7 @@ a lower `det_conf` (0.215) and longer memory (`max_lost_frames` 45).
 
 **StrongSORT, every trial** (`outputs/tuning/tracker_strongsort_full_strongsort.{csv,json}`; trial
 0 re-ran at the quick-tuned values after an earlier trial 0 at BoxMOT's defaults scored 0.715,
-because `min_conf` 0.6 drops students, D1):
+because `min_conf` 0.6 drops students, experiment 02, D1):
 
 | Trial | IDF1 | G01 | G02 | G03 | Coverage | Switches / subj | Track ids / subj | det_conf | min_conf | max_cos | max_iou | max_age | n_init |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -259,8 +266,8 @@ brightness ±35, gamma, sensor noise up to 0.35, horizontal flip with p 0.5, gre
 p 0.5; boxes mirrored where flipped; §5). Beam bisection search, beam 2, one level each (§5).
 Each search's trial 0 is its starting point scored on augmented data, which alone measures how much
 each tuned tracker degrades on worse footage. **The detection threshold is not searched in T2**: it is
-D3's result, kept fixed (`--det-conf-from outputs/tuning/detector_search_augmented.json`), so the
-threshold is settled once, by D3, for the rest of FYP-1, and T2 tunes how each tracker uses the
+D2's result, kept fixed (`--det-conf-from outputs/tuning/detector_search_augmented.json`), so the
+threshold is settled once, by D2, for the rest of FYP-1, and T2 tunes how each tracker uses the
 detections it lets through. It is also passed to the trackers as `det_thresh`, although BoT-SORT
 and StrongSORT only store that value (BoxMOT 26: CMC masks with `cmc_min_conf` or StrongSORT's
 `min_conf`). Run all three at once with
@@ -272,7 +279,7 @@ and StrongSORT only store that value (BoxMOT 26: CMC masks with `cmc_min_conf` o
 | BoT-SORT + ReID + CMC | `full_reid_cmc` | **vanilla BoT-SORT's** T1 winner | 34 | 0.905 (as vanilla) | 0.901 | **0.930** (trial 30) | −0.004 at the start |
 | StrongSORT | `full_strongsort` | its T1 winner | 22 | 0.878 | 0.846 | 0.877 (trial 10) | −0.032 at the start |
 
-All three with `detector.conf` fixed at D3's 0.1098 (trial 0 is each start under that threshold on
+All three with `detector.conf` fixed at D2's 0.1098 (trial 0 is each start under that threshold on
 augmented copy 1). The best of each, mean over the 52 sessions:
 
 | | BoT-SORT | **BoT-SORT + ReID + CMC** | StrongSORT |
@@ -297,7 +304,7 @@ Best parameters (the `config_patch` of each `_bisect.json`):
 Readings:
 
 - **The tuned trackers hardly degrade on augmented footage** (−0.004 to −0.006 IDF1 at the
-  BoT-SORT starts), once the detection threshold follows D3; StrongSORT degrades more (−0.032).
+  BoT-SORT starts), once the detection threshold follows D2; StrongSORT degrades more (−0.032).
 - **ReID earns its place on degraded footage**: +0.016 IDF1 over the same tracker without it, in
   every group. On clean data (quick clips, T1) it had not beaten tuned motion-only BoT-SORT.
 - **Both BoT-SORT winners keep tracks longer** (`max_lost_frames` 96, about 19 s at 5 fps, against
@@ -308,9 +315,9 @@ Readings:
 - **StrongSORT stays last**, with ten times the ID switches of BoT-SORT.
 
 **How it was run.** All three scans at once with the parallel launcher (`scripts/parallel_runs.py
-tracker-scans`), after D3 in the same command: a prepare stage (augmented detections and ReID
+tracker-scans`), after D2 in the same command: a prepare stage (augmented detections and ReID
 embeddings, one decode per session) and the three searches sharing decoded frames in 5 worker
-processes. D3 ended at 03:10 and T2 at 09:34: about 6.4 hours for 82 full-dataset trials,
+processes. D2 ended at 03:10 and T2 at 09:34: about 6.4 hours for 82 full-dataset trials,
 preparation included, where the serial tool needed about an hour per trial. The launcher's results
 are identical to `tune_tracker`'s (checked trial by trial with CMC on and off).
 
@@ -334,13 +341,18 @@ per-session `.sessions.jsonl`. The serial equivalents (`tune_tracker --profile .
 ## 7. Tracker decision
 
 **Final (16 November 2026): BoT-SORT with ReID and CMC, with T2's winning parameters, at
-`detector.conf` 0.1098 (D3).** It has the best IDF1 on augmented footage (0.930) and in every group;
+`detector.conf` 0.1098 (D2).** It has the best IDF1 on augmented footage (0.930) and in every group;
 T1 made BoT-SORT the family, T2 shows ReID adds 0.016 on degraded footage. The cost is the ReID
 model in the frame pass (about 120–165 ms per frame, roughly doubling extraction time; Chapter 5).
-`configs/derived.py` applies D3's threshold and the T2 winner's `config_patch` to every config load,
+`configs/derived.py` applies D2's threshold and the T2 winner's `config_patch` to every config load,
 from the results files themselves, so the frame pass of the full run uses exactly these values.
 
 Until 16 November: BoT-SORT without ReID with quick-tuned values was the interim default.
+
+**Detector and tracker thresholds interact.** BoT-SORT drops every box at or below its own
+`track_low_thresh` (0.1745 in T2's winner) before association, so in this pipeline the effective
+detection floor is 0.1745, not D2's 0.1098 (experiment 02, note under D2). Experiment 09 uses a
+detector threshold at the floor (D3, 0.0535) and so re-tunes the tracker for it (T3).
 
 ## 8. Engineering issues encountered
 

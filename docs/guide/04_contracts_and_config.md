@@ -262,7 +262,7 @@ copying the whole config into every table, we compute a **fingerprint**: the SHA
 config written as canonical JSON.
 
 ```python
-HASH_EXCLUDED_KEYS = ("output_dir", "tuning", "benchmark")
+HASH_EXCLUDED_KEYS = ("output_dir", "tuning", "benchmark", "derived", "derived_from")
 
 def config_hash(cfg: dict) -> str:
     clean = copy.deepcopy(cfg)
@@ -276,8 +276,11 @@ def config_hash(cfg: dict) -> str:
 variation. So the same settings always give the same hash, and any change, however small, gives
 a different one.
 
-Three sections are excluded because they do not change what a run produces: `output_dir` (where
-results go), and `tuning` and `benchmark` (only their own scripts read them).
+Five keys are excluded because they do not change what a run produces: `output_dir` (where
+results go), `tuning` and `benchmark` (only their own scripts read them), and `derived` /
+`derived_from` (the names of the modules and result files that derived values came from; the values
+themselves are in the config and hashed). How a run gets from a command line to its hash, and where
+each hash appears in file names, is in Chapter 8, §8.10.
 
 ### Three hashes, three purposes
 

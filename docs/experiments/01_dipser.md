@@ -75,6 +75,29 @@ Stored in `data/DIPSER/abi_labels/<group>/<experiment>.json`:
 
 Coordinates are pixels in the 1280×720 frame; `x, y` is the top-left corner.
 
+**The static boxes are not right in every frame.** One box per student per session is an
+approximation, and it is the ground truth for the detector scans (experiment 02), the tracker
+scores (experiment 03) and the linking of tracks to students (guide Chapter 13, O3/O8). Where it
+fails:
+- **Students move within their seat.** Leaning, turning to a neighbour, reaching for a bag or
+  standing up moves the real box away from the drawn one. A correct detection can then overlap the
+  static box by less than 0.3 and count as a miss.
+- **People without boxes.** Teaching assistants (and the teacher) walk around the room, often in the
+  background behind seated students, and have no box in `abi_labels`. Their detections count as
+  *unmatched* (not a student), so "unmatched boxes" and IDF1's false positives include real people,
+  not only false detections.
+- **A passer-by can stand in for a student.** When a TA walks through a student's static box, their
+  detection can overlap it by 0.3 or more. In a frame where the student's own detection is missing,
+  or loses the one-to-one assignment, the TA's box is then counted as that student.
+- **Students who leave** (briefly out of frame or out of the room) still have their box, so every
+  such frame counts as a miss.
+
+The first and last lower recall and coverage; the third raises them; the second inflates the
+unmatched share. None has been measured. They act the same way on every threshold and every tracker
+setting compared on the same frames, so comparisons between settings stay fair, but the absolute
+numbers are approximate: recall and coverage are mostly lower bounds, and "unmatched" is an upper
+bound on false detections. Per-frame boxes on a sample of frames would measure the size of each.
+
 The tool was `scripts/data_visualization/annotation_helper.py`: it opens a random frame from a camera ZIP,
 draws the existing boxes for that camera with their subject ids, and prints a box in the JSON
 format above when you right-click two corners. Subject identities were established by comparing

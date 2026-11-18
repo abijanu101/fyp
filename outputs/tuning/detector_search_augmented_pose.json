@@ -1,0 +1,61 @@
+{
+  "data": "augmented on the fly",
+  "variants_per_frame": [
+    5,
+    5
+  ],
+  "stride": 1,
+  "images": 343135,
+  "criterion": {
+    "never_detected": 0,
+    "below_50pct": 0,
+    "max_drop_vs_floor": 0.01
+  },
+  "detector": {
+    "weights": "models/yolo11s-pose.pt",
+    "imgsz": 1280
+  },
+  "floor": 0.05,
+  "optimal_threshold": 0.0535,
+  "at_optimal": {
+    "threshold": 0.0535,
+    "students": 621.0,
+    "mean_recall": 0.9954816549301586,
+    "p10_recall": 0.9929429429429429,
+    "min_recall": 0.8500346500346501,
+    "never_detected": 0.0,
+    "below_50pct": 0.0,
+    "max_drop_vs_floor": 0.00498960498960499,
+    "lost_10pts_vs_floor": 0.0,
+    "lost_25pts_vs_floor": 0.0,
+    "unmatched_share": 0.4094851817676024
+  },
+  "at_floor": {
+    "threshold": 0.05,
+    "students": 621.0,
+    "mean_recall": 0.9955742587279088,
+    "p10_recall": 0.9931420573827852,
+    "min_recall": 0.855024255024255,
+    "never_detected": 0.0,
+    "below_50pct": 0.0,
+    "max_drop_vs_floor": 0.0,
+    "lost_10pts_vs_floor": 0.0,
+    "lost_25pts_vs_floor": 0.0,
+    "unmatched_share": 0.41773467375945406
+  },
+  "configured_threshold": 0.1098,
+  "at_configured": {
+    "threshold": 0.1098,
+    "students": 621.0,
+    "mean_recall": 0.994327216885421,
+    "p10_recall": 0.991268758526603,
+    "min_recall": 0.7800415800415801,
+    "never_detected": 0.0,
+    "below_50pct": 0.0,
+    "max_drop_vs_floor": 0.07498267498267497,
+    "lost_10pts_vs_floor": 0.0,
+    "lost_25pts_vs_floor": 0.0,
+    "unmatched_share": 0.32652746471892713
+  },
+  "configured_keeps_everyone": false
+}

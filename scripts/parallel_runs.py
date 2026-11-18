@@ -333,7 +333,7 @@ def main() -> None:
     t.add_argument("--beam", type=int, default=2)
     t.add_argument("--fix-det-conf", action="store_true", help="keep the detection threshold at detector.conf")
     t.add_argument("--det-conf-from", metavar="JSON",
-                   help="detector.conf from a detector scan's result (D3: outputs/tuning/detector_search_augmented.json), fixed")
+                   help="detector.conf from a detector scan's result (D2: outputs/tuning/detector_search_augmented.json), fixed")
     e = sub.add_parser("extract", help="run_pipeline extract --reuse, several recordings at once")
     e.add_argument("--workers", type=int, default=3, help="worker processes, each with its own pipeline on the GPU")
     for p in (t, e):

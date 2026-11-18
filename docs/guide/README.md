@@ -20,7 +20,7 @@ design document.
 | 5 | [The frame pass](05_frame_pass.md) | Ingestion, detection, tracking, pixel-level features |
 | 6 | [The feature pass](06_feature_pass.md) | Tracklet filtering, window features, the vector Vec |
 | 7 | [Models: gate, experts, labels](07_models.md) | Context prediction, engagement experts, the label pipeline |
-| 8 | [Scripts, caches and tuning](08_scripts_caching_tuning.md) | The entry points, what is cached where, how tuning works |
+| 8 | [Scripts, caches and tuning](08_scripts_caching_tuning.md) | The entry points, what is cached where, how tuning works; how a run gets its hash, frozen experiment configs, and what goes in `outputs/` against `tmp/` (§8.10) |
 | 9 | [Running experiments](09_experiments.md) | The terminology of the results, and how to experiment through the config (every key of `deliverable3.json`) |
 | 10 | [Tests and recipes](10_testing_and_recipes.md) | How to test, and how to make the common changes |
 | 11 | [Pitfalls and status](11_pitfalls_and_status.md) | Environment quirks, data quirks, what is open |

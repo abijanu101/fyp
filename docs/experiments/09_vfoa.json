@@ -278,7 +278,7 @@
             "high": 0.5
           },
           "track_high_thresh": {
-            "low": 0.2,
+            "low": 0.05,
             "high": 0.7
           },
           "track_low_thresh": {
@@ -286,7 +286,7 @@
             "high": 0.3
           },
           "new_track_thresh": {
-            "low": 0.2,
+            "low": 0.05,
             "high": 0.7
           },
           "max_lost_frames": {
@@ -468,5 +468,6 @@
     "detector.conf": "outputs/tuning/detector_search_augmented.json#optimal_threshold",
     "tracker.name": "outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_bisect.json#tracker",
     "tracker.options": "outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_bisect.json#config_patch.tracker.options"
-  }
+  },
+  "derived": "configs/derived_vfoa.py"
 }

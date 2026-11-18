@@ -23,7 +23,7 @@ the evidence for them. They are the raw material for the write-up.
 | # | Document | Status |
 |---|---|---|
 | 1 | [DIPSER: dataset work and manual annotation](01_dipser.md) | current; the label analysis is in experiment 06 Part 1 |
-| 2 | [Person detection](02_detection.md) | done: D3 sets `detector.conf` 0.1098, the highest threshold that keeps every student within 10 recall points of the floor on augmented footage (0.22 lost 22); D4 (the pose model as detector) in experiment 09 |
+| 2 | [Person detection](02_detection.md) | done: D2 sets `detector.conf` 0.1098, the highest threshold that keeps every student within 10 recall points of the floor on augmented footage (0.22 lost 22); D3 (the pose model as detector, 1-point criterion, experiment 09 §1) sets 0.0535, at the floor; BoT-SORT's own `track_low_thresh` (0.1745) is the effective floor in the tracked pipeline |
 | 3 | [Multi-object tracking](03_tracking.md) | done: T2 picks BoT-SORT + ReID + CMC (0.930 IDF1 on augmented data, against 0.914 without ReID and 0.877 for StrongSORT); T3 (with the pose detector) in experiment 09 |
 | 4 | [The first full-length run: six sessions, end to end](04_six_session_run.md) | done: the pipeline works at full length; engagement at chance, but the features carry consistent within-session signal the models do not use; directions for improvement |
 | 5 | [Per-labeler training: first runs on the six sessions](05_per_labeler.md) | short: the per-labeler path runs; at chance by construction; one expert made 59% of the entries; constant 3 has the lowest MAE; a six-session augmentation gain that 06 does not confirm |

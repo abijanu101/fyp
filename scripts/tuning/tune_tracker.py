@@ -295,9 +295,10 @@ class Scan:
 
     def __init__(self, cfg: dict, profile: str, tracker: str | None = None, trials: int | None = None,
                  augment: int | None = None, randomize: bool = False, beam: int = 2, start: str | None = None,
-                 fresh: bool = False, check: bool = False, embed: bool = True, fix_det_conf: bool = False):
+                 fresh: bool = False, check: bool = False, embed: bool = True, fix_det_conf: bool = False,
+                 tag: str | None = None):
         """fix_det_conf: keep the detection threshold at detector.conf (e.g. set from the augmented
-        detector scan D3) instead of searching it; its value enters the results fingerprint."""
+        detector scan D2) instead of searching it; its value enters the results fingerprint."""
         self.cfg, self.profile, self.randomize, self.beam, self.start_arg = cfg, profile, randomize, beam, start
         self.fix_det_conf = fix_det_conf
         tcfg = self.tcfg = cfg["tuning"]["tracker"]
@@ -340,7 +341,8 @@ class Scan:
         self.n_trials = trials or prof["n_trials"]
         self.out = Path(cfg["output_dir"]) / "tuning"
         self.out.mkdir(parents=True, exist_ok=True)
-        self.stem = f"tracker_{name}_{profile}" + (f"_{self.dataset_tag}" if self.dataset_tag else "")
+        self.stem = (f"tracker_{name}_{profile}" + (f"_{self.dataset_tag}" if self.dataset_tag else "")
+                     + (f"_{tag}" if tag else ""))     # tag: a scan under another detector (e.g. "pose")
         if not check:
             self.open_results(fresh)
         self.calls = 0
@@ -539,12 +541,14 @@ def main() -> None:
                     help="keep the detection threshold at detector.conf instead of searching it")
     ap.add_argument("--det-conf-from", metavar="JSON",
                     help="set detector.conf from a detector scan's result (its optimal_threshold) and keep it fixed")
+    ap.add_argument("--tag", help="suffix for the result files, so a scan under another detector or config "
+                                  "(e.g. 'pose') keeps its own files instead of clashing with the original's")
     ap.add_argument("--set", nargs="*", default=[])
     args = ap.parse_args()
     cfg = load_config(args.config, parse_sets(args.set))
     fix = apply_det_conf(cfg, args.det_conf_from) or args.fix_det_conf
     scan = Scan(cfg, args.profile, args.tracker, args.trials, args.augment, args.randomize, args.beam, args.start,
-                args.fresh, args.check, fix_det_conf=fix)
+                args.fresh, args.check, fix_det_conf=fix, tag=args.tag)
     if args.check:
         raise SystemExit(scan.check())   # nonzero blocks a chained full run
     scan.finish(scan.search())

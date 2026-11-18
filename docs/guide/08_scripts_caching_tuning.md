@@ -532,19 +532,132 @@ load column makes such rows visible. Re-running skips rows already logged. At th
 `outputs/benchmarks/<name>.md`: per variant, mean ms/frame per stage, processing fps, and the time
 projected for a 45-minute session. Run it on an otherwise idle machine.
 
-## 8.10 Where files go, and what is shared
+## 8.10 Where files go: hashes, `outputs/` and `tmp/`
+
+Every number in the experiment documents can be traced back to the exact settings that produced
+it, and every file it depends on sits somewhere a fresh clone can find or rebuild. Two mechanisms
+make that work: the **config hash**, which names results, and a fixed rule for **what goes in
+`outputs/` and what in `tmp/`**.
+
+### How a run gets its hash
+
+The hashing functions themselves are in Chapter 4 (§4.4). This is the path from a command line to
+the 12 characters you see in a table (`c5341cb6385e`):
+
+1. **A base file.** Either the live config (`configs/deliverable3.json`) or an experiment's frozen
+   snapshot (`docs/experiments/NN_name.json`, below).
+2. **Derived values.** If the file has a `derived` key, `load_config` imports that module
+   (`configs/derived.py`, or `configs/derived_vfoa.py` for experiment 09) and writes its
+   `OVERRIDES` into the config. These are the settings that come *from experiments*, read from
+   their result files rather than typed in: `detector.conf` from D2's scan
+   (`outputs/tuning/detector_search_augmented.json`), the tracker and its options from T2's winner.
+   Each value is recorded with its source in `derived_from` (`file#key`).
+3. **`--set` overrides**, applied last, so a command line always wins.
+4. **The resolved config is hashed.** SHA-256 of the canonical JSON (sorted keys, no whitespace),
+   leaving out the keys that do not change what a run produces: `output_dir`, `tuning`,
+   `benchmark`, and `derived` / `derived_from` (only the *names* of the sources; the values they
+   produced are in the config and hashed).
+5. **Cited by its first 12 hex characters.** `train_models` prints `config <12 chars>` and writes
+   `outputs/results/<full hash>.json`; the reporting scripts (`results_table`, `compare_results`) accept a prefix. 12 characters are
+   48 bits, so an accidental clash among a few hundred runs is not a practical concern.
+
+From the same resolved config, two partial hashes name the caches (§4.4): the **tracking hash**
+(what the frame pass depends on: ingestion, detector, tracker, scene, the pixel-reading feature
+units) and the **feature hash** (the tracking hash plus everything the feature pass reads).
+
+What follows from this:
+
+- **The file name means nothing.** Two configs with the same resolved settings have the same hash,
+  wherever they live. `08_pca.json` began as a copy of `07_knn.json`, so their base runs share one
+  hash (`b3fbc8430d44`).
+- **Results from tuning flow into every hash.** Re-run D2 with a different outcome and
+  `detector.conf` changes, so every tracking hash, feature hash and config hash changes with it,
+  and nothing cached under the old threshold is reused by mistake.
+- **Renaming a key changes the hash** even when behaviour does not. Experiment 08's runs were made
+  when the class-context switch was called `engagement.late_context`; it is now
+  `engagement.use_class_context`. The code still reads the old name, so the old results stay valid
+  and are cited under the hashes they were made with.
+- **Re-running the same config overwrites the same file.** That is intended: a result is a function
+  of its config and the data, not of when it was run.
+- **A document's hash can go stale before anything runs.** Experiment 09's header named its hash
+  when the config was first written; switching the detector to the pose model changed the tracking
+  hash and so the config hash. Recompute with `load_config` + `config_hash` before citing a hash
+  for a run that has not happened yet.
+
+**The other hashes in file names**, each the same `config_hash` on a smaller dict:
+
+| Where | Name | Hashed from |
+|---|---|---|
+| `outputs/results/`, `outputs/models/`, `outputs/predictions/` | `<config hash>.json` / `.joblib` / `.csv.gz` | the whole resolved config |
+| `outputs/cache/tracks/<tracking hash>/` | one `.npz` per session | the frame-pass settings |
+| `outputs/cache/features/<feature hash>/` | one `.csv` (+ `.tracks.csv`, manifest) per session | tracking hash + feature-pass settings |
+| augmented copies in both caches | `<session>.aug<k>-<8 chars>.*` | the `augmentation` settings and the augmentation code's version (§8.4) |
+| `outputs/cache/detections*/` | one folder per detector setting | detector settings, frame limit, data source |
+| `outputs/tuning/tracker_*_aug1-4f270e71_*` | the augmented copy's suffix | as above: the copy the scan ran on |
+
+### Frozen experiment configs
+
+The live config keeps changing (a new default, a renamed key, a new D-scan). So from experiment 06
+on, each experiment document has a **frozen snapshot** of the config it used next to it
+(`docs/experiments/06_full_pipeline_and_labels.json`, `07_knn.json`, ...):
+
+1. take the resolved `config` from the experiment's base results file
+   (`outputs/results/<hash>.json`), with the derived values already filled in;
+2. drop the `derived` key, so loading the snapshot never re-reads today's tuning files; keep
+   `derived_from` as a record of where the values came from;
+3. write it next to the document and check that `load_config` on it reproduces the stored hash;
+4. describe every arm of the experiment as `--set` overrides against that file.
+
+A snapshot is never edited after the first run against it; a later experiment starts from a copy.
+Experiment 09 is the exception that proves the rule: its config is written *before* its runs and
+still has `derived` (pointing at `configs/derived_vfoa.py`, which reads D3), so it is frozen after
+D3 and the extraction, not before.
+
+### `outputs/` or `tmp/`: the rule
+
+**`outputs/` holds products; `tmp/` holds process.** A file belongs in `outputs/` if a document
+cites it or a script reproduces it from the config and the data; it is named by hash or by
+experiment, and it is meant to survive. Everything that only *produced* those files (the run
+chains, their running logs, the scripts that built a table and pasted it into a document) is in
+`tmp/`, and may be deleted once its products are archived.
 
 | Folder | Contents | In git? |
 |---|---|---|
+| `outputs/results/`, `outputs/models/` | evaluation results, trained model bundles, by config hash | yes |
+| `outputs/predictions/` | per-entry predictions of every training run, by config hash; a few MB each, rebuilt by retraining | no |
 | `outputs/cache/detections*/` | detections and ReID embeddings for tuning: large, regenerable | no |
 | `outputs/cache/tracks/`, `outputs/cache/features/` | frame-pass and feature-pass results: regenerable with `run_pipeline extract` | no |
-| `outputs/results/`, `outputs/models/` | evaluation results, trained model bundles | yes |
-| `outputs/plots/` | held-out engagement curves from `plot_results` | yes |
-| `outputs/augmentation/` | augmentation samples and extremes from `augment_samples` | yes |
-| `outputs/tuning/`, `outputs/benchmarks/` | tuning and timing logs | yes |
-| `outputs/labels/`, `outputs/label_plots/`, `outputs/scb_check/` | dataset inspection outputs | yes |
-| `tmp/` | working files that need to live a while (test runs, one-off scripts) | no |
+| `outputs/experiments/<NN_name>/` | an experiment's own products: figures, CSVs, pilot overlays; once frozen, its run index and logs | yes |
+| `outputs/tuning/`, `outputs/benchmarks/` | tuning and timing results (the D and T scans that `configs/derived*.py` read) | yes |
+| `outputs/plots/`, `outputs/augmentation/` | held-out curves (`plot_results`), augmentation samples | yes |
+| `outputs/labels/`, `outputs/label_plots/`, `outputs/scb_check/` | dataset and label inspection | yes |
+| `docs/experiments/NN_name.json` | the frozen config snapshots | yes |
+| `tmp/` | working files that must outlive a session: run chains and their logs, table builders, smoke-test output folders | no |
 
-Everything under `outputs/` except the cache is meant to be shared. The cache holds every
-intermediate a script can rebuild from the dataset and the config (detections, frame-pass tracks,
-window features), keyed by hash, so a fresh clone regenerates it rather than pulling it. Model bundles (`.joblib`) are pickles: only load ones you trust.
+What goes in `tmp/`, concretely:
+- **Run chains** (`tmp/exp08/knn.sh`): one shell script per batch of arms, each arm a
+  `train_models --config <snapshot> --set ...` line writing `tmp/expNN/<arm>.log`. They are
+  **resumable**: an arm whose log already contains its `config` line is skipped, so a chain
+  interrupted by a reboot is simply started again. Long ones run in your own terminal.
+- **Table builders and document patches** (`tmp/exp08/build_head.py`): read the hashes, call
+  `scripts/reporting/results_table.py`, and write the Markdown pasted into the document.
+- **Smoke tests and check harnesses**: `--set output_dir='"tmp/e2e6"'` keeps a trial run apart
+  from the real results (`output_dir` is not hashed, so the hash is still the real one); the LaTeX
+  check for `docs/test/test_cases.tex` lives in `tmp/tests_doc/tex/`.
+
+Throwaway files that need not survive the session (a quick check, a one-line patch script) go in
+the session's own temporary folder, not even `tmp/`.
+
+**Two ways out of `tmp/`:**
+- **Freezing an experiment** copies what its document depends on into `outputs/`: each cited run's
+  training log goes to `outputs/experiments/<NN_name>/logs/`, and a `README.md` there lists every
+  arm with its setting, results hash and log. Every listed hash is checked to have its results file,
+  and the document gets a "Frozen" status line. After that, deleting `tmp/expNN/` loses nothing a
+  document cites.
+- **Promoting a script.** A `tmp/` script that turns out to be needed again moves into `scripts/`,
+  by role (`reporting/`, `analysis/`, `tuning/`, ...), with a docstring and a command line.
+
+**Git** follows the same rule. Everything in `outputs/` is shared except what a fresh clone can
+rebuild (the caches and the predictions), and `tmp/` is not shared at all; `.gitignore` names each
+ignored folder on its own line, with a comment saying why. Model bundles (`.joblib`) are pickles:
+only load ones you trust.

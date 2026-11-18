@@ -109,13 +109,15 @@ two ways, both in the code:
 
 **Why the first, and what it costs.** It saves a network per frame (about 31 ms, about 15% of the
 frame pass) and removes the matching step. But the detector feeds everything after it: detection
-threshold and tracker were tuned for YOLO11n (D3, T2 in experiment 02). So the switch is validated
+threshold and tracker were tuned for YOLO11n (D2 in experiment 02, T2 in experiment 03). So the switch is validated
 the same way, from data, before any extraction (experiment 09 §1):
-- **D4**, the augmented detector scan for the pose model, with a stricter criterion than D3: here a
+- **D3**, the augmented detector scan for the pose model, with a stricter criterion than D2: here a
   missed student is worse than a spurious box, so no student may lose more than 1 point of recall
   against the confidence floor. Its result sets `detector.conf` through `configs/derived_vfoa.py`.
-- **T3**, T2's tracker at D4's threshold, scored against the manual boxes, to compare with T2's
-  IDF1 0.930.
+- **T3**, T2's tracker search re-run with the pose model at D3's threshold. Not just a check of T2's
+  settings: BoT-SORT ignores every box at or below its own `track_low_thresh` (T2's: 0.1745), which
+  would throw away everything D3 keeps below that, so the tracker's thresholds are re-tuned with
+  their ranges widened down to the floor. Compared with T2 on IDF1 (0.930) and coverage (0.958).
 
 ## 14.6 Input resolution: the pilot
 

@@ -433,7 +433,7 @@ has no effect on engagement with a single decoder. Whether activity-specific exp
 experts) help is left to a separate experiment.
 
 **Data.** 52 session-cameras plus one augmented copy each (104 frame passes, features
-`outputs/cache/features/2685b0745fde/`), with D3's detector threshold (0.1098) and T2's tracker
+`outputs/cache/features/2685b0745fde/`), with D2's detector threshold (0.1098) and T2's tracker
 (BoT-SORT with ReID and CMC), resolved from `configs/derived.py` and frozen in the config file.
 23,831 rating entries (session-start entries excluded), of which 21,386 expert and 2,445 self
 entries have the rated student linked to a track; 45,166 training rows. Per fold, 11,685–17,724
@@ -808,7 +808,7 @@ model can show much under.
 - **Moving off DIPSER costs less than it sounds.** Detection, tracking, the feature pass, per-label
   evaluation and the agreement analysis are dataset-agnostic; the DIPSER-specific parts are the loader
   (`src/datasets/dipser.py`), the label parsing (`src/labels/attention.py`) and the detector and tracker
-  tuning (experiment 02).
+  tuning (experiments 02 and 03).
 - **Report the ceiling next to every result**, as here, so a score has a scale.
 - **Keep step (or a ramp ending at the entry) as the interpolation**; Gaussian blurring lowers
   agreement.

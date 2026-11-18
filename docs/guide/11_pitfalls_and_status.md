@@ -101,7 +101,7 @@ nothing. Put comments on their own line.
 
 ### Running (16 November 2026)
 
-- **Augmented detector scan D3** (`scan_detector --augment`, every frame of the full dataset, 5
+- **Augmented detector scan D2** (`scan_detector --augment`, every frame of the full dataset, 5
   variants each), in the user's terminal.
 - **Augmented tracker scans T2** next (BoT-SORT, BoT-SORT + ReID + CMC, StrongSORT; beam
   bisection from the clean winners). The clean scans T1 are complete: BoT-SORT 0.905 IDF1,
@@ -139,7 +139,7 @@ These wait on the full extraction of all 52 sessions, which is best run once the
 
 - **Tracker choice: clean scans T1 complete**, BoT-SORT 0.905 IDF1 against StrongSORT 0.878; the
   clean BoT-SORT + ReID scan was dropped as not needed for seeding. The final choice waits on the
-  augmented scans (D3 running, T2 next). On the quick clips, ReID made tracking more forgiving of
+  augmented scans (D2 running, T2 next). On the quick clips, ReID made tracking more forgiving of
   bad settings but did not beat a tuned motion-only tracker, at about 60× the per-frame tracking
   cost.
 - **CMC on for every full-dataset tracker trial**, for reliability: no full-dataset result depends
@@ -244,8 +244,9 @@ Both are in the tracking hash, so changing them forces a needless frame pass whi
 
 **☑ 5. `tracker.options.det_thresh`: removed.** BoxMOT 26 stores it but neither BoT-SORT nor
 StrongSORT reads it. Removed from the config and from `tune_tracker`; the detector's own threshold
-(`detector.conf`) is the only confidence filter, and it was verified not to drop any student
-(`docs/experiments/02_detection.md`, §3).
+(`detector.conf`) is the only *detector-side* filter, and it was verified not to drop any student
+(`docs/experiments/02_detection.md`, §3). BoT-SORT's own `track_low_thresh` still drops boxes at or
+below it, so the effective floor is the higher of the two (experiment 09 §1).
 
 **☑ 7. On-the-fly augmentation.** Augmented copies are no longer written to disk at all (the
 materialised datasets and `scripts/augment_dataset.py` were removed on 15 November 2026): frames are
@@ -265,7 +266,7 @@ names where the details are.
 **Tracking and detection**
 
 - `scan_detector --augment` defaults to 5 variants per frame (was 5–10) and prints every frame; the
-  augmented detector scan D3 and the augmented tracker scans T2 are ready to run
+  augmented detector scan D2 and the augmented tracker scans T2 are ready to run
   (`docs/experiments/03_tracking.md`). T1 is complete: BoT-SORT 0.905 vs StrongSORT 0.878 IDF1.
 
 **Analysis and reference documents**
