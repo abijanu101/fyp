@@ -1,7 +1,9 @@
-# Features: what the model can and cannot read
+# PCA and dimensionality reduction
 
-*Started 18 November 2026. §1.1 is the feature vector as experiment 06 trained on it; §1.2 tries
-changes to it, one trial at a time. Base config: [`07_features.json`](07_features.json), which is
+*Started 18 November 2026. §1 is the feature vector as experiment 06 trained on it; §2 designs the
+dimensionality reduction; §3–§6 run it with logistic regression, the random forest and k-NN (k = 500
+and k = 5). Base
+config: [`08_pca.json`](08_pca.json), which is
 experiment 06's config ([`06_full_pipeline_and_labels.json`](06_full_pipeline_and_labels.json))
 with the entered rating as the training target (no interpolation) and the new `expert.pca` key off.*
 
@@ -14,7 +16,7 @@ augmentation were all varied there, and none moved the result. What is left is t
 ## 1. The vector
 
 Script: `python -m scripts.analysis.feature_study` (`scripts/analysis/feature_study.py`). Output in
-`outputs/experiments/07_features/`: `vector_stats.csv` (per-column distributions, redundancy,
+`outputs/experiments/08_pca/`: `vector_stats.csv` (per-column distributions, redundancy,
 variance shares), `correlations.csv`, `components.csv`, `feature_correlations.png`, `deciles.png`.
 Rows: the 45,166 rows experiment 06 trains on, original recordings only.
 
@@ -36,19 +38,18 @@ expert) receives 95 numbers; the activity gate, a separate model, receives 26 mo
 | `scene.*`: the gate | 26 | scene | whole-frame motion, saturation, brightness, edges, a 3 × 3 brightness grid; mean and SD over the window | frame at 64 × 36 |
 
 **The features themselves look fine for what these labels allow.** Every column's correlation with
-every labeler is in the Appendix. The strongest per-student signal, optical flow inside the box,
+every labeler is in Appendix A. The strongest per-student signal, optical flow inside the box,
 tracks the experts' ratings at Spearman ρ ≈ 0.07–0.08, within students as well as across them.
 That is about what one expert achieves predicting another (0.083, experiment 06 Appendix A).
 labeler_02 responds to different columns (hand raising, head lowering) than the others. No column
 tracks the self-report (|ρ| ≤ 0.05).
 
-### 1.2 Trials
+## 2. Design
 
-Each trial changes one thing on [`07_features.json`](07_features.json), with logistic regression
-experts unless stated, and is scored like experiment 06 (held-out and training groups, per labeler,
-the self-report track alongside).
-
-#### 1.2.1 PCA and dimensionality reduction
+Each arm changes the input on [`08_pca.json`](08_pca.json) and is scored like experiment
+06 (held-out and training groups, per labeler, the self-report alongside). Every arm is run with
+three expert models: logistic regression (§3), the random forest (§4), and k-NN at two values of k,
+the one chosen in experiment 07 (500, §5) and the smallest (5, §6), where distances matter most.
 
 The 95 inputs are highly redundant: 61 have a partner at |ρ| > 0.9, and 29 principal components
 hold 90% of the variance (`vector_stats.csv`). The trial adds PCA inside each expert's pipeline
@@ -70,28 +71,404 @@ and without it (`engagement.late_context=false`, the 27 per-student columns only
 | PC6 | 3.4% | the student's motion (stillness against speed) | +0.004 | +0.000 |
 | PC7–PC12 | 1.9–3.2% each | class writing, head lowering, `n_tracks` and events, the student's SCB | ≤ 0.031 | ≤ 0.041 |
 
-The component that carries the experts' signal, the student's own flow, is the third by variance.
-The first two are class-level and carry little. Keeping only the top few components by variance
-would keep it; a cut below three would lose it.
+The component that carries the experts' signal, the student's own flow, is the third by variance
+(the composition of the first 20 components: Appendix B). The first two are class-level and carry
+little.
 
-| Arm | Setting | Components kept | Results |
+![Each principal component's share of the variance, coloured by its dominant feature category (top), and the cumulative share with the trial's cuts (bottom)](../../outputs/experiments/08_pca/components_variance.png)
+
+The variance falls off steeply after PC1. 5 components hold 54%, 10 hold 68%, 20 hold 83%, 29 hold
+90% and 40 hold 95%. Beyond about 60 components the rest is near zero: the duplicated columns.
+
+**Arms**, the same for every expert model. The fractions are fitted per fold, so the number of
+components they keep varies slightly between folds (about 29 and 40 with the context, about 11 and
+15 without it).
+
+| Arm | Setting |
+|---|---|
+| all 95 inputs (base) | – |
+| PCA 5 / 10 / 20 | `expert.pca=5` / `10` / `20` |
+| PCA 90% / 95% | `expert.pca=0.9` / `0.95` |
+| 27 per-student inputs (no class context) | `engagement.late_context=false` |
+| no context + PCA 5 / 10 / 90% | both |
+
+## 3. Logistic regression
+
+C 0.1, as in experiment 06. Every data cell is train / test (the same fold's model on its training groups, then on its held-out
+group). Rows in italics are references with one value per cell, on all entries of the track
+(experiment 06 Part 1): the self-report ratings and the median of the expert ratings (profile), and
+the other experts' mean and median predicting the same labels (metrics). \* threshold (AUC: labels
+split at rating ≥ 3); \*\* discretisation (prediction rounded to a whole rating, halves toward 3);
+unmarked: the raw prediction.
+
+| Arm | With the class context (95 columns) | Without it (27 per-student columns) |
+|---|---|---|
+| all 95 PCs / all 27 PCs | `a2096ec10bef` | `5d86ad5c10cf` |
+| all 95 / all 27 | `b3fbc8430d44` | `c724586518c0` |
+| PCA 5 / PCA 5 | `5580383edd8d` | `049b908f551c` |
+| PCA 10 / PCA 10 | `9990d1832233` | `60fc84b50016` |
+| PCA 20 / PCA 20 | `69cc580dcd9a` | `b4476ab7dc49` |
+| PCA 90% / PCA 90% | `617bf1d8b13b` | `84227cefa9b3` |
+| PCA 95% / PCA 95% | `9cd26eabef2a` | `41511c48f91c` |
+
+### 3.1 With the class context (all 95 columns)
+
+#### 3.1.1 Expert entries
+
+**Profile** (train / test)
+
+| | Mean | Median | SD |
 |---|---|---|---|
-| base | – | all 95 inputs | *running* |
-| PCA 5 / 10 / 20 | `expert.pca=5` / `10` / `20` | 5 / 10 / 20 | *running* |
-| PCA 90% / 95% | `expert.pca=0.9` / `0.95` | enough for 90% / 95% of the variance | *running* |
-| no context | `engagement.late_context=false` | the 27 per-student inputs | *running* |
-| no context + PCA 5 / 10 / 90% | both | | *running* |
+| all 95 PCs | 2.782 / 2.803 | 2.751 / 2.745 | 0.198 / 0.253 |
+| all 95 | 2.782 / 2.802 | 2.751 / 2.744 | 0.198 / 0.253 |
+| PCA 5 | 2.789 / 2.797 | 2.762 / 2.751 | 0.139 / 0.170 |
+| PCA 10 | 2.790 / 2.801 | 2.763 / 2.753 | 0.147 / 0.192 |
+| PCA 20 | 2.787 / 2.812 | 2.761 / 2.763 | 0.163 / 0.207 |
+| PCA 90% | 2.784 / 2.803 | 2.758 / 2.754 | 0.171 / 0.218 |
+| PCA 95% | 2.783 / 2.804 | 2.753 / 2.747 | 0.181 / 0.235 |
+| Constant 3 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 |
+| *Self-report labels* | 2.885 | 3.000 | 0.895 |
+| *Median of expert labels* | 2.895 | 3.000 | 0.510 |
 
-Results to follow in the standard tables (`python -m scripts.reporting.results_table`).
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| all 95 PCs | 0.635 / 0.685 | 0.780 / 0.846 | 0.584 / 0.531 | 0.229 / 0.098 | 0.147 / 0.143 | 0.434 / 0.415 |
+| all 95 | 0.635 / 0.685 | 0.780 / 0.846 | 0.584 / 0.530 | 0.229 / 0.097 | 0.147 / 0.143 | 0.434 / 0.414 |
+| PCA 5 | 0.648 / 0.677 | 0.798 / 0.835 | 0.534 / 0.514 | 0.134 / 0.080 | 0.126 / 0.128 | 0.428 / 0.420 |
+| PCA 10 | 0.646 / 0.681 | 0.795 / 0.840 | 0.544 / 0.514 | 0.157 / 0.079 | 0.127 / 0.133 | 0.428 / 0.417 |
+| PCA 20 | 0.643 / 0.680 | 0.791 / 0.839 | 0.556 / 0.521 | 0.178 / 0.087 | 0.132 / 0.134 | 0.430 / 0.417 |
+| PCA 90% | 0.641 / 0.680 | 0.789 / 0.841 | 0.567 / 0.527 | 0.193 / 0.092 | 0.133 / 0.134 | 0.430 / 0.417 |
+| PCA 95% | 0.639 / 0.682 | 0.786 / 0.841 | 0.573 / 0.530 | 0.205 / 0.099 | 0.136 / 0.138 | 0.431 / 0.417 |
+| Constant 3 | 0.618 / 0.619 | 0.840 / 0.839 | 0.500 / 0.500 | - / - | 0.120 / 0.119 | 0.427 / 0.423 |
+| *Mean of experts* | 0.668 | 0.860 | 0.563 | 0.143 | 0.208 | 0.447 |
+| *Median of experts* | 0.638 | 0.913 | 0.543 | 0.120 | 0.222 | 0.451 |
+
+#### 3.1.2 Self-report entries
+
+**Profile** (train / test)
+
+| | Mean | Median | SD |
+|---|---|---|---|
+| all 95 PCs | 2.871 / 2.864 | 2.865 / 2.856 | 0.147 / 0.152 |
+| all 95 | 2.871 / 2.864 | 2.864 / 2.857 | 0.147 / 0.152 |
+| PCA 5 | 2.861 / 2.865 | 2.858 / 2.862 | 0.049 / 0.043 |
+| PCA 10 | 2.868 / 2.875 | 2.864 / 2.873 | 0.066 / 0.067 |
+| PCA 20 | 2.869 / 2.868 | 2.866 / 2.863 | 0.088 / 0.093 |
+| PCA 90% | 2.867 / 2.850 | 2.865 / 2.848 | 0.106 / 0.106 |
+| PCA 95% | 2.869 / 2.856 | 2.864 / 2.849 | 0.117 / 0.122 |
+| Constant 3 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 |
+| *Self-report labels* | 2.885 | 3.000 | 0.895 |
+| *Median of expert labels* | 2.876 | 3.000 | 0.428 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| all 95 PCs | 0.688 / 0.724 | 0.880 / 0.927 | 0.598 / 0.513 | 0.206 / 0.014 | 0.121 / 0.120 | 0.414 / 0.410 |
+| all 95 | 0.688 / 0.724 | 0.880 / 0.927 | 0.598 / 0.513 | 0.207 / 0.014 | 0.121 / 0.120 | 0.414 / 0.410 |
+| PCA 5 | 0.699 / 0.709 | 0.899 / 0.913 | 0.508 / 0.488 | 0.037 / -0.022 | 0.117 / 0.116 | 0.412 / 0.411 |
+| PCA 10 | 0.696 / 0.708 | 0.897 / 0.915 | 0.532 / 0.511 | 0.074 / 0.010 | 0.117 / 0.116 | 0.412 / 0.411 |
+| PCA 20 | 0.694 / 0.711 | 0.895 / 0.916 | 0.557 / 0.521 | 0.109 / 0.017 | 0.117 / 0.116 | 0.413 / 0.411 |
+| PCA 90% | 0.693 / 0.720 | 0.892 / 0.924 | 0.563 / 0.507 | 0.129 / -0.007 | 0.118 / 0.118 | 0.413 / 0.411 |
+| PCA 95% | 0.692 / 0.722 | 0.889 / 0.927 | 0.571 / 0.504 | 0.147 / -0.012 | 0.119 / 0.118 | 0.413 / 0.411 |
+| Constant 3 | 0.668 / 0.670 | 0.910 / 0.910 | 0.500 / 0.500 | - / - | 0.117 / 0.116 | 0.412 / 0.411 |
+| *Mean of experts* | 0.689 | 0.884 | 0.619 | 0.241 | 0.179 | 0.435 |
+| *Median of experts* | 0.661 | 0.914 | 0.609 | 0.213 | 0.179 | 0.439 |
+
+### 3.2 Without the class context (the 27 per-student columns)
+
+#### 3.2.1 Expert entries
+
+**Profile** (train / test)
+
+| | Mean | Median | SD |
+|---|---|---|---|
+| all 27 PCs | 2.786 / 2.796 | 2.755 / 2.742 | 0.162 / 0.192 |
+| all 27 | 2.786 / 2.796 | 2.755 / 2.742 | 0.162 / 0.192 |
+| PCA 5 | 2.787 / 2.796 | 2.761 / 2.749 | 0.134 / 0.166 |
+| PCA 10 | 2.789 / 2.798 | 2.760 / 2.748 | 0.142 / 0.171 |
+| PCA 20 | 2.787 / 2.797 | 2.758 / 2.745 | 0.158 / 0.187 |
+| PCA 90% | 2.789 / 2.797 | 2.759 / 2.745 | 0.149 / 0.177 |
+| PCA 95% | 2.787 / 2.795 | 2.759 / 2.745 | 0.154 / 0.184 |
+| Constant 3 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 |
+| *Self-report labels* | 2.885 | 3.000 | 0.895 |
+| *Median of expert labels* | 2.895 | 3.000 | 0.510 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| all 27 PCs | 0.642 / 0.676 | 0.791 / 0.834 | 0.568 / 0.533 | 0.186 / 0.104 | 0.130 / 0.132 | 0.430 / 0.420 |
+| all 27 | 0.642 / 0.676 | 0.791 / 0.834 | 0.568 / 0.533 | 0.186 / 0.104 | 0.130 / 0.132 | 0.430 / 0.420 |
+| PCA 5 | 0.648 / 0.677 | 0.798 / 0.835 | 0.539 / 0.515 | 0.140 / 0.077 | 0.124 / 0.128 | 0.427 / 0.421 |
+| PCA 10 | 0.645 / 0.675 | 0.796 / 0.832 | 0.557 / 0.527 | 0.162 / 0.091 | 0.125 / 0.128 | 0.428 / 0.421 |
+| PCA 20 | 0.642 / 0.676 | 0.792 / 0.835 | 0.565 / 0.530 | 0.180 / 0.098 | 0.129 / 0.131 | 0.429 / 0.419 |
+| PCA 90% | 0.644 / 0.675 | 0.794 / 0.833 | 0.559 / 0.530 | 0.167 / 0.097 | 0.127 / 0.129 | 0.429 / 0.421 |
+| PCA 95% | 0.643 / 0.677 | 0.793 / 0.835 | 0.561 / 0.530 | 0.172 / 0.098 | 0.128 / 0.130 | 0.430 / 0.420 |
+| Constant 3 | 0.618 / 0.619 | 0.840 / 0.839 | 0.500 / 0.500 | - / - | 0.120 / 0.119 | 0.427 / 0.423 |
+| *Mean of experts* | 0.668 | 0.860 | 0.563 | 0.143 | 0.208 | 0.447 |
+| *Median of experts* | 0.638 | 0.913 | 0.543 | 0.120 | 0.222 | 0.451 |
+
+#### 3.2.2 Self-report entries
+
+**Profile** (train / test)
+
+| | Mean | Median | SD |
+|---|---|---|---|
+| all 27 PCs | 2.859 / 2.864 | 2.851 / 2.852 | 0.086 / 0.086 |
+| all 27 | 2.859 / 2.864 | 2.850 / 2.852 | 0.086 / 0.086 |
+| PCA 5 | 2.859 / 2.860 | 2.855 / 2.855 | 0.042 / 0.044 |
+| PCA 10 | 2.863 / 2.867 | 2.857 / 2.858 | 0.064 / 0.064 |
+| PCA 20 | 2.860 / 2.864 | 2.852 / 2.853 | 0.079 / 0.081 |
+| PCA 90% | 2.863 / 2.865 | 2.856 / 2.856 | 0.065 / 0.065 |
+| PCA 95% | 2.861 / 2.864 | 2.852 / 2.853 | 0.074 / 0.075 |
+| Constant 3 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 |
+| *Self-report labels* | 2.885 | 3.000 | 0.895 |
+| *Median of expert labels* | 2.876 | 3.000 | 0.428 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| all 27 PCs | 0.695 / 0.714 | 0.894 / 0.916 | 0.546 / 0.490 | 0.099 / -0.019 | 0.119 / 0.119 | 0.412 / 0.411 |
+| all 27 | 0.695 / 0.714 | 0.894 / 0.916 | 0.546 / 0.490 | 0.099 / -0.019 | 0.119 / 0.119 | 0.412 / 0.411 |
+| PCA 5 | 0.699 / 0.711 | 0.899 / 0.913 | 0.508 / 0.487 | 0.026 / -0.020 | 0.117 / 0.116 | 0.412 / 0.411 |
+| PCA 10 | 0.697 / 0.713 | 0.897 / 0.916 | 0.529 / 0.483 | 0.059 / -0.036 | 0.117 / 0.117 | 0.412 / 0.411 |
+| PCA 20 | 0.697 / 0.714 | 0.895 / 0.916 | 0.535 / 0.482 | 0.084 / -0.028 | 0.118 / 0.118 | 0.412 / 0.411 |
+| PCA 90% | 0.697 / 0.713 | 0.897 / 0.916 | 0.534 / 0.488 | 0.065 / -0.031 | 0.117 / 0.117 | 0.412 / 0.411 |
+| PCA 95% | 0.697 / 0.714 | 0.896 / 0.916 | 0.534 / 0.484 | 0.082 / -0.029 | 0.118 / 0.117 | 0.413 / 0.410 |
+| Constant 3 | 0.668 / 0.670 | 0.910 / 0.910 | 0.500 / 0.500 | - / - | 0.117 / 0.116 | 0.412 / 0.411 |
+| *Mean of experts* | 0.689 | 0.884 | 0.619 | 0.241 | 0.179 | 0.435 |
+| *Median of experts* | 0.661 | 0.914 | 0.609 | 0.213 | 0.179 | 0.439 |
+
+### 3.3 What it shows
+
+- **Keeping every component changes nothing.** "All 95 PCs" and "all 95" agree to the third decimal,
+  and so do "all 27 PCs" and "all 27": PCA keeping every component is a rotation, and logistic
+  regression's L2 penalty does not depend on rotation. So any difference in the other columns comes
+  from the components dropped, not from the PCA step itself.
+- **Dropping components does not help.** Fewer components lower both the training fit and the test
+  ranking:
+  - test Spearman falls from 0.097 (all 95) to 0.080 (PCA 5), and is lower in every held-out group;
+  - training Spearman falls from 0.229 to 0.134.
+  The redundancy costs nothing, and removing it takes some signal with it. A variance-ranked cut
+  keeps the class-level components first (Appendix B), which carry little.
+- **The small MAE and RMSE gains are shrinkage, not signal.** PCA 5 has a lower test MAE than all 95
+  (0.677 against 0.685) because its predictions spread less (test SD 0.17 against 0.25). It ranks
+  worse. This is the same effect as the pooled model in experiment 06 §2.3.
+- **Dropping the class context does as well or better, with a third of the inputs.** The 27
+  per-student columns reach test Spearman 0.104 and AUC 0.533, against 0.097 and 0.530 with all 95,
+  and test RMSE 0.834 against 0.846. They fit the training groups less (Spearman 0.186 against
+  0.229): the context columns add training fit that does not carry to new groups, as §1 found (they
+  identify the session). Per held-out group the two are tied in two groups, and the per-student model
+  is ahead in the third (0.138 against 0.118).
+- **PCA on the 27 per-student columns does not help either** (test Spearman 0.077–0.098).
+- **Against the human ceiling.** The best arm (all 27) ranks expert entries at Spearman 0.104 and
+  AUC 0.533; the other experts' mean reaches 0.143 and 0.563 on the same labels. On MAE the median of
+  the experts (0.638) beats the model (0.676), and constant 3 (0.619) beats both.
+- **The self-report stays at chance** in every arm (test AUC 0.48–0.52, Spearman −0.04 to +0.02),
+  where the experts' mean reaches AUC 0.619 and Spearman 0.241.
+- **All of this is within ±0.02** of the base. What follows is about simplicity, not accuracy.
+  *Proposed (not yet applied):* drop the class context from the default
+  (`engagement.late_context=false`) and leave PCA off.
+
+## 4. Random forest
+
+Experiment 06's forest: 200 trees, depth 6, at least 20 rows per leaf. A forest splits on one column
+at a time, so redundant columns cost it little; PCA changes the columns it can split on, so for it
+"all 95 PCs" is a different model from "all 95". Every data cell is train / test (the same fold's model on its training groups, then on its held-out
+group). Rows in italics are references with one value per cell, on all entries of the track
+(experiment 06 Part 1): the self-report ratings and the median of the expert ratings (profile), and
+the other experts' mean and median predicting the same labels (metrics). \* threshold (AUC: labels
+split at rating ≥ 3); \*\* discretisation (prediction rounded to a whole rating, halves toward 3);
+unmarked: the raw prediction.
+
+| Arm | With the class context (95 columns) | Without it (27 per-student columns) |
+|---|---|---|
+| all 95 PCs / all 27 PCs | `a1e44780a01f` | `c36f89504032` |
+| all 95 / all 27 | `e36bbdfd5379` | `ef5d328b5033` |
+| PCA 5 / PCA 5 | `4b2ab09d6733` | `a42cc72b352d` |
+| PCA 10 / PCA 10 | `783d388f9d4b` | `bca4287f6f19` |
+| PCA 20 / PCA 20 | `be9ae5a21b9f` | `9ee0dffa4325` |
+| PCA 90% / PCA 90% | `998051404e42` | `0967841280a6` |
+| PCA 95% / PCA 95% | `c1e4357404df` | `1a6494971aeb` |
+
+### 4.1 With the class context (all 95 columns)
+
+#### 4.1.1 Expert entries
+
+**Profile** (train / test)
+
+| | Mean | Median | SD |
+|---|---|---|---|
+| all 95 PCs | 2.785 / 2.805 | 2.763 / 2.763 | 0.125 / 0.146 |
+| all 95 | 2.782 / 2.792 | 2.767 / 2.754 | 0.159 / 0.175 |
+| PCA 5 | 2.788 / 2.802 | 2.768 / 2.755 | 0.150 / 0.175 |
+| PCA 10 | 2.789 / 2.801 | 2.767 / 2.755 | 0.147 / 0.169 |
+| PCA 20 | 2.786 / 2.804 | 2.766 / 2.763 | 0.140 / 0.160 |
+| PCA 90% | 2.786 / 2.801 | 2.764 / 2.759 | 0.136 / 0.153 |
+| PCA 95% | 2.786 / 2.804 | 2.763 / 2.760 | 0.133 / 0.153 |
+| Constant 3 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 |
+| *Self-report labels* | 2.885 | 3.000 | 0.895 |
+| *Median of expert labels* | 2.895 | 3.000 | 0.510 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| all 95 PCs | 0.629 / 0.672 | 0.773 / 0.828 | 0.617 / 0.521 | 0.301 / 0.095 | 0.122 / 0.126 | 0.428 / 0.421 |
+| all 95 | 0.624 / 0.674 | 0.766 / 0.831 | 0.620 / 0.524 | 0.311 / 0.097 | 0.133 / 0.128 | 0.433 / 0.420 |
+| PCA 5 | 0.635 / 0.677 | 0.780 / 0.834 | 0.582 / 0.516 | 0.233 / 0.082 | 0.129 / 0.129 | 0.430 / 0.418 |
+| PCA 10 | 0.632 / 0.675 | 0.776 / 0.832 | 0.594 / 0.517 | 0.260 / 0.086 | 0.127 / 0.128 | 0.430 / 0.420 |
+| PCA 20 | 0.631 / 0.674 | 0.775 / 0.830 | 0.602 / 0.519 | 0.273 / 0.089 | 0.125 / 0.128 | 0.429 / 0.419 |
+| PCA 90% | 0.630 / 0.673 | 0.774 / 0.829 | 0.611 / 0.521 | 0.288 / 0.093 | 0.124 / 0.126 | 0.429 / 0.419 |
+| PCA 95% | 0.629 / 0.672 | 0.773 / 0.828 | 0.615 / 0.523 | 0.295 / 0.097 | 0.124 / 0.126 | 0.428 / 0.419 |
+| Constant 3 | 0.618 / 0.619 | 0.840 / 0.839 | 0.500 / 0.500 | - / - | 0.120 / 0.119 | 0.427 / 0.423 |
+| *Mean of experts* | 0.668 | 0.860 | 0.563 | 0.143 | 0.208 | 0.447 |
+| *Median of experts* | 0.638 | 0.913 | 0.543 | 0.120 | 0.222 | 0.451 |
+
+#### 4.1.2 Self-report entries
+
+**Profile** (train / test)
+
+| | Mean | Median | SD |
+|---|---|---|---|
+| all 95 PCs | 2.863 / 2.870 | 2.855 / 2.867 | 0.072 / 0.054 |
+| all 95 | 2.861 / 2.864 | 2.866 / 2.872 | 0.102 / 0.081 |
+| PCA 5 | 2.859 / 2.857 | 2.860 / 2.859 | 0.089 / 0.078 |
+| PCA 10 | 2.864 / 2.865 | 2.866 / 2.869 | 0.089 / 0.081 |
+| PCA 20 | 2.864 / 2.864 | 2.866 / 2.864 | 0.085 / 0.073 |
+| PCA 90% | 2.862 / 2.860 | 2.862 / 2.861 | 0.080 / 0.065 |
+| PCA 95% | 2.863 / 2.863 | 2.860 / 2.861 | 0.076 / 0.062 |
+| Constant 3 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 |
+| *Self-report labels* | 2.885 | 3.000 | 0.895 |
+| *Median of expert labels* | 2.876 | 3.000 | 0.428 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| all 95 PCs | 0.665 / 0.708 | 0.855 / 0.912 | 0.814 / 0.509 | 0.629 / 0.032 | 0.117 / 0.116 | 0.412 / 0.411 |
+| all 95 | 0.661 / 0.711 | 0.849 / 0.916 | 0.745 / 0.498 | 0.525 / 0.004 | 0.117 / 0.116 | 0.412 / 0.411 |
+| PCA 5 | 0.676 / 0.713 | 0.869 / 0.916 | 0.676 / 0.505 | 0.373 / 0.013 | 0.117 / 0.116 | 0.412 / 0.411 |
+| PCA 10 | 0.671 / 0.709 | 0.863 / 0.915 | 0.706 / 0.523 | 0.430 / 0.037 | 0.117 / 0.116 | 0.412 / 0.411 |
+| PCA 20 | 0.668 / 0.709 | 0.861 / 0.914 | 0.733 / 0.520 | 0.476 / 0.021 | 0.117 / 0.116 | 0.412 / 0.411 |
+| PCA 90% | 0.667 / 0.709 | 0.859 / 0.914 | 0.753 / 0.524 | 0.518 / 0.025 | 0.117 / 0.116 | 0.412 / 0.411 |
+| PCA 95% | 0.666 / 0.709 | 0.858 / 0.914 | 0.776 / 0.512 | 0.558 / 0.016 | 0.117 / 0.116 | 0.412 / 0.411 |
+| Constant 3 | 0.668 / 0.670 | 0.910 / 0.910 | 0.500 / 0.500 | - / - | 0.117 / 0.116 | 0.412 / 0.411 |
+| *Mean of experts* | 0.689 | 0.884 | 0.619 | 0.241 | 0.179 | 0.435 |
+| *Median of experts* | 0.661 | 0.914 | 0.609 | 0.213 | 0.179 | 0.439 |
+
+### 4.2 Without the class context (the 27 per-student columns)
+
+#### 4.2.1 Expert entries
+
+**Profile** (train / test)
+
+| | Mean | Median | SD |
+|---|---|---|---|
+| all 27 PCs | 2.784 / 2.793 | 2.763 / 2.754 | 0.145 / 0.158 |
+| all 27 | 2.781 / 2.789 | 2.766 / 2.752 | 0.154 / 0.174 |
+| PCA 5 | 2.784 / 2.793 | 2.769 / 2.757 | 0.148 / 0.170 |
+| PCA 10 | 2.786 / 2.795 | 2.769 / 2.755 | 0.146 / 0.166 |
+| PCA 20 | 2.785 / 2.794 | 2.765 / 2.756 | 0.146 / 0.161 |
+| PCA 90% | 2.785 / 2.794 | 2.766 / 2.755 | 0.148 / 0.165 |
+| PCA 95% | 2.785 / 2.793 | 2.765 / 2.755 | 0.145 / 0.162 |
+| Constant 3 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 |
+| *Self-report labels* | 2.885 | 3.000 | 0.895 |
+| *Median of expert labels* | 2.895 | 3.000 | 0.510 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| all 27 PCs | 0.628 / 0.672 | 0.772 / 0.828 | 0.613 / 0.531 | 0.282 / 0.108 | 0.127 / 0.126 | 0.430 / 0.421 |
+| all 27 | 0.627 / 0.675 | 0.772 / 0.832 | 0.613 / 0.527 | 0.285 / 0.097 | 0.131 / 0.128 | 0.432 / 0.420 |
+| PCA 5 | 0.635 / 0.677 | 0.781 / 0.833 | 0.583 / 0.517 | 0.228 / 0.082 | 0.128 / 0.128 | 0.430 / 0.420 |
+| PCA 10 | 0.630 / 0.674 | 0.777 / 0.831 | 0.604 / 0.526 | 0.259 / 0.091 | 0.127 / 0.127 | 0.430 / 0.421 |
+| PCA 20 | 0.628 / 0.672 | 0.773 / 0.829 | 0.610 / 0.531 | 0.275 / 0.107 | 0.127 / 0.127 | 0.430 / 0.420 |
+| PCA 90% | 0.629 / 0.673 | 0.776 / 0.830 | 0.607 / 0.531 | 0.265 / 0.101 | 0.128 / 0.126 | 0.431 / 0.420 |
+| PCA 95% | 0.629 / 0.673 | 0.775 / 0.830 | 0.608 / 0.530 | 0.270 / 0.101 | 0.127 / 0.127 | 0.430 / 0.421 |
+| Constant 3 | 0.618 / 0.619 | 0.840 / 0.839 | 0.500 / 0.500 | - / - | 0.120 / 0.119 | 0.427 / 0.423 |
+| *Mean of experts* | 0.668 | 0.860 | 0.563 | 0.143 | 0.208 | 0.447 |
+| *Median of experts* | 0.638 | 0.913 | 0.543 | 0.120 | 0.222 | 0.451 |
+
+#### 4.2.2 Self-report entries
+
+**Profile** (train / test)
+
+| | Mean | Median | SD |
+|---|---|---|---|
+| all 27 PCs | 2.860 / 2.860 | 2.847 / 2.849 | 0.084 / 0.065 |
+| all 27 | 2.859 / 2.859 | 2.850 / 2.852 | 0.086 / 0.073 |
+| PCA 5 | 2.857 / 2.857 | 2.848 / 2.848 | 0.086 / 0.074 |
+| PCA 10 | 2.859 / 2.859 | 2.844 / 2.847 | 0.091 / 0.075 |
+| PCA 20 | 2.860 / 2.860 | 2.847 / 2.851 | 0.083 / 0.065 |
+| PCA 90% | 2.860 / 2.862 | 2.847 / 2.851 | 0.088 / 0.071 |
+| PCA 95% | 2.860 / 2.861 | 2.848 / 2.851 | 0.087 / 0.068 |
+| Constant 3 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 |
+| *Self-report labels* | 2.885 | 3.000 | 0.895 |
+| *Median of expert labels* | 2.876 | 3.000 | 0.428 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| all 27 PCs | 0.671 / 0.713 | 0.860 / 0.913 | 0.737 / 0.479 | 0.481 / -0.013 | 0.117 / 0.116 | 0.412 / 0.411 |
+| all 27 | 0.669 / 0.715 | 0.860 / 0.916 | 0.734 / 0.468 | 0.485 / -0.039 | 0.117 / 0.116 | 0.412 / 0.411 |
+| PCA 5 | 0.680 / 0.713 | 0.873 / 0.913 | 0.666 / 0.491 | 0.350 / 0.001 | 0.118 / 0.118 | 0.412 / 0.411 |
+| PCA 10 | 0.675 / 0.714 | 0.866 / 0.914 | 0.695 / 0.487 | 0.399 / -0.007 | 0.118 / 0.118 | 0.413 / 0.411 |
+| PCA 20 | 0.672 / 0.712 | 0.863 / 0.913 | 0.722 / 0.488 | 0.453 / 0.001 | 0.117 / 0.116 | 0.412 / 0.411 |
+| PCA 90% | 0.675 / 0.713 | 0.866 / 0.914 | 0.706 / 0.488 | 0.414 / -0.005 | 0.118 / 0.118 | 0.413 / 0.411 |
+| PCA 95% | 0.672 / 0.712 | 0.863 / 0.913 | 0.712 / 0.492 | 0.438 / 0.007 | 0.118 / 0.116 | 0.413 / 0.411 |
+| Constant 3 | 0.668 / 0.670 | 0.910 / 0.910 | 0.500 / 0.500 | - / - | 0.117 / 0.116 | 0.412 / 0.411 |
+| *Mean of experts* | 0.689 | 0.884 | 0.619 | 0.241 | 0.179 | 0.435 |
+| *Median of experts* | 0.661 | 0.914 | 0.609 | 0.213 | 0.179 | 0.439 |
+
+### 4.3 What it shows
+
+- **It fits its training groups more than logistic regression and generalises no better.** With all
+  95 inputs: training Spearman 0.311 against 0.229, test 0.097 for both. The extra fit is
+  overfitting.
+- **Rotating the inputs changes little.** "All 95 PCs" against "all 95": test Spearman 0.095 against
+  0.097, AUC 0.521 against 0.524.
+- **Dropping components lowers the training fit and barely moves the test ranking** (test Spearman
+  0.082–0.097 with the context). PCA 5 is the lowest, as for logistic regression.
+- **Without the class context, a few components do slightly better.** All 27 PCs and PCA 20 reach
+  test Spearman 0.108 and 0.107 and AUC 0.531, the best forest arms; the 27 columns as they are reach
+  0.097. The difference is about 0.01.
+- **Its RMSE is the lowest of the two models** (test 0.828–0.834 against 0.834–0.846 for logistic
+  regression), close to the training-mean floor (0.82, experiment 06 §2.3) and below constant 3's
+  0.839. Its predictions spread less (test SD 0.15–0.18, against 0.19–0.25), so this is again mostly
+  shrinkage.
+- **On the self-report it overfits most.** Training Spearman 0.35–0.63 and test −0.04 to +0.04: the
+  forest memorises the training groups' self-reports and none of it carries to a new group.
+- **Against the human ceiling:** the best forest arm (test Spearman 0.108, AUC 0.531) is below the
+  other experts' mean (0.143, 0.563).
+
+## 5. k-NN (k = 500)
+
+With the k chosen in experiment 07. k-NN measures distance across every input, so each noisy or
+redundant dimension changes which rows count as nearest. A large k averages over hundreds of
+neighbours and should be the least sensitive to that. *Running* (`tmp/exp08/knn.sh`).
+
+## 6. k-NN (k = 5)
+
+Experiment 07's smallest k, where the choice of neighbours matters most: with 5 neighbours, a
+prediction depends entirely on which rows are nearest, and in 95 noisy dimensions that choice is
+close to random. If PCA helps by making distances meaningful, it should show here first. *Running*
+(`tmp/exp08/knn5.sh`).
 
 ---
 
-## Appendix: every column against every labeler
+## Appendix A: every column against every labeler
 
 Spearman ρ of each model input with each labeler's ratings, all experts pooled, the self-report, and
 the model's own-labeler prediction (in-sample, experts' rows). |ρ| ≥ 0.05 in bold. One table per
 feature category, first within student, then raw. Source:
-`outputs/experiments/07_features/correlations.csv`; §1.5 explains both views.
+`outputs/experiments/08_pca/correlations.csv`; §1.5 explains both views.
 
 ### Within student (feature and rating demeaned per student-session and labeler)
 
@@ -356,3 +733,34 @@ feature category, first within student, then raw. Source:
 | `vec.occ_20` | −0.024 | −0.012 | +0.000 | −0.015 | −0.025 | −0.016 | −0.019 | **−0.191** |
 | `vec.occ_21` | −0.030 | **−0.088** | −0.009 | **−0.127** | +0.024 | −0.034 | −0.028 | **−0.208** |
 | `vec.occ_22` | −0.040 | **−0.096** | +0.009 | −0.041 | +0.018 | −0.028 | −0.030 | **−0.171** |
+
+---
+
+## Appendix B: what the first 20 principal components are made of
+
+![One pie per principal component: the share of its squared loadings from each feature category](../../outputs/experiments/08_pca/components_pies.png)
+
+Each pie is one component of the 95 standardised model inputs (fitted label-free on the 34,871
+distinct window × track rows). A component is a unit vector, so its squared loadings sum to 1; the
+slices are the share from each feature category, labelled where 10% or more. Each title gives the
+component's share of the variance and its Spearman ρ with the ratings within student (experts
+pooled, and the self-report). Every loading: `outputs/experiments/08_pca/components_loadings.csv`
+(95 columns × 20 components); the scores, `components.csv`.
+
+What the pies show:
+
+- **The largest components describe the class, not the student.** PC1 is class flow and class
+  motion (87%), PC2 class SCB and the student's own SCB, PC4 class SCB again, PC5 occupancy and
+  class SCB (the seat layout). Together they hold 46% of the variance and track the labels at
+  |ρ| ≤ 0.036.
+- **The student's own flow is one component: PC3** (61% student flow). It is the component that
+  tracks the experts most (ρ +0.053).
+- **The student's own motion is spread over several smaller components** (PC6, PC12, PC16, PC17,
+  PC19, each 35–50% student motion and mostly mixed with class motion), and none of them tracks the
+  labels (|ρ| ≤ 0.028).
+- **The student's SCB scores form their own components only late** (PC11, PC13, PC15: 52–80%),
+  at 1.4–2.1% of the variance each.
+- **No component tracks the self-report** beyond |ρ| 0.041 (PC9: class motion and occupancy).
+
+For the PCA arms (§2–§6), this means a variance-ranked cut keeps the student's flow only if it
+keeps at least three components, and keeps the student's SCB signal only past about eleven.

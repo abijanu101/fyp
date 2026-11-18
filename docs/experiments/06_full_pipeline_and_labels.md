@@ -1,12 +1,15 @@
 # The labels and the full pipeline
 
-*Done 2026-11-17; Part 2 re-run 18 November with training-set, prediction-spread and per-labeler
-scores. Part 1: attention is the student's internal state, so the self-report is the reference.
-Expert observers recover it only weakly (AUC 0.61 at best, 0.63 combined), and no observer beats
-constant 3 on MAE. Part 2: the full pipeline barely
-ranks entries (expert-entry AUC 0.53) and loses to always predicting 3 on MAE; it underfits, with
-every classical expert model. Part 1 comes first because it decides how Part 2 is run and scored:
-per labeler, against the human ceiling. Config: [`06_full_pipeline_and_labels.json`](06_full_pipeline_and_labels.json).*
+*Frozen 18 November 2026: no further changes; later results go in later experiments. Done
+2026-11-17; Part 2 re-run 18 November with training-set, prediction-spread and per-labeler scores.
+Config: [`06_full_pipeline_and_labels.json`](06_full_pipeline_and_labels.json); runs and logs:
+`outputs/experiments/06_full_pipeline/`.*
+
+*Part 1: attention is the student's internal state, so the self-report is the reference. Expert
+observers recover it only weakly (AUC 0.61 at best, 0.63 combined), and no observer beats constant 3
+on MAE. Part 2: the full pipeline barely ranks entries (expert-entry AUC 0.53) and loses to always
+predicting 3 on MAE; it underfits, with every classical expert model. Part 1 comes first because it
+decides how Part 2 is run and scored: per labeler, against the human ceiling.*
 
 **In short:**
 
@@ -460,87 +463,91 @@ one arm takes about 4 minutes on the cached features (the random forest and k-NN
 
 ## 2.3 Result
 
-All tables report two splits:
-- **held-out:** the mean over the three held-out groups;
-- **train:** the same fold's model scored on the original entries of its own training groups.
+Every result has two tables, one row per model or arm:
+- **Profile:** the mean, median and SD of the predictions.
+- **Metrics:** MAE, RMSE, AUC\*, Spearman, macro F1\*\* and accuracy\*\*.
 
-Each column is scored on its own entries. The profile rows give the prediction's mean, median and SD
-next to those of the labels it is scored on. Built with `python -m scripts.reporting.results_table`.
+Every data cell is **train / test**: the same fold's model scored on the original entries of its own
+training groups, then on its held-out group, each the mean over the three folds. Rows in italics are
+references, with one value per cell on all entries of the track (06 Part 1, `outputs/labels/agreement.json`):
+- in the profile, the self-report ratings and the median of the expert ratings;
+- in the metrics, the other experts' mean and median predicting the same labels (the human ceiling).
+
 \* threshold (AUC: labels split at rating ≥ 3); \*\* discretisation (prediction rounded to a whole
-rating, halves toward 3); unmarked: the raw prediction.
+rating, halves toward 3); unmarked: the raw prediction. Built with
+`python -m scripts.reporting.results_table`.
 
-**Expert entries** (21,386):
+### 2.3.1 Expert entries
 
-| | Logistic regression (`c5341cb6385e`) | Random forest (`5df1987449dd`) | k-NN (`75a55ca34835`) | Pooled labelers (`fdb140e9477e`) | No augmented copy (`f6dcb84aaa6b`) | Constant 3 | Training mean |
-|---|---|---|---|---|---|---|---|
-| **Profile, held-out** |  |  |  |  |  |  |  |
-| Prediction mean | 2.822 | 2.821 | 2.859 | 2.817 | 2.830 | 3.000 | 2.815 |
-| Prediction median | 2.784 | 2.792 | 2.884 | 2.805 | 2.789 | 3.000 | 2.815 |
-| Prediction SD | 0.194 | 0.140 | 0.742 | 0.097 | 0.205 | 0.000 | 0.000 |
-| Label mean | 2.799 | 2.799 | 2.799 | 2.799 | 2.799 | 2.799 | 2.799 |
-| Label median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Label SD | 0.810 | 0.810 | 0.810 | 0.810 | 0.810 | 0.810 | 0.810 |
-| **Profile, train** |  |  |  |  |  |  |  |
-| Prediction mean | 2.809 | 2.811 | 2.824 | 2.814 | 2.817 | 3.000 | 2.815 |
-| Prediction median | 2.787 | 2.792 | 2.902 | 2.801 | 2.793 | 3.000 | 2.815 |
-| Prediction SD | 0.156 | 0.128 | 0.844 | 0.101 | 0.164 | 0.000 | 0.000 |
-| Label mean | 2.786 | 2.786 | 2.786 | 2.786 | 2.786 | 2.786 | 2.786 |
-| Label median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Label SD | 0.812 | 0.812 | 0.812 | 0.812 | 0.812 | 0.812 | 0.812 |
-| **Metrics, held-out** |  |  |  |  |  |  |  |
-| MAE | 0.674 | 0.668 | 0.848 | 0.653 | 0.675 | 0.619 | 0.656 |
-| RMSE | 0.838 | 0.833 | 1.042 | 0.818 | 0.841 | 0.839 | 0.821 |
-| AUC* | 0.527 | 0.523 | 0.532 | 0.526 | 0.525 | 0.500 | 0.501 |
-| Spearman | 0.072 | 0.062 | 0.094 | 0.074 | 0.065 | - | - |
-| Macro F1** | 0.134 | 0.127 | 0.195 | 0.119 | 0.133 | 0.119 | 0.119 |
-| Accuracy** | 0.417 | 0.421 | 0.346 | 0.423 | 0.416 | 0.423 | 0.423 |
-| **Metrics, train** |  |  |  |  |  |  |  |
-| MAE | 0.637 | 0.632 | 0.821 | 0.641 | 0.635 | 0.618 | 0.647 |
-| RMSE | 0.790 | 0.786 | 1.005 | 0.802 | 0.788 | 0.840 | 0.812 |
-| AUC* | 0.572 | 0.589 | 0.582 | 0.553 | 0.577 | 0.500 | 0.498 |
-| Spearman | 0.193 | 0.232 | 0.239 | 0.147 | 0.204 | - | - |
-| Macro F1** | 0.128 | 0.122 | 0.225 | 0.120 | 0.129 | 0.120 | 0.120 |
-| Accuracy** | 0.428 | 0.427 | 0.353 | 0.427 | 0.428 | 0.427 | 0.427 |
+The 21,386 expert entries whose student has a linked track:
 
-**Self-report entries** (2,445; the reference Part 1 §1.6 argues for):
+**Profile** (train / test)
 
-| | Logistic regression (`c5341cb6385e`) | Random forest (`5df1987449dd`) | k-NN (`75a55ca34835`) | Pooled labelers (`fdb140e9477e`) | No augmented copy (`f6dcb84aaa6b`) | Constant 3 | Training mean |
-|---|---|---|---|---|---|---|---|
-| **Profile, held-out** |  |  |  |  |  |  |  |
-| Prediction mean | 2.866 | 2.870 | 2.947 | 2.817 | 2.860 | 3.000 | 2.873 |
-| Prediction median | 2.863 | 2.880 | 2.973 | 2.806 | 2.851 | 3.000 | 2.873 |
-| Prediction SD | 0.126 | 0.079 | 0.513 | 0.091 | 0.152 | 0.000 | 0.000 |
-| Label mean | 2.885 | 2.885 | 2.885 | 2.885 | 2.885 | 2.885 | 2.885 |
-| Label median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Label SD | 0.896 | 0.896 | 0.896 | 0.896 | 0.896 | 0.896 | 0.896 |
-| **Profile, train** |  |  |  |  |  |  |  |
-| Prediction mean | 2.876 | 2.868 | 2.933 | 2.817 | 2.877 | 3.000 | 2.873 |
-| Prediction median | 2.870 | 2.879 | 2.920 | 2.807 | 2.867 | 3.000 | 2.873 |
-| Prediction SD | 0.122 | 0.093 | 0.607 | 0.094 | 0.138 | 0.000 | 0.000 |
-| Label mean | 2.881 | 2.881 | 2.881 | 2.881 | 2.881 | 2.881 | 2.881 |
-| Label median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Label SD | 0.900 | 0.900 | 0.900 | 0.900 | 0.900 | 0.900 | 0.900 |
-| **Metrics, held-out** |  |  |  |  |  |  |  |
-| MAE | 0.720 | 0.711 | 0.834 | 0.718 | 0.731 | 0.670 | 0.706 |
-| RMSE | 0.923 | 0.916 | 1.031 | 0.913 | 0.933 | 0.910 | 0.912 |
-| AUC* | 0.508 | 0.511 | 0.518 | 0.513 | 0.510 | 0.500 | 0.504 |
-| Spearman | 0.007 | 0.030 | 0.038 | 0.032 | 0.014 | - | - |
-| Macro F1** | 0.120 | 0.116 | 0.172 | 0.116 | 0.121 | 0.116 | 0.116 |
-| Accuracy** | 0.413 | 0.411 | 0.355 | 0.411 | 0.409 | 0.411 | 0.411 |
-| **Metrics, train** |  |  |  |  |  |  |  |
-| MAE | 0.691 | 0.684 | 0.771 | 0.706 | 0.691 | 0.668 | 0.696 |
-| RMSE | 0.885 | 0.875 | 0.958 | 0.898 | 0.880 | 0.910 | 0.900 |
-| AUC* | 0.572 | 0.614 | 0.584 | 0.547 | 0.578 | 0.500 | 0.500 |
-| Spearman | 0.174 | 0.294 | 0.233 | 0.109 | 0.192 | - | - |
-| Macro F1** | 0.119 | 0.117 | 0.233 | 0.117 | 0.119 | 0.117 | 0.117 |
-| Accuracy** | 0.413 | 0.412 | 0.388 | 0.412 | 0.413 | 0.412 | 0.412 |
+| | Mean | Median | SD |
+|---|---|---|---|
+| Logistic regression (`c5341cb6385e`) | 2.809 / 2.822 | 2.787 / 2.784 | 0.156 / 0.194 |
+| Random forest (`5df1987449dd`) | 2.811 / 2.821 | 2.792 / 2.792 | 0.128 / 0.140 |
+| k-NN (`75a55ca34835`) | 2.824 / 2.859 | 2.902 / 2.884 | 0.844 / 0.742 |
+| Pooled labelers (`fdb140e9477e`) | 2.814 / 2.817 | 2.801 / 2.805 | 0.101 / 0.097 |
+| No augmented copy (`f6dcb84aaa6b`) | 2.817 / 2.830 | 2.793 / 2.789 | 0.164 / 0.205 |
+| Constant 3 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 |
+| Training mean | 2.815 / 2.815 | 2.815 / 2.815 | 0.000 / 0.000 |
+| *Self-report labels* | 2.885 | 3.000 | 0.895 |
+| *Median of expert labels* | 2.895 | 3.000 | 0.510 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| Logistic regression (`c5341cb6385e`) | 0.637 / 0.674 | 0.790 / 0.838 | 0.572 / 0.527 | 0.193 / 0.072 | 0.128 / 0.134 | 0.428 / 0.417 |
+| Random forest (`5df1987449dd`) | 0.632 / 0.668 | 0.786 / 0.833 | 0.589 / 0.523 | 0.232 / 0.062 | 0.122 / 0.127 | 0.427 / 0.421 |
+| k-NN (`75a55ca34835`) | 0.821 / 0.848 | 1.005 / 1.042 | 0.582 / 0.532 | 0.239 / 0.094 | 0.225 / 0.195 | 0.353 / 0.346 |
+| Pooled labelers (`fdb140e9477e`) | 0.641 / 0.653 | 0.802 / 0.818 | 0.553 / 0.526 | 0.147 / 0.074 | 0.120 / 0.119 | 0.427 / 0.423 |
+| No augmented copy (`f6dcb84aaa6b`) | 0.635 / 0.675 | 0.788 / 0.841 | 0.577 / 0.525 | 0.204 / 0.065 | 0.129 / 0.133 | 0.428 / 0.416 |
+| Constant 3 | 0.618 / 0.619 | 0.840 / 0.839 | 0.500 / 0.500 | - / - | 0.120 / 0.119 | 0.427 / 0.423 |
+| Training mean | 0.647 / 0.656 | 0.812 / 0.821 | 0.498 / 0.501 | - / - | 0.120 / 0.119 | 0.427 / 0.423 |
+| *Mean of experts* | 0.668 | 0.860 | 0.563 | 0.143 | 0.208 | 0.447 |
+| *Median of experts* | 0.638 | 0.913 | 0.543 | 0.120 | 0.222 | 0.451 |
+
+### 2.3.2 Self-report entries
+
+The 2,445 self-report entries whose student has a linked track; the reference Part 1 §1.6 argues
+for:
+
+**Profile** (train / test)
+
+| | Mean | Median | SD |
+|---|---|---|---|
+| Logistic regression (`c5341cb6385e`) | 2.876 / 2.866 | 2.870 / 2.863 | 0.122 / 0.126 |
+| Random forest (`5df1987449dd`) | 2.868 / 2.870 | 2.879 / 2.880 | 0.093 / 0.079 |
+| k-NN (`75a55ca34835`) | 2.933 / 2.947 | 2.920 / 2.973 | 0.607 / 0.513 |
+| Pooled labelers (`fdb140e9477e`) | 2.817 / 2.817 | 2.807 / 2.806 | 0.094 / 0.091 |
+| No augmented copy (`f6dcb84aaa6b`) | 2.877 / 2.860 | 2.867 / 2.851 | 0.138 / 0.152 |
+| Constant 3 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 |
+| Training mean | 2.873 / 2.873 | 2.873 / 2.873 | 0.000 / 0.000 |
+| *Self-report labels* | 2.885 | 3.000 | 0.895 |
+| *Median of expert labels* | 2.876 | 3.000 | 0.428 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| Logistic regression (`c5341cb6385e`) | 0.691 / 0.720 | 0.885 / 0.923 | 0.572 / 0.508 | 0.174 / 0.007 | 0.119 / 0.120 | 0.413 / 0.413 |
+| Random forest (`5df1987449dd`) | 0.684 / 0.711 | 0.875 / 0.916 | 0.614 / 0.511 | 0.294 / 0.030 | 0.117 / 0.116 | 0.412 / 0.411 |
+| k-NN (`75a55ca34835`) | 0.771 / 0.834 | 0.958 / 1.031 | 0.584 / 0.518 | 0.233 / 0.038 | 0.233 / 0.172 | 0.388 / 0.355 |
+| Pooled labelers (`fdb140e9477e`) | 0.706 / 0.718 | 0.898 / 0.913 | 0.547 / 0.513 | 0.109 / 0.032 | 0.117 / 0.116 | 0.412 / 0.411 |
+| No augmented copy (`f6dcb84aaa6b`) | 0.691 / 0.731 | 0.880 / 0.933 | 0.578 / 0.510 | 0.192 / 0.014 | 0.119 / 0.121 | 0.413 / 0.409 |
+| Constant 3 | 0.668 / 0.670 | 0.910 / 0.910 | 0.500 / 0.500 | - / - | 0.117 / 0.116 | 0.412 / 0.411 |
+| Training mean | 0.696 / 0.706 | 0.900 / 0.912 | 0.500 / 0.504 | - / - | 0.117 / 0.116 | 0.412 / 0.411 |
+| *Mean of experts* | 0.689 | 0.884 | 0.619 | 0.241 | 0.179 | 0.435 |
+| *Median of experts* | 0.661 | 0.914 | 0.609 | 0.213 | 0.179 | 0.439 |
+
+### 2.3.3 What the tables show
 
 Logistic regression and the random forest learn the soft rating target and output an expected
 rating. k-NN cannot use soft labels here (`SklearnExpert.SOFT`): it is trained on rating ≥ 3 and
 outputs P(rating ≥ 3), read back as 1 + 4p. For k-NN only the rank metrics (AUC, Spearman) are
 comparable; its profile, MAE, RMSE and discretised metrics measure a different quantity.
-
-What the tables show:
 
 - **The predictions are a near-constant at the label mean.** Logistic regression predicts with an SD
   of 0.19, against the labels' 0.81, around a mean of 2.82 (labels 2.80). Its median sits at 2.78,
@@ -560,76 +567,64 @@ What the tables show:
 - **Augmentation changes nothing.** Without the one augmented copy, every number moves by about 0.01 at
   most (paragraph below).
 
-**Each labeler separately** (logistic regression, expert entries). Each column is that labeler's own
+### 2.3.4 Each labeler separately
+
+Logistic regression, expert entries. Each column is that labeler's own
 entries; "macro" is the mean over the five labelers, "pooled" all entries together:
 
-| | labeler_01 | labeler_02 | labeler_03 | labeler_04 | labeler_05 | **macro** | **pooled** |
-|---|---|---|---|---|---|---|---|
-| **Profile, held-out** |  |  |  |  |  |  |  |
-| Prediction mean | 2.787 | 2.932 | 2.775 | 3.159 | 3.106 | 2.952 | 2.822 |
-| Prediction median | 2.779 | 2.914 | 2.761 | 3.159 | 3.113 | 2.945 | 2.784 |
-| Prediction SD | 0.118 | 0.228 | 0.107 | 0.259 | 0.283 | 0.199 | 0.194 |
-| Label mean | 2.738 | 2.948 | 2.843 | 3.030 | 2.985 | 2.909 | 2.799 |
-| Label median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Label SD | 0.724 | 0.722 | 0.954 | 0.868 | 0.809 | 0.815 | 0.810 |
-| **Profile, train** |  |  |  |  |  |  |  |
-| Prediction mean | 2.795 | 2.894 | 2.777 | 2.978 | 3.017 | 2.892 | 2.809 |
-| Prediction median | 2.783 | 2.886 | 2.765 | 2.948 | 3.004 | 2.877 | 2.787 |
-| Prediction SD | 0.122 | 0.229 | 0.107 | 0.222 | 0.248 | 0.186 | 0.156 |
-| Label mean | 2.729 | 2.885 | 2.851 | 2.978 | 3.007 | 2.890 | 2.786 |
-| Label median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Label SD | 0.728 | 0.735 | 0.974 | 0.858 | 0.831 | 0.825 | 0.812 |
-| **Metrics, held-out** |  |  |  |  |  |  |  |
-| MAE | 0.604 | 0.581 | 0.785 | 0.906 | 0.843 | 0.744 | 0.674 |
-| RMSE | 0.746 | 0.717 | 0.954 | 1.090 | 1.033 | 0.908 | 0.838 |
-| AUC* | 0.530 | 0.629 | 0.509 | 0.485 | 0.445 | 0.519 | 0.527 |
-| Spearman | 0.077 | 0.268 | 0.052 | 0.038 | -0.152 | 0.057 | 0.072 |
-| Macro F1** | 0.128 | 0.156 | 0.096 | 0.124 | 0.142 | 0.129 | 0.134 |
-| Accuracy** | 0.461 | 0.473 | 0.316 | 0.314 | 0.352 | 0.383 | 0.417 |
-| **Metrics, train** |  |  |  |  |  |  |  |
-| MAE | 0.582 | 0.561 | 0.787 | 0.650 | 0.627 | 0.641 | 0.637 |
-| RMSE | 0.715 | 0.676 | 0.968 | 0.796 | 0.752 | 0.781 | 0.790 |
-| AUC* | 0.567 | 0.665 | 0.516 | 0.648 | 0.697 | 0.618 | 0.572 |
-| Spearman | 0.182 | 0.392 | 0.091 | 0.348 | 0.443 | 0.291 | 0.193 |
-| Macro F1** | 0.129 | 0.157 | 0.100 | 0.154 | 0.156 | 0.139 | 0.128 |
-| Accuracy** | 0.465 | 0.469 | 0.329 | 0.426 | 0.414 | 0.421 | 0.428 |
+**Profile** (train / test)
+
+| | Mean (predicted) | Mean (labels) | Median (predicted) | Median (labels) | SD (predicted) | SD (labels) |
+|---|---|---|---|---|---|---|
+| labeler_01 | 2.795 / 2.787 | 2.729 / 2.738 | 2.783 / 2.779 | 3.000 / 3.000 | 0.122 / 0.118 | 0.728 / 0.724 |
+| labeler_02 | 2.894 / 2.932 | 2.885 / 2.948 | 2.886 / 2.914 | 3.000 / 3.000 | 0.229 / 0.228 | 0.735 / 0.722 |
+| labeler_03 | 2.777 / 2.775 | 2.851 / 2.843 | 2.765 / 2.761 | 3.000 / 3.000 | 0.107 / 0.107 | 0.974 / 0.954 |
+| labeler_04 | 2.978 / 3.159 | 2.978 / 3.030 | 2.948 / 3.159 | 3.000 / 3.000 | 0.222 / 0.259 | 0.858 / 0.868 |
+| labeler_05 | 3.017 / 3.106 | 3.007 / 2.985 | 3.004 / 3.113 | 3.000 / 3.000 | 0.248 / 0.283 | 0.831 / 0.809 |
+| **macro** | 2.892 / 2.952 | 2.890 / 2.909 | 2.877 / 2.945 | 3.000 / 3.000 | 0.186 / 0.199 | 0.825 / 0.815 |
+| **pooled** | 2.809 / 2.822 | 2.786 / 2.799 | 2.787 / 2.784 | 3.000 / 3.000 | 0.156 / 0.194 | 0.812 / 0.810 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| labeler_01 | 0.582 / 0.604 | 0.715 / 0.746 | 0.567 / 0.530 | 0.182 / 0.077 | 0.129 / 0.128 | 0.465 / 0.461 |
+| labeler_02 | 0.561 / 0.581 | 0.676 / 0.717 | 0.665 / 0.629 | 0.392 / 0.268 | 0.157 / 0.156 | 0.469 / 0.473 |
+| labeler_03 | 0.787 / 0.785 | 0.968 / 0.954 | 0.516 / 0.509 | 0.091 / 0.052 | 0.100 / 0.096 | 0.329 / 0.316 |
+| labeler_04 | 0.650 / 0.906 | 0.796 / 1.090 | 0.648 / 0.485 | 0.348 / 0.038 | 0.154 / 0.124 | 0.426 / 0.314 |
+| labeler_05 | 0.627 / 0.843 | 0.752 / 1.033 | 0.697 / 0.445 | 0.443 / -0.152 | 0.156 / 0.142 | 0.414 / 0.352 |
+| **macro** | 0.641 / 0.744 | 0.781 / 0.908 | 0.618 / 0.519 | 0.291 / 0.057 | 0.139 / 0.129 | 0.421 / 0.383 |
+| **pooled** | 0.637 / 0.674 | 0.790 / 0.838 | 0.572 / 0.527 | 0.193 / 0.072 | 0.128 / 0.134 | 0.428 / 0.417 |
 
 Constant 3 on the same entries:
 
-| | labeler_01 | labeler_02 | labeler_03 | labeler_04 | labeler_05 | **macro** | **pooled** |
-|---|---|---|---|---|---|---|---|
-| **Profile, held-out** |  |  |  |  |  |  |  |
-| Prediction mean | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Prediction median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Prediction SD | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
-| Label mean | 2.738 | 2.948 | 2.843 | 3.030 | 2.985 | 2.909 | 2.799 |
-| Label median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Label SD | 0.724 | 0.722 | 0.954 | 0.868 | 0.809 | 0.815 | 0.810 |
-| **Profile, train** |  |  |  |  |  |  |  |
-| Prediction mean | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Prediction median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Prediction SD | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
-| Label mean | 2.729 | 2.885 | 2.851 | 2.978 | 3.007 | 2.890 | 2.786 |
-| Label median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Label SD | 0.728 | 0.735 | 0.974 | 0.858 | 0.831 | 0.825 | 0.812 |
-| **Metrics, held-out** |  |  |  |  |  |  |  |
-| MAE | 0.561 | 0.542 | 0.770 | 0.689 | 0.628 | 0.638 | 0.619 |
-| RMSE | 0.780 | 0.747 | 0.967 | 0.906 | 0.833 | 0.847 | 0.839 |
-| AUC* | 0.500 | 0.500 | 0.500 | 0.500 | 0.500 | 0.500 | 0.500 |
-| Spearman | - | - | - | - | - | - | - |
-| Macro F1** | 0.127 | 0.127 | 0.096 | 0.110 | 0.116 | 0.115 | 0.119 |
-| Accuracy** | 0.463 | 0.466 | 0.316 | 0.381 | 0.411 | 0.408 | 0.423 |
-| **Metrics, train** |  |  |  |  |  |  |  |
-| MAE | 0.559 | 0.543 | 0.771 | 0.668 | 0.640 | 0.636 | 0.618 |
-| RMSE | 0.779 | 0.751 | 0.985 | 0.887 | 0.848 | 0.850 | 0.840 |
-| AUC* | 0.500 | 0.500 | 0.500 | 0.500 | 0.500 | 0.500 | 0.500 |
-| Spearman | - | - | - | - | - | - | - |
-| Macro F1** | 0.127 | 0.127 | 0.099 | 0.113 | 0.115 | 0.116 | 0.120 |
-| Accuracy** | 0.465 | 0.467 | 0.329 | 0.395 | 0.404 | 0.412 | 0.427 |
+**Profile** (train / test)
+
+| | Mean (predicted) | Mean (labels) | Median (predicted) | Median (labels) | SD (predicted) | SD (labels) |
+|---|---|---|---|---|---|---|
+| labeler_01 | 3.000 / 3.000 | 2.729 / 2.738 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 | 0.728 / 0.724 |
+| labeler_02 | 3.000 / 3.000 | 2.885 / 2.948 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 | 0.735 / 0.722 |
+| labeler_03 | 3.000 / 3.000 | 2.851 / 2.843 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 | 0.974 / 0.954 |
+| labeler_04 | 3.000 / 3.000 | 2.978 / 3.030 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 | 0.858 / 0.868 |
+| labeler_05 | 3.000 / 3.000 | 3.007 / 2.985 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 | 0.831 / 0.809 |
+| **macro** | 3.000 / 3.000 | 2.890 / 2.909 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 | 0.825 / 0.815 |
+| **pooled** | 3.000 / 3.000 | 2.786 / 2.799 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 | 0.812 / 0.810 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| labeler_01 | 0.559 / 0.561 | 0.779 / 0.780 | 0.500 / 0.500 | - / - | 0.127 / 0.127 | 0.465 / 0.463 |
+| labeler_02 | 0.543 / 0.542 | 0.751 / 0.747 | 0.500 / 0.500 | - / - | 0.127 / 0.127 | 0.467 / 0.466 |
+| labeler_03 | 0.771 / 0.770 | 0.985 / 0.967 | 0.500 / 0.500 | - / - | 0.099 / 0.096 | 0.329 / 0.316 |
+| labeler_04 | 0.668 / 0.689 | 0.887 / 0.906 | 0.500 / 0.500 | - / - | 0.113 / 0.110 | 0.395 / 0.381 |
+| labeler_05 | 0.640 / 0.628 | 0.848 / 0.833 | 0.500 / 0.500 | - / - | 0.115 / 0.116 | 0.404 / 0.411 |
+| **macro** | 0.636 / 0.638 | 0.850 / 0.847 | 0.500 / 0.500 | - / - | 0.116 / 0.115 | 0.412 / 0.408 |
+| **pooled** | 0.618 / 0.619 | 0.840 / 0.839 | 0.500 / 0.500 | - / - | 0.120 / 0.119 | 0.427 / 0.423 |
 
 - **One labeler is predictable: labeler_02.** Held out, labeler_02's model reaches AUC 0.629 and
   Spearman 0.268, the only clear signal in the experiment. labeler_02 responds to the hand-raising
-  scores and to head lowering (experiment 07, Appendix), which the features measure directly.
+  scores and to head lowering (experiment 08, Appendix A), which the features measure directly.
 - **The dominant labeler is barely predicted.**
   - labeler_01 (61.5% of entries): AUC 0.530, Spearman 0.077.
   - labeler_03: 0.509 / 0.052.
@@ -641,6 +636,8 @@ Constant 3 on the same entries:
     costs MAE: 0.906 and 0.843, against constant 3's 0.689 and 0.628.
 - **On MAE, constant 3 beats the model for every labeler,** by 0.04 (labeler_01 and labeler_02) to
   0.22 (labeler_04). Macro over labelers: 0.744 against 0.638.
+
+### 2.3.5 Dropped and unchanged arms
 
 **SVM dropped (18 November).** An RBF SVM was tried as a fourth expert model and dropped as
 impractically slow: one arm took about 1.5 hours, against about 4 minutes for logistic regression.
@@ -681,36 +678,35 @@ Settings:
 
 Expert entries, logistic regression:
 
-| | step (default) (`c5341cb6385e`) | ramp 3 s (`9f5c78e85899`) | ramp 7 s (`5c38aa124d4e`) | Gaussian 1 s (`83551175c8ce`) | Gaussian 2 s (`59fe8967ec34`) | no interpolation (`07cc8c676819`) | step, 8 s windows (`0159e99cadc2`) | Constant 3 | Training mean |
-|---|---|---|---|---|---|---|---|---|---|
-| **Profile, held-out** |  |  |  |  |  |  |  |  |  |
-| Prediction mean | 2.822 | 2.811 | 2.804 | 2.825 | 2.833 | 2.802 | 2.846 | 3.000 | 2.815 |
-| Prediction median | 2.784 | 2.763 | 2.752 | 2.789 | 2.805 | 2.744 | 2.823 | 3.000 | 2.815 |
-| Prediction SD | 0.194 | 0.222 | 0.235 | 0.196 | 0.203 | 0.253 | 0.217 | 0.000 | 0.000 |
-| Label mean | 2.799 | 2.799 | 2.799 | 2.799 | 2.799 | 2.799 | 2.797 | 2.799 | 2.799 |
-| Label median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Label SD | 0.810 | 0.810 | 0.810 | 0.810 | 0.810 | 0.810 | 0.810 | 0.810 | 0.810 |
-| **Profile, train** |  |  |  |  |  |  |  |  |  |
-| Prediction mean | 2.809 | 2.794 | 2.785 | 2.813 | 2.821 | 2.782 | 2.831 | 3.000 | 2.815 |
-| Prediction median | 2.787 | 2.767 | 2.758 | 2.791 | 2.805 | 2.751 | 2.822 | 3.000 | 2.815 |
-| Prediction SD | 0.156 | 0.171 | 0.181 | 0.159 | 0.168 | 0.198 | 0.184 | 0.000 | 0.000 |
-| Label mean | 2.786 | 2.786 | 2.786 | 2.786 | 2.786 | 2.786 | 2.786 | 2.786 | 2.786 |
-| Label median | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 | 3.000 |
-| Label SD | 0.812 | 0.812 | 0.812 | 0.812 | 0.812 | 0.812 | 0.811 | 0.812 | 0.812 |
-| **Metrics, held-out** |  |  |  |  |  |  |  |  |  |
-| MAE | 0.674 | 0.679 | 0.683 | 0.673 | 0.672 | 0.685 | 0.674 | 0.619 | 0.656 |
-| RMSE | 0.838 | 0.842 | 0.844 | 0.840 | 0.845 | 0.846 | 0.851 | 0.839 | 0.821 |
-| AUC* | 0.527 | 0.532 | 0.529 | 0.530 | 0.535 | 0.530 | 0.534 | 0.500 | 0.501 |
-| Spearman | 0.072 | 0.092 | 0.096 | 0.068 | 0.057 | 0.097 | 0.049 | - | - |
-| Macro F1** | 0.134 | 0.137 | 0.139 | 0.135 | 0.137 | 0.143 | 0.142 | 0.119 | 0.119 |
-| Accuracy** | 0.417 | 0.416 | 0.415 | 0.417 | 0.418 | 0.414 | 0.421 | 0.423 | 0.423 |
-| **Metrics, train** |  |  |  |  |  |  |  |  |  |
-| MAE | 0.637 | 0.634 | 0.636 | 0.636 | 0.635 | 0.635 | 0.636 | 0.618 | 0.647 |
-| RMSE | 0.790 | 0.783 | 0.781 | 0.792 | 0.797 | 0.780 | 0.801 | 0.840 | 0.812 |
-| AUC* | 0.572 | 0.585 | 0.580 | 0.574 | 0.576 | 0.584 | 0.575 | 0.500 | 0.498 |
-| Spearman | 0.193 | 0.225 | 0.224 | 0.186 | 0.168 | 0.229 | 0.160 | - | - |
-| Macro F1** | 0.128 | 0.135 | 0.138 | 0.128 | 0.130 | 0.147 | 0.135 | 0.120 | 0.120 |
-| Accuracy** | 0.428 | 0.431 | 0.431 | 0.428 | 0.429 | 0.434 | 0.430 | 0.427 | 0.427 |
+**Profile** (train / test)
+
+| | Mean (predicted) | Mean (labels) | Median (predicted) | Median (labels) | SD (predicted) | SD (labels) |
+|---|---|---|---|---|---|---|
+| step (default) (`c5341cb6385e`) | 2.809 / 2.822 | 2.786 / 2.799 | 2.787 / 2.784 | 3.000 / 3.000 | 0.156 / 0.194 | 0.812 / 0.810 |
+| ramp 3 s (`9f5c78e85899`) | 2.794 / 2.811 | 2.786 / 2.799 | 2.767 / 2.763 | 3.000 / 3.000 | 0.171 / 0.222 | 0.812 / 0.810 |
+| ramp 7 s (`5c38aa124d4e`) | 2.785 / 2.804 | 2.786 / 2.799 | 2.758 / 2.752 | 3.000 / 3.000 | 0.181 / 0.235 | 0.812 / 0.810 |
+| Gaussian 1 s (`83551175c8ce`) | 2.813 / 2.825 | 2.786 / 2.799 | 2.791 / 2.789 | 3.000 / 3.000 | 0.159 / 0.196 | 0.812 / 0.810 |
+| Gaussian 2 s (`59fe8967ec34`) | 2.821 / 2.833 | 2.786 / 2.799 | 2.805 / 2.805 | 3.000 / 3.000 | 0.168 / 0.203 | 0.812 / 0.810 |
+| no interpolation (`07cc8c676819`) | 2.782 / 2.802 | 2.786 / 2.799 | 2.751 / 2.744 | 3.000 / 3.000 | 0.198 / 0.253 | 0.812 / 0.810 |
+| step, 8 s windows (`0159e99cadc2`) | 2.831 / 2.846 | 2.786 / 2.797 | 2.822 / 2.823 | 3.000 / 3.000 | 0.184 / 0.217 | 0.811 / 0.810 |
+| Constant 3 | 3.000 / 3.000 | 2.786 / 2.799 | 3.000 / 3.000 | 3.000 / 3.000 | 0.000 / 0.000 | 0.812 / 0.810 |
+| Training mean | 2.815 / 2.815 | 2.786 / 2.799 | 2.815 / 2.815 | 3.000 / 3.000 | 0.000 / 0.000 | 0.812 / 0.810 |
+
+**Metrics** (train / test)
+
+| | MAE | RMSE | AUC* | Spearman | Macro F1** | Accuracy** |
+|---|---|---|---|---|---|---|
+| step (default) (`c5341cb6385e`) | 0.637 / 0.674 | 0.790 / 0.838 | 0.572 / 0.527 | 0.193 / 0.072 | 0.128 / 0.134 | 0.428 / 0.417 |
+| ramp 3 s (`9f5c78e85899`) | 0.634 / 0.679 | 0.783 / 0.842 | 0.585 / 0.532 | 0.225 / 0.092 | 0.135 / 0.137 | 0.431 / 0.416 |
+| ramp 7 s (`5c38aa124d4e`) | 0.636 / 0.683 | 0.781 / 0.844 | 0.580 / 0.529 | 0.224 / 0.096 | 0.138 / 0.139 | 0.431 / 0.415 |
+| Gaussian 1 s (`83551175c8ce`) | 0.636 / 0.673 | 0.792 / 0.840 | 0.574 / 0.530 | 0.186 / 0.068 | 0.128 / 0.135 | 0.428 / 0.417 |
+| Gaussian 2 s (`59fe8967ec34`) | 0.635 / 0.672 | 0.797 / 0.845 | 0.576 / 0.535 | 0.168 / 0.057 | 0.130 / 0.137 | 0.429 / 0.418 |
+| no interpolation (`07cc8c676819`) | 0.635 / 0.685 | 0.780 / 0.846 | 0.584 / 0.530 | 0.229 / 0.097 | 0.147 / 0.143 | 0.434 / 0.414 |
+| step, 8 s windows (`0159e99cadc2`) | 0.636 / 0.674 | 0.801 / 0.851 | 0.575 / 0.534 | 0.160 / 0.049 | 0.135 / 0.142 | 0.430 / 0.421 |
+| Constant 3 | 0.618 / 0.619 | 0.840 / 0.839 | 0.500 / 0.500 | - / - | 0.120 / 0.119 | 0.427 / 0.423 |
+| Training mean | 0.647 / 0.656 | 0.812 / 0.821 | 0.498 / 0.501 | - / - | 0.120 / 0.119 | 0.427 / 0.423 |
+| *Mean of experts* | 0.668 | 0.860 | 0.563 | 0.143 | 0.208 | 0.447 |
+| *Median of experts* | 0.638 | 0.913 | 0.543 | 0.120 | 0.222 | 0.451 |
 
 A ramp of width w and a Gaussian of σ = w/√12 have the same spread: ramp 3 s ≈ σ 0.87 s, ramp 7 s ≈
 σ 2 s.
@@ -792,9 +788,10 @@ model can show much under.
   approximated, by their mean over the rest of the session (§1.8.1), which measures their overall view
   of a student, not a repeat judgement of the same moment, and is pulled against the entry by the
   swing-back of changes.
-- labeler_01 is 61.5% of the expert entries and the least predictable; macro numbers are higher
-  (AUC 0.62 for the experts' mean), and the model has not yet been scored per labeler, so the
-  "half-way to the ceiling" comparison rests on pooled numbers.
+- labeler_01 is 61.5% of the expert entries and the least predictable, so pooled numbers are mostly
+  about labeler_01. Averaged per labeler instead (macro), the experts' mean reaches AUC 0.62 while
+  the model reaches 0.519 (§2.3.4): per labeler, the model is further from the ceiling than the
+  pooled "half-way" comparison suggests. Its one clear per-labeler signal is labeler_02 (AUC 0.629).
 - The entries were made retrospectively at 1 fps; no lag improves agreement, but a labeler's reaction
   time could vary from entry to entry, which no fixed lag captures (the ±k s upper bounds bound it).
 - A single labeler's 1–5 value ties heavily, which lowers its AUC; the continuous mean of the others is

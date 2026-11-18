@@ -88,6 +88,16 @@ class TestRatings(unittest.TestCase):
         self.assertAlmostEqual(folds["k/by_labeler/l1"][0]["mae"], 0.25)   # a: 2.5 vs 2, b: exact
         self.assertAlmostEqual(folds["k/by_labeler/l2"][0]["mae"], 0.5)    # c exact, d off by 1
 
+    def test_c_index(self):
+        from src.evaluation.metrics import c_index
+        y = np.array([1, 2, 2, 3, 3, 4, 5.0])
+        p = np.array([.1, .2, .3, .25, .4, .5, .9])
+        brute = [(1 if p[i] < p[j] else .5 if p[i] == p[j] else 0) for i in range(7) for j in range(7) if y[i] < y[j]]
+        self.assertAlmostEqual(c_index(y, p), np.mean(brute))
+        self.assertEqual(c_index(y, np.full(7, 3.0)), 0.5)             # any constant: chance
+        self.assertAlmostEqual(c_index(y, y), 1.0)
+        self.assertAlmostEqual(c_index(y, -y), 0.0)
+
     def test_spread_metrics_decompose_the_squared_error(self):
         rng = np.random.default_rng(1)
         y = rng.integers(1, 6, 400).astype(float)

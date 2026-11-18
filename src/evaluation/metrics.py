@@ -64,6 +64,21 @@ def spread_metrics(y: np.ndarray, p: np.ndarray) -> dict:
     return out
 
 
+def c_index(y: np.ndarray, p: np.ndarray) -> float:
+    """Ordinal concordance (Harrell's C): of all pairs of entries with different ratings, the share
+    the prediction orders the same way, tied predictions counting half. 0.5 = chance (any constant),
+    1 = perfect. No threshold and no rounding: AUC generalised to every cut of the scale at once.
+    Computed as (Somers' D of p given y + 1) / 2."""
+    from scipy.stats import somersd
+
+    y, p = np.asarray(y, float), np.asarray(p, float)
+    if len(y) < 2 or np.ptp(y) <= EPS:
+        return np.nan
+    if np.ptp(p) <= EPS:
+        return 0.5
+    return float((somersd(y, p).statistic + 1) / 2)
+
+
 def rating_metrics(rating: np.ndarray, pred: np.ndarray, tau_att: float) -> dict:
     """Per-label scores (docs/misc/targets.md §7.1 items 2 and 7): `rating` = the entries as made
     (1-5), `pred` = predicted ratings (1-5, continuous or already discrete). Regression view on the
@@ -88,6 +103,7 @@ def rating_metrics(rating: np.ndarray, pred: np.ndarray, tau_att: float) -> dict
         "rmse": float(np.sqrt(np.mean((p - y) ** 2))),
         **spread_metrics(y, p),
         "spearman": float(spearmanr(p, y).statistic) if varied else np.nan,
+        "c_index": c_index(y, p),
         "accuracy": float(np.mean(cls == yi)),
         "within_1": float(np.mean(np.abs(cls - yi) <= 1)),
         "macro_f1": float(f1_score(yi, cls, labels=[1, 2, 3, 4, 5], average="macro", zero_division=0)),

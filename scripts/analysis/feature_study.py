@@ -1,8 +1,8 @@
 """The feature vector as the per-labeler model receives it: layout, distributions, and how each column
-relates to every labeler's ratings and to the model's predictions (experiment 07, §1).
+relates to every labeler's ratings and to the model's predictions (experiment 08, §1).
 
   python -m scripts.analysis.feature_study [--config docs/experiments/06_full_pipeline_and_labels.json]
-         [--model <config-hash prefix>] [--out outputs/experiments/07_features]
+         [--model <config-hash prefix>] [--out outputs/experiments/08_pca]
 
 Rows: one per (rating entry, linked track of the rated student), original recordings only, exactly
 the rows train_models builds (label_rows). Columns: the 95 model inputs (27 trk.* per-student, 68
@@ -166,7 +166,7 @@ def deciles(rows: pd.DataFrame, cols: list[str], path: Path) -> None:
     plt.close(fig)
 
 
-def components(rows: pd.DataFrame, model_cols: list[str], n: int = 12) -> pd.DataFrame:
+def components(rows: pd.DataFrame, model_cols: list[str], n: int = 20) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Principal components of the standardised model inputs (label-free; fitted on the distinct
     window x track rows): explained variance, the four largest loadings, and each component's Spearman
     rho with the ratings (all experts and the self-report; raw and within student)."""
@@ -192,7 +192,97 @@ def components(rows: pd.DataFrame, model_cols: list[str], n: int = 12) -> pd.Dat
             rec[f"rho_{name}_raw"] = spearman_cols(c, y[m].to_numpy()).iloc[0]
             rec[f"rho_{name}_within"] = spearman_cols(demean(c, student[m]), demean(y[m], student[m]).to_numpy()).iloc[0]
         out.append(rec)
-    return pd.DataFrame(out)
+    loadings = pd.DataFrame(vt.T, index=model_cols, columns=[f"PC{i + 1}" for i in range(len(ev))])
+    return pd.DataFrame(out), loadings, ev
+
+
+CATEGORIES = [("student motion", "trk.kg."), ("student flow", "trk.rf."), ("student SCB", "trk.scb."),
+              ("class motion", "vec.kg."), ("class flow", "vec.rf."), ("class SCB", "vec.scb."),
+              ("class occupancy + count", ("vec.occ_", "vec.n_tracks"))]
+CATEGORY_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6"]
+
+
+def pies(pcs: pd.DataFrame, loadings: pd.DataFrame, path: Path) -> None:
+    """One pie per component: the share of the component (its squared loadings, which sum to 1)
+    from each feature category; title with the variance share and the within-student rho."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    n = loadings.shape[1]
+    ncol = 5
+    fig, axes = plt.subplots((n + ncol - 1) // ncol, ncol, figsize=(3.2 * ncol, 3.4 * ((n + ncol - 1) // ncol) + 0.8))
+    sq = loadings ** 2
+    for ax, pc in zip(axes.ravel(), loadings.columns):
+        shares = [sq.loc[[c for c in sq.index if c.startswith(pre)], pc].sum() for _, pre in CATEGORIES]
+        wedges, _ = ax.pie(shares, colors=CATEGORY_COLORS, startangle=90, counterclock=False,
+                           wedgeprops={"edgecolor": "white", "linewidth": 2})
+        for w, sh in zip(wedges, shares):
+            if sh >= 0.10:
+                ang = np.deg2rad((w.theta1 + w.theta2) / 2)
+                ax.text(0.68 * np.cos(ang), 0.68 * np.sin(ang), f"{sh:.0%}", ha="center", va="center",
+                        fontsize=8, color="white" if CATEGORY_COLORS[wedges.index(w)] in ("#2a78d6", "#008300", "#6250d6") else "black")
+        r = pcs.set_index("component").loc[pc]
+        ax.set_title(f"{pc}: {r['variance_share']:.1%} of variance\nrho experts {r['rho_experts_within']:+.3f}, "
+                     f"self {r['rho_self_within']:+.3f}", fontsize=8.5)
+    for ax in axes.ravel()[n:]:
+        ax.axis("off")
+    fig.legend([plt.Rectangle((0, 0), 1, 1, color=c) for c in CATEGORY_COLORS], [c for c, _ in CATEGORIES],
+               loc="lower center", ncol=len(CATEGORIES), fontsize=9, frameon=False)
+    fig.suptitle("What each principal component is made of: share of its squared loadings by feature category",
+                 fontsize=11)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.97))
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+
+
+def dominant_category(loadings: pd.DataFrame) -> list[int]:
+    """Index into CATEGORIES of the category holding the largest share of each component."""
+    sq = loadings ** 2
+    shares = np.array([[sq.loc[[c for c in sq.index if c.startswith(pre)], pc].sum() for _, pre in CATEGORIES]
+                       for pc in loadings.columns])
+    return shares.argmax(axis=1).tolist()
+
+
+def scree(ev: np.ndarray, loadings: pd.DataFrame, path: Path) -> None:
+    """Two panels on one component axis (no second y-scale): each component's share of the variance,
+    coloured by its dominant feature category; and the cumulative share, with the trial's cuts."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    n = len(ev)
+    x = np.arange(1, n + 1)
+    dom = dominant_category(loadings)
+    cum = np.cumsum(ev)
+    fig, (top, bot) = plt.subplots(2, 1, figsize=(13, 7.5), sharex=True, gridspec_kw={"height_ratios": [3, 2]})
+    top.bar(x, ev * 100, width=0.8, color=[CATEGORY_COLORS[d] for d in dom], edgecolor="white", linewidth=0.5)
+    top.set_ylabel("share of variance (%)")
+    top.set_title("Variance captured by each principal component (95 standardised model inputs), "
+                  "coloured by the feature category that dominates it", fontsize=10)
+    top.annotate("PC3: the student's own flow\n(tracks the experts most, rho +0.053)", xy=(3, ev[2] * 100),
+                 xytext=(9, ev[0] * 100 * 0.75), fontsize=8.5, arrowprops={"arrowstyle": "-", "lw": 0.8, "color": "#555"})
+    bot.step(x, cum * 100, where="mid", color="#2a78d6", lw=2)
+    cuts = {"5": 5, "10": 10, "20": 20, "90%": int(np.searchsorted(cum, 0.90) + 1), "95%": int(np.searchsorted(cum, 0.95) + 1)}
+    for label, k in cuts.items():
+        bot.plot([k], [cum[k - 1] * 100], "o", ms=8, color="#2a78d6", mec="white", mew=2)
+        bot.annotate(f"{label}: {k} PCs, {cum[k - 1]:.0%}", (k, cum[k - 1] * 100), textcoords="offset points",
+                     xytext=(6, -14), fontsize=8.5, color="#333")
+    bot.set_ylabel("cumulative share (%)")
+    bot.set_xlabel("principal component")
+    bot.set_ylim(0, 102)
+    for ax in (top, bot):
+        ax.grid(axis="y", color="#e5e5e5", lw=0.8)
+        ax.set_axisbelow(True)
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+    bot.set_xlim(0.3, n + 0.7)
+    present = sorted(set(dom))
+    fig.legend([plt.Rectangle((0, 0), 1, 1, color=CATEGORY_COLORS[i]) for i in present],
+               [CATEGORIES[i][0] for i in present], loc="lower center", ncol=len(present), fontsize=9, frameon=False)
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
 
 
 def main() -> None:
@@ -200,7 +290,7 @@ def main() -> None:
     ap.add_argument("--config", default="docs/experiments/06_full_pipeline_and_labels.json")
     ap.add_argument("--set", nargs="*", default=[])
     ap.add_argument("--model", default="c5341cb6385e", help="config-hash prefix of a trained per-labeler bundle")
-    ap.add_argument("--out", default="outputs/experiments/07_features")
+    ap.add_argument("--out", default="outputs/experiments/08_pca")
     args = ap.parse_args()
     cfg = load_config(args.config, parse_sets(args.set))
     out = Path(args.out)
@@ -229,8 +319,11 @@ def main() -> None:
     top = within["all experts"].abs().sort_values(ascending=False).index[:3].tolist()
     top += [c for c in within["self-report"].abs().sort_values(ascending=False).index if c not in top][:3]
     deciles(rows, top, out / "deciles.png")
-    pcs = components(rows, model_cols)
+    pcs, loadings, ev = components(rows, model_cols)
     pcs.to_csv(out / "components.csv", index=False)
+    loadings.to_csv(out / "components_loadings.csv")
+    pies(pcs, loadings.iloc[:, :20], out / "components_pies.png")
+    scree(ev, loadings, out / "components_variance.png")
     print("\nprincipal components (variance, rho with experts / self, within student; top loadings):")
     for _, r in pcs.iterrows():
         print(f"  {r['component']:5s} {r['variance_share']:.3f} (cum {r['cumulative']:.2f})  "

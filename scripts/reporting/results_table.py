@@ -3,16 +3,16 @@
   python -m scripts.reporting.results_table single=c5341cb6385e pooled=fdb140e9477e rf=5df1987449dd
          [--track experts] [--variant configured] [--results outputs/results] [--by-labeler]
 
-One table: predictors as columns (the runs, then constant 3 and the training mean), metrics as rows
-under four bold heading rows (profile held-out / train, metrics held-out / train):
-  Profile: mean, median and SD of the predictions, then of the labels that column is scored on.
+One table: predictors as columns (the runs, then constant 3 and, unless --no-train-mean, the
+training mean), rows under two bold headings. Every data cell is "train / test":
+  Profile: mean, median and SD of the predictions, and of the labels that column is scored on.
   Metrics: MAE, RMSE, AUC*, Spearman, macro F1**, accuracy**.
     *  uses a threshold: AUC ranks the raw prediction against labels split at tau_att (engaged =
        rating >= 3), so it depends on where the labels are cut.
     ** uses discretisation: the prediction is rounded to a whole rating (halves toward 3) first.
   Unmarked metrics use the raw, continuous prediction.
 
-Held-out = each fold's model on its held-out group (classified context, own labeler); train = the
+Test (held-out) = each fold's model on its held-out group (classified context, own labeler); train = the
 same model on its own training entries (originals only). Values are means over the held-out groups.
 Constant 3 and the training mean follow, scored the same way.
 
@@ -50,29 +50,89 @@ def fmt(x: float) -> str:
     return f"{x:.3f}" if np.isfinite(x) else "-"
 
 
-def tables(cols: list[tuple[str, dict, str, str, list[str] | None]], label_ref: tuple | None = None) -> None:
-    """One table, metrics as rows and predictors as columns. cols: (header, evaluation, held-out key,
-    train key, macro labelers or None). Bold heading rows split it: profile held-out / train (the
-    prediction's mean, median and SD, then the same for the labels each column is scored on), then
-    metrics held-out / train. `label_ref` is accepted for compatibility and unused: every column
-    carries its own labels' profile."""
-    print("| | " + " | ".join(h for h, *_ in cols) + " |")
-    print("|---|" + "---|" * len(cols))
-    blank = " | ".join("" for _ in cols)
-    profile = [(c, f"Prediction {n if n.isupper() else n.lower()}") for c, n in PROFILE] + \
-              [(c, f"Label {n if n.isupper() else n.lower()}") for c, (_, n) in zip(LABEL_PROFILE, PROFILE)]
-    for section, rows in (("Profile", profile), ("Metrics", METRICS)):
-        for split, i in (("held-out", 1), ("train", 2)):
-            print(f"| **{section}, {split}** | {blank} |")
-            for c, name in rows:
-                vals = [fmt(value(ev, hk if i == 1 else tk, c, labs)) for _, ev, hk, tk, labs in cols]
-                print(f"| {name} | " + " | ".join(vals) + " |")
-    print(f"\n{LEGEND}")
+def tables(cols: list[tuple[str, dict, str, str, list[str] | None]], label_ref: tuple | None = None,
+           ceilings: list[tuple[str, dict]] | None = None,
+           references: list[tuple[str, dict]] | None = None) -> None:
+    """Two tables, one row per predictor (the runs, then the constants), every data cell "train / test".
+    cols: (row name, evaluation, held-out key, train key, macro labelers or None).
+      Profile: mean, median and SD of each predictor's predictions. `references` adds rows with a
+        single value per cell (the self-report ratings, the median of the expert ratings). When the
+        rows are scored on different entries (per labeler), each statistic gets a predicted and a
+        labels column instead.
+      Metrics: MAE, RMSE, AUC*, Spearman, macro F1**, accuracy**; `ceilings` adds rows with a single
+        value per cell (the other experts' mean and median predicting the same labels).
+    `label_ref` is accepted for compatibility and unused."""
+    def cell(c: str, ev, hk, tk, labs) -> str:                 # every data cell: train / test
+        return f"{fmt(value(ev, tk, c, labs))} / {fmt(value(ev, hk, c, labs))}"
+
+    shared = len({tuple(cell(lc, *col[1:]) for lc in LABEL_PROFILE) for col in cols}) == 1
+    print("**Profile** (train / test)\n")
+    if shared:
+        print("| | " + " | ".join(n for _, n in PROFILE) + " |\n|---|" + "---|" * len(PROFILE))
+        for name, *rest in cols:
+            print(f"| {name} | " + " | ".join(cell(c, *rest) for c, _ in PROFILE) + " |")
+        for name, m in references or []:
+            print(f"| *{name}* | " + " | ".join(fmt(m.get(k, np.nan)) for k in ("mean", "median", "sd")) + " |")
+    else:
+        heads = [f"{n} ({w})" for n in (n for _, n in PROFILE) for w in ("predicted", "labels")]
+        print("| | " + " | ".join(heads) + " |\n|---|" + "---|" * len(heads))
+        for name, *rest in cols:
+            print(f"| {name} | " + " | ".join(cell(k, *rest) for c, lc in zip((c for c, _ in PROFILE), LABEL_PROFILE)
+                                               for k in (c, lc)) + " |")
+    print("\n**Metrics** (train / test)\n")
+    print("| | " + " | ".join(n for _, n in METRICS) + " |\n|---|" + "---|" * len(METRICS))
+    for name, *rest in cols:
+        print(f"| {name} | " + " | ".join(cell(c, *rest) for c, _ in METRICS) + " |")
+    for name, m in ceilings or []:
+        print(f"| *{name}* | " + " | ".join(fmt(m.get(c, np.nan)) for c, _ in METRICS) + " |")
+    note = ""
+    if references or ceilings:
+        note = (" Rows in italics are references with one value per cell, not train / test, on all entries of the"
+                " track (`outputs/labels/agreement.json`, experiment 06 Part 1): the self-report ratings and the"
+                " median of the expert ratings (profile); the other experts' mean and median predicting the same"
+                " labels (metrics).")
+    print(f"\n{LEGEND} Every cell: training groups / held-out (test) group.{note}")
 
 
-def constants(ev: dict, t: str, labs=None, suffix: str = "") -> list:
-    return [(label, ev, f"{t}/{base}{suffix}", f"{t}/{base}/train{suffix}", labs)
-            for base, label in (("constant_3", "Constant 3"), ("train_mean", "Training mean"))]
+CEILING_PREDICTORS = (("Mean of experts", "mean of other experts, step"),
+                      ("Median of experts", "median of other experts, step"))
+
+
+def human_ceilings(track: str, path: str = "outputs/labels/agreement.json") -> list[tuple[str, dict]]:
+    """The human-ceiling references for a track: the other experts' mean and median predicting every
+    entry, scored like the model (scripts.labels.label_agreement), on all entries of the track."""
+    import json
+    from pathlib import Path
+    f = Path(path)
+    if not f.exists():
+        return []
+    sub = json.loads(f.read_text(encoding="utf-8"))["ceiling"]["subsets"].get(f"entry/{track}", {})
+    preds = sub.get("predictors", {})
+    return [(head, preds[key]) for head, key in CEILING_PREDICTORS if key in preds]
+
+
+def label_references(track: str, path: str = "outputs/labels/agreement.json") -> list[tuple[str, dict]]:
+    """Profile references: the self-report ratings (all self entries) and the median of the expert
+    ratings at this track's entries (the other experts' median curve), each as mean / median / SD."""
+    import json
+    from pathlib import Path
+    f = Path(path)
+    if not f.exists():
+        return []
+    subs = json.loads(f.read_text(encoding="utf-8"))["ceiling"]["subsets"]
+    out = []
+    med = subs.get("entry/self", {}).get("predictors", {}).get("median of other experts, step", {})
+    if "label_mean" in med:
+        out.append(("Self-report labels", {k: med[f"label_{k}"] for k in ("mean", "median", "sd")}))
+    med = subs.get(f"entry/{track}", {}).get("predictors", {}).get("median of other experts, step", {})
+    if "pred_mean" in med:
+        out.append(("Median of expert labels", {k: med[f"pred_{k}"] for k in ("mean", "median", "sd")}))
+    return out
+
+
+def constants(ev: dict, t: str, labs=None, suffix: str = "", train_mean: bool = True) -> list:
+    bases = (("constant_3", "Constant 3"),) + ((("train_mean", "Training mean"),) if train_mean else ())
+    return [(label, ev, f"{t}/{base}{suffix}", f"{t}/{base}/train{suffix}", labs) for base, label in bases]
 
 
 def main() -> None:
@@ -81,6 +141,8 @@ def main() -> None:
     ap.add_argument("--track", default="experts", choices=["experts", "self"])
     ap.add_argument("--variant", default="configured", choices=["configured", "shared_expert"])
     ap.add_argument("--results", default="outputs/results")
+    ap.add_argument("--no-train-mean", action="store_true", help="leave out the training-mean column")
+    ap.add_argument("--no-ceiling", action="store_true", help="leave out the human-ceiling columns")
     ap.add_argument("--by-labeler", action="store_true",
                     help="per run: each labeler's entries, then the macro and pooled aggregates")
     args = ap.parse_args()
@@ -93,7 +155,9 @@ def main() -> None:
     train = f"{t}/{v}/train/own_labeler"
     if not args.by_labeler:
         rows = [(f"{n} (`{r['config_hash'][:12]}`)", r["evaluation"], held, train, None) for n, r in runs.items()]
-        tables(rows + constants(next(iter(runs.values()))["evaluation"], t))
+        tables(rows + constants(next(iter(runs.values()))["evaluation"], t, train_mean=not args.no_train_mean),
+               ceilings=[] if args.no_ceiling else human_ceilings(t),
+               references=[] if args.no_ceiling else label_references(t))
         return
     for name, r in runs.items():
         ev = r["evaluation"]

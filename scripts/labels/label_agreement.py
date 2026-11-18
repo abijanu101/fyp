@@ -65,7 +65,8 @@ LAG_MODES = ("step", "gauss2")
 TOLERANCES = (2.0, 5.0, 10.0)
 CO_WINDOWS = (0.5, 2.0, 5.0, 10.0)
 START_TOL = 0.5                                      # an entry within 0.5 s of the student's start
-SUMMARY = ("n", "mae", "rmse", "accuracy", "within_1", "macro_f1", "auc", "spearman", "balanced_acc")
+SUMMARY = ("n", "mae", "rmse", "accuracy", "within_1", "macro_f1", "auc", "spearman", "balanced_acc",
+           "pred_mean", "pred_median", "pred_sd", "label_mean", "label_median", "label_sd", "c_index")
 
 
 # ----------------------------------------------------------------------------- loading

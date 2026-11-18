@@ -252,6 +252,15 @@ def per_entry(rows: pd.DataFrame, pred: np.ndarray) -> tuple[np.ndarray, np.ndar
     return t["y"].to_numpy(), t["p"].to_numpy()
 
 
+def prediction_rows(rows: pd.DataFrame, pred: np.ndarray, fold, variant: str, split: str) -> pd.DataFrame:
+    """One row per (entry, linked track): what a fold's model predicted for its own labeler, so new
+    metrics can be computed from outputs/predictions/<hash>.csv.gz without retraining. Average the rows
+    of one entry_id (several tracks or cameras) to score per entry, as per_entry does."""
+    return pd.DataFrame({"fold": fold, "variant": variant, "split": split, "entry_id": rows["entry_id"].to_numpy(),
+                         "labeler": rows["labeler"].to_numpy(), "rating": rows["rating"].to_numpy(float),
+                         "pred": np.round(np.asarray(pred, float), 5)})
+
+
 def score_with_perspectives(folds: dict, key: str, g, rows: pd.DataFrame, pred: np.ndarray, tau_att: float,
                             **extra) -> None:
     """Append one fold's scores under `key` (every entry of the track pooled), and under
@@ -359,6 +368,7 @@ def main_per_labeler(cfg: dict) -> None:
 
     variants = {"configured": mcfg["expert_scope"], "shared_expert": "shared"}
     folds: dict[str, list] = {}
+    saved: list[pd.DataFrame] = []                       # per-entry-row predictions, for offline metrics
     gate_folds = []
     for g in sorted(set(group_r.tolist())):
         trw = group_w != g
@@ -392,6 +402,7 @@ def main_per_labeler(cfg: dict) -> None:
             p_fit = model.predict(X[fit_rows], gate.predict_proba(Xg_rows[fit_rows]))
             own_fit = np.array([to_rating(p_fit[l][i]) if l in p_fit else np.nan
                                 for i, l in enumerate(labeler[fit_rows])])
+            saved.append(prediction_rows(rows[fit_rows], own_fit, g, vname, "train"))
             for track, sel in (("experts", ~is_self[fit_rows]), ("self", is_self[fit_rows])):
                 sub = rows[fit_rows].iloc[np.flatnonzero(sel)]
                 if not sub.empty:
@@ -399,6 +410,8 @@ def main_per_labeler(cfg: dict) -> None:
             for ctx, G in contexts.items():
                 ratings = {n: to_rating(p) for n, p in model.predict(X[te], G).items()}
                 own = np.array([ratings[l][i] if l in ratings else np.nan for i, l in enumerate(labeler[te])])
+                if ctx == "classified":
+                    saved.append(prediction_rows(rows[te], own, g, vname, "test"))
                 stack = np.column_stack(list(ratings.values()))
                 kinds = {"own_labeler": own, "median": np.median(stack, axis=1),
                          "majority": majority_rating(stack, res)}
@@ -437,6 +450,8 @@ def main_per_labeler(cfg: dict) -> None:
     out = Path(cfg["output_dir"])
     (out / "results").mkdir(parents=True, exist_ok=True)
     (out / "results" / f"{h}.json").write_text(json.dumps(results, indent=2, default=float), encoding="utf-8")
+    (out / "predictions").mkdir(parents=True, exist_ok=True)
+    pd.concat(saved, ignore_index=True).to_csv(out / "predictions" / f"{h}.csv.gz", index=False)
 
     gate = GATES.build(cfg["gate"]["name"], classes=classes, seed=cfg["seed"],
                        **cfg["gate"].get("params", {})).fit(Xg, exp_w)

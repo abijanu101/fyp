@@ -17,7 +17,7 @@ script's docstring gives its full usage.
 | | `plot_results` | held-out engagement curves per session |
 | `labels/` | `label_agreement` | labeler agreement (Krippendorff's α) and the human ceiling (experiment 06 Part 1) |
 | | `label_baselines` | constant-prediction baselines on every published target (`docs/misc/benchmarks.md`) |
-| `analysis/` | `feature_study` | the feature vector against every labeler (experiment 07 §1) |
+| `analysis/` | `feature_study` | the feature vector against every labeler (experiment 08 §1) |
 | | `experiment_decoders`, `label_interp_compare`, `e2e6/` | frozen one-off analyses behind specific doc tables (`analysis/README.md`) |
 | `data_visualization/` | `output_viewer`, `augment_samples`, `inspect_labels`, viewers | looking at the data and the pipeline's output |
 | `downloading/` | `dipser`, `scb`, `validate_dipser_remote` | getting the dataset and the SCB checkpoints (README, Setup) |
