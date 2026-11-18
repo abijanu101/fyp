@@ -1,4 +1,9 @@
-# Chapter 14: Dynamic clustering for synchrony features
+# Chapter 15: Dynamic clustering for synchrony features
+
+> **Delayed (18 November 2026).** The clustering experiment is shelved behind experiment 09 (visual
+> focus of attention). Head direction from 09 is the natural input for the synchrony features here:
+> the classroom synchrony in the literature (Raca et al.) is head-rotation synchrony. The options
+> below stand; the experiment will be renumbered when it is picked up.
 
 FYP-1's first claim is that cheap features can measure attention well enough. The cheap features
 it rests on are *class-relative*: how one student behaves compared with the students around them,
@@ -7,12 +12,12 @@ in the same window. This chapter covers:
 - why such features are worth trying;
 - the constraints our data imposes;
 - every clustering family we considered, and what each would give us;
-- which ones experiment 10 tests, and how they plug into the code.
+- which ones the clustering experiment tests, and how they plug into the code.
 
 Nothing in this chapter is implemented yet. The CFMU slot it builds on is described in Chapter 6
 §6.6, and its maths in `src/cfmu/spread.py`. Status as of 17 November 2026.
 
-## 14.1 Why class-relative features
+## 15.1 Why class-relative features
 
 **What the literature reports.** Three findings from classroom studies:
 
@@ -37,7 +42,7 @@ two problems that class-relative features address directly.
    - Only 33% of labeler_01's rating variance lies between students (06 §1.7).
    - A feature measured *relative to the other students in the same frame* cancels most camera,
      distance and lighting effects. They affect the student and their classmates alike.
-2. **The class-context columns act as session identifiers.** The current context (`late_context`,
+2. **The class-context columns act as session identifiers.** The current context (`use_class_context`,
    68 `vec.*` columns) is the same for every student in a window, so it can only tell sessions
    apart. A class-relative feature differs between the students of one window. It is context
    expressed from the student's point of view.
@@ -46,7 +51,7 @@ two problems that class-relative features address directly.
 formed again in each window, from what the students are doing in it. The clustering follows the
 class rather than being fixed in advance.
 
-## 14.2 The setting in numbers
+## 15.2 The setting in numbers
 
 **Visible students per window** (52 original session-cameras, 4 s grid, cache
 `outputs/cache/features/2685b0745fde`; a track counts if it covers at least half the window,
@@ -59,7 +64,7 @@ class rather than being fixed in advance.
 - The median is 12 and the maximum 20.
 - Apart from the empty windows (camera gaps), a window never has fewer than 7 students.
 - The **small-n** regime is n ≈ 7–20, never hundreds. This rules out methods that need many points
-  per cluster (§14.5).
+  per cluster (§15.5).
 
 **What each student has in a window:**
 
@@ -76,10 +81,11 @@ frames both have.
 - The motion channels sit near the noise floor: median Kalman speed is about 0.08 px per frame, and
   median residual flow about 0.05 px per frame at half resolution.
 - Correlating two noise signals gives a correlation near 0, so synchrony features are only
-  informative once experiment 08 has raised the motion features above that floor.
-- Experiment 10 therefore runs on 08's features, not on 06's.
+  informative on signals above that floor.
+- The clustering experiment therefore runs on improved features (head direction from experiment 09),
+  not on 06's.
 
-## 14.3 Requirements
+## 15.3 Requirements
 
 Any method we use has to satisfy:
 
@@ -91,10 +97,10 @@ Any method we use has to satisfy:
 | R4 | Stable over time | Cluster ids change arbitrarily between windows. A feature must not depend on the id ("cluster 2"), only on relations ("in the largest group", "an outlier"). |
 | R5 | Works at small n | The statistics are over 7–20 points; methods that estimate densities or covariances per cluster have little to work with. |
 | R6 | Removes the seat confound | Descriptors are standardised per track (over the session) before clustering, so the method groups what students do, not where they sit or how far they are from the camera. |
-| R7 | No label leakage | Anything fitted is fitted without labels. If it is fitted across sessions, the leakage argument is stated (§14.4, option 4). |
+| R7 | No label leakage | Anything fitted is fitted without labels. If it is fitted across sessions, the leakage argument is stated (§15.4, option 4). |
 | R8 | Cheap | FYP-1's claim is about cheap features. It must cost far less than the frame pass (about 185 ms per frame). |
 
-## 14.4 The options
+## 15.4 The options
 
 Two choices come before the algorithm: **what is clustered** and **in which space**.
 
@@ -136,7 +142,7 @@ visible students:
 | Requirements met | R1–R8 by construction; R3 and R4 do not arise (no clusters). |
 
 If option 0 does as well as the clustering methods, the clustering is not justified. That outcome is
-a valid result for experiment 10.
+a valid result for the clustering experiment.
 
 ### Option 1: agglomerative clustering with a distance threshold
 
@@ -205,7 +211,7 @@ a valid result for experiment 10.
   - Even diagonal covariances with strong priors give memberships that depend on the prior more
     than on the data.
   - Reducing to 2–4 dimensions first (PCA within the window) helps but adds another fragile step.
-- **Verdict:** out for experiment 10. The soft-membership idea survives in option 4, where the
+- **Verdict:** out for the clustering experiment. The soft-membership idea survives in option 4, where the
   mixture is fitted once on many points.
 
 ### Option 4: a global prototype codebook (behaviour states shared by all sessions)
@@ -277,7 +283,7 @@ a valid result for experiment 10.
 | Per-window GMM or DP mixture | option 3: too few points per window |
 | Time-series clustering with DTW | DTW absorbs the timing differences that synchrony and lag are meant to measure |
 
-## 14.5 Comparison
+## 15.5 Comparison
 
 | | 0 Student vs class | 1 Agglomerative (τ) | 2 HDBSCAN | 3 Auto-K mixture | 4 Prototype codebook | 5 Temporal / graph |
 |---|---|---|---|---|---|---|
@@ -288,9 +294,9 @@ a valid result for experiment 10.
 | Fitted across sessions | no | no | no | no | yes, per fold, label-free | no |
 | Parameters | lag range, min frames | τ, linkage | min cluster size | priors | K | smoothness, resolution |
 | Cost per window | O(n²T) | O(n² log n) | small | small | O(nK) | larger |
-| Experiment 10 | **yes (the bar)** | **yes** | as a variant of 1 | no | **yes** | FYP-2 |
+| Clustering experiment | **yes (the bar)** | **yes** | as a variant of 1 | no | **yes** | FYP-2 |
 
-## 14.6 What experiment 10 tests
+## 15.6 What the clustering experiment tests
 
 **Arms**, each added to the experiment 08/09 configuration with the class-context columns off:
 
@@ -317,7 +323,7 @@ a valid result for experiment 10.
 Our windows have n ≥ 7 whenever any student is visible, so in practice these rules only apply to
 empty windows and to occlusion.
 
-## 14.7 How it plugs into the code
+## 15.7 How it plugs into the code
 
 1. **The CFMU contract** (`src/cfmu/extractor.py`). Today `window_features` returns one dict that
    joins Vec, so every student in a window gets the same values.
@@ -347,7 +353,7 @@ empty windows and to occlusion.
    - identical students give chaos 0;
    - the per-track keys reach the student rows.
 
-## 14.8 References
+## 15.8 References
 
 All were checked against the publisher or an index record on 17 November 2026.
 

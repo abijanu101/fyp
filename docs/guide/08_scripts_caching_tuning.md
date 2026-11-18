@@ -126,7 +126,7 @@ modes.
 1. **Load** every feature CSV for the current feature hash; attach group, experiment and window
    labels (`label_session`).
 2. **Build the expert rows** (`engagement_rows`, §7.5): `vec.*` per window (early), or `trk.*`
-   per student plus `vec.*` if `late_context` (late; read from `<session>.tracks.csv`, with each
+   per student plus `vec.*` if `use_class_context` (late; read from `<session>.tracks.csv`, with each
    track linked to its student by `associate_sids` on the cached `.npz` to attach per-student
    labels). The gate gets `scene.*` (plus `vec.*` if `gate_uses_vec`).
 3. **Leave-one-group-out**: for each held-out group, fit the gate and every mixture variant on
@@ -437,7 +437,7 @@ the search space. Trial 0 runs the profile's `base_options` if it has them, othe
 `tracker.options` for the configured tracker and BoxMOT's defaults for another one.
 `full_strongsort` sets `base_options` to the quick-tuned StrongSORT values, so both full-dataset
 trackers start from their best known settings (BoxMOT's StrongSORT default `min_conf` of 0.6 would
-drop whole students; `docs/experiments/02_boxmot.md`, §3).
+drop whole students; `docs/experiments/02_detection.md`, §3).
 
 **Is the detector the limit?** `python -m scripts.tuning.scan_detector` checks, without any tracker, what
 detector confidence thresholds cost, from the cached floor detections. A student's recall is the

@@ -50,9 +50,16 @@ class BoxmotTracker(Tracker):
         rows = np.column_stack([dets.xyxy, dets.conf, np.zeros(len(dets))]) if len(dets) else np.empty((0, 6))
         out = self.tracker.update(rows, frame.image)
         velocities = self._kalman_velocities()
-        # BoxMOT numpy output columns: x1, y1, x2, y2, id, conf, cls, det_index
-        return [TrackState(int(r[4]), r[:4].astype(float), float(r[5]), velocities.get(int(r[4])))
-                for r in np.asarray(out).reshape(-1, 8)]
+        # BoxMOT numpy output columns: x1, y1, x2, y2, id, conf, cls, det_index. det_index is the
+        # input detection this frame's update used: with a pose detector, the track gets its keypoints.
+        states = []
+        for r in np.asarray(out).reshape(-1, 8):
+            kp = kc = None
+            d = int(r[7])
+            if dets.keypoints is not None and 0 <= d < len(dets):
+                kp, kc = dets.keypoints[d], dets.kp_conf[d]
+            states.append(TrackState(int(r[4]), r[:4].astype(float), float(r[5]), velocities.get(int(r[4])), kp, kc))
+        return states
 
     # -- precomputed ReID embeddings (used by scripts/tuning/tune_tracker.py to embed each session once)
     def embed(self, image: np.ndarray, dets: Detections) -> np.ndarray:

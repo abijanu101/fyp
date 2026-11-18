@@ -156,7 +156,7 @@ With the current config: 10 motion keys, 9 flow keys (a 3 × 3 grid) and 8 SCB k
 per-track features; each gets `.mean` and `.std` (54 columns), plus 4 `.frac` columns, 9 occupancy
 cells and `n_tracks`, for 68 columns. With early aggregation the experts see these 68 numbers per
 window; with late aggregation (and per-labeler training) they see each student's 27 per-track
-features (as `trk.*` columns), plus these 68 as context if `engagement.late_context` is on. (Before
+features (as `trk.*` columns), plus these 68 as context if `engagement.use_class_context` is on. (Before
 16 November 2026 the flow grid was 2 × 2: 22 per-track features and 58 columns, the widths of the
 six-session runs.)
 

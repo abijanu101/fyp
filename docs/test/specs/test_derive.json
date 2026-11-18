@@ -1,0 +1,25 @@
+[
+  {
+    "file": "tests/test_derive.py",
+    "class": "TestDerive",
+    "component": "Derived configuration values",
+    "references": ["src/core/derive.py", "src/core/config.py"],
+    "design_refs": "Design §9 (config hashing)",
+    "objective": "Check that config values derived from experiment results files are read correctly with their sources, are applied by load_config before command-line overrides, are hashed by value only, and fail loudly when a results file or key is missing.",
+    "module": "Configuration: a derived module (such as configs/derived.py) sets config values such as the detector threshold and tracker options from experiment results, every time a config is loaded.",
+    "assumptions": "setUp writes, into a temporary directory, a results file res.json = {optimal_threshold: 0.11, config_patch: {'tracker.options': {a: 1}}}, a derived module whose OVERRIDES set detector.conf from optimal_threshold, tracker.options from config_patch.tracker.options and window.length_s to the plain value 6, and a copy of configs/deliverable3.json whose 'derived' key points to that module. The results key 'tracker.options' contains a dot, as in the real results files.",
+    "prerequisites": "Run from the repository root (configs/deliverable3.json is read as the base config). The real configs/derived.py and its results files are not used. Files are written only to a temporary directory that tearDown removes.",
+    "steps": [
+      {"method": "test_values_sources_and_keys_with_dots",
+       "execution": "Call result(res.json, 'config_patch.tracker.options'), then derived_values on the temporary derived module.",
+       "result": "result returns Sourced(value {'a': 1}, source '<path to res.json>#config_patch.tracker.options'), resolving the dotted key 'tracker.options' as one key. derived_values returns values {detector.conf: 0.11, tracker.options: {a: 1}, window.length_s: 6}. The source of the plain value window.length_s ends with 'derived.py' (the module itself)."},
+      {"method": "test_load_config_applies_them_before_set_and_hashes_values_only",
+       "execution": "Load the temporary config with load_config, then again with the override detector.conf = 0.3. Make a copy of the loaded config with derived_from and derived changed, and compare config_hash of both.",
+       "result": "The loaded config has detector.conf 0.11 and tracker.options {'a': 1}. With the override, detector.conf is 0.3 (the override wins over the derived value). The two hashes are equal: where a value came from is not hashed."},
+      {"method": "test_a_missing_result_fails_loudly",
+       "execution": "Call result on a non-existent file missing.json with key 'x', and on res.json with the missing key 'config_patch.nope'.",
+       "result": "The first call raises FileNotFoundError; the second raises KeyError."}
+    ],
+    "comments": "The last step documents a design choice: the pipeline never falls back to a stale constant when an experiment's results file is missing."
+  }
+]

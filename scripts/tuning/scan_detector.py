@@ -29,8 +29,9 @@ session (outputs/cache/detections_augmented/<settings>/), which makes the run re
 the bisection re-score thresholds without re-running the detector. Roughly (frames x mean K) x
 (detector + augmentation time): several hours for all 52 sessions; --stride N uses every N-th frame.
 
-Writes to outputs/tuning/: detector_search[_augmented].csv (every probe) and .json (the result), or
-with --grid detector_scan[_augmented].csv and detector_scan_students[...].csv.
+Writes to outputs/tuning/: detector_search[_augmented][_<tag>].csv (every probe) and .json (the
+result), or with --grid detector_scan[_augmented][_<tag>].csv and detector_scan_students[...].csv.
+--tag keeps a scan of another detector (e.g. the pose model, experiment 09) apart from D3's files.
 """
 
 from __future__ import annotations
@@ -181,6 +182,8 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=4,
                     help="--augment: sessions processed in parallel (each with its own detector)")
     ap.add_argument("--detect", action="store_true", help="original data: run the detector where not cached")
+    ap.add_argument("--tag", help="suffix for the output files, e.g. a scan of another detector (pose), so it "
+                                  "does not overwrite D3's detector_search_augmented.json")
     args = ap.parse_args()
     cfg = load_config(args.config, parse_sets(args.set))
     floor = cfg["tuning"]["tracker"]["det_conf_floor"]
@@ -195,7 +198,7 @@ def main() -> None:
                              "`python -m scripts.tuning.tune_tracker --profile full` (it caches every session first)")
         return pipe.detector
 
-    suffix = "_augmented" if args.augment else ""
+    suffix = ("_augmented" if args.augment else "") + (f"_{args.tag}" if args.tag else "")
     if args.augment:
         settings = {"detector": {**cfg["detector"], "conf": floor}, "augmentation":
                     {k: v for k, v in cfg["augmentation"].items() if k not in ("copies", "root")},
@@ -257,6 +260,7 @@ def main() -> None:
               **({"variants_per_frame": args.variants, "stride": args.stride,
                   "images": int(sum(len(s[1]) for s in sessions))} if args.augment else {}),
               "criterion": {"never_detected": 0, "below_50pct": 0, "max_drop_vs_floor": args.max_drop},
+              "detector": {k: cfg["detector"][k] for k in ("weights", "imgsz") if k in cfg["detector"]},
               "floor": floor, "optimal_threshold": lo, "at_optimal": best.to_dict(),
               "at_floor": base.iloc[0].to_dict(), "configured_threshold": conf,
               "at_configured": at_conf.iloc[0].to_dict(),

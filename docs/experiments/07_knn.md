@@ -1,5 +1,8 @@
 # k-NN tuning: which k?
 
+*Frozen 18 November 2026: no further changes; later results go in later experiments. Runs and
+logs: `outputs/experiments/07_knn/`.*
+
 *Started 18 November 2026. Config: [`07_knn.json`](07_knn.json), which is experiment 06's config
 ([`06_full_pipeline_and_labels.json`](06_full_pipeline_and_labels.json)) with the entered rating as
 the training target (no interpolation). The input is unchanged from 06: all 95 columns, no PCA.

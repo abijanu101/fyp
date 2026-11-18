@@ -9,7 +9,7 @@ Reads features cached by `run_pipeline extract`, attaches labels, and writes
 Aggregation (config engagement.aggregate, see src/experts/levels.py):
   early  the experts see one row per window (Vec) and are trained on window labels;
   late   the experts see one row per (window, visible student): that student's features (+ the
-         window's Vec if engagement.late_context) and are trained on that student's own label.
+         window's Vec if engagement.use_class_context) and are trained on that student's own label.
          Tracks are linked to students with SID-TID association (training only, design §4).
 Either way the window score is the mean of its rows' probabilities, and every metric is computed
 on window labels, so the two modes are directly comparable.
@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 
 from scripts.run_pipeline import features_dir, parse_sets, session_stem, tracks_dir
-from src.core.config import config_hash, load_config
+from src.core.config import use_class_context, config_hash, load_config
 from src.core.pipeline import SCENE_PREFIX, VEC_PREFIX
 from src.core.store import load_track
 from src.core.types import SessionKey, Window
@@ -152,7 +152,7 @@ def engagement_rows(cfg: dict, df: pd.DataFrame, vec_cols: list[str], per_labele
         t["window"] = sdf.index.to_numpy()[local]                   # local window -> global row of df
         tables.append(t)
     tracks = pd.concat(tables, ignore_index=True)
-    X, cols, window = late_rows(df, tracks, context=cfg["engagement"].get("late_context", True))
+    X, cols, window = late_rows(df, tracks, context=use_class_context(cfg))
     rows = EngagementRows(X, cols, window, df["exp"].to_numpy()[window], np.concatenate(ys))
     if per_labeler:                                                 # a labeler absent from a session: NaN / not rated
         names = sorted({n for s in per_session for n in s})
@@ -319,7 +319,7 @@ def heldout_curves(cfg: dict, df: pd.DataFrame, rows: pd.DataFrame | None = None
     vec_cols = sorted(c for c in df if c.startswith(VEC_PREFIX))
     gate_cols = sorted(c for c in df if c.startswith(SCENE_PREFIX)) + (vec_cols if cfg["gate_uses_vec"] else [])
     row_cols = sorted(c for c in rows if c.startswith("trk.")) + \
-        (vec_cols if cfg["engagement"].get("late_context", True) else [])
+        (vec_cols if use_class_context(cfg) else [])
     Xg, exp_w = df[gate_cols].to_numpy(float), df["exp"].to_numpy()
     Xgrid, wgrid = grid_rows(cfg, df, row_cols)
     X = rows.reindex(columns=row_cols).to_numpy(float)
@@ -357,7 +357,7 @@ def main_per_labeler(cfg: dict) -> None:
     gate_cols = scene_cols + (vec_cols if cfg["gate_uses_vec"] else [])
     rows = label_rows(cfg, df)
     trk_cols = sorted(c for c in rows if c.startswith("trk."))
-    row_cols = trk_cols + (vec_cols if cfg["engagement"].get("late_context", True) else [])
+    row_cols = trk_cols + (vec_cols if use_class_context(cfg) else [])
     X = rows.reindex(columns=row_cols).to_numpy(float)
     Xg_rows = rows.reindex(columns=gate_cols).to_numpy(float)
     target, labeler = rows["target"].to_numpy(float), rows["labeler"].to_numpy()

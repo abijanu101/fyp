@@ -1,0 +1,71 @@
+[
+  {
+    "file": "tests/test_label_agreement.py",
+    "class": "TestAlpha",
+    "component": "Inter-labeler agreement (Krippendorff's alpha)",
+    "references": ["scripts/labels/label_agreement.py", "src/evaluation/agreement.py"],
+    "design_refs": "Design §11; docs/experiments/06_full_pipeline_and_labels.md Part B",
+    "objective": "Check that the vectorised ordinal alpha used by the agreement analysis matches the reference implementation, and that identical labelers score perfect agreement.",
+    "module": "Label agreement analysis script, which measures how far DIPSER's labelers agree as a ceiling for the model.",
+    "assumptions": "Synthetic labelers stand in for DIPSER's. The reference check uses a random 300 x 4 matrix of ratings 1-5 (seed 0) with 30% missing and the first 150 rows of column 1 copied from column 0.",
+    "prerequisites": "None beyond the Python environment. The script module must import (it imports the dataset and pipeline packages) but no data is read.",
+    "steps": [
+      {"method": "test_fast_alpha_matches_the_reference_implementation",
+       "execution": "Compute fast_alpha on the random matrix and krippendorff_alpha_ordinal on the same values as lists.",
+       "result": "The two alphas agree to 10 decimal places."},
+      {"method": "test_identical_labelers_agree_perfectly",
+       "execution": "Build a student where labeler_01 and labeler_02 have the same track A (ratings 3, 2, 4, 3 at 0, 20, 50, 80 s). Get per-second step values with unit_values and compute fast_alpha.",
+       "result": "Alpha is 1.0."}
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_label_agreement.py",
+    "class": "TestCeiling",
+    "component": "Human ceiling: predicting one labeler from the others",
+    "references": ["scripts/labels/label_agreement.py", "src/labels/interp.py"],
+    "design_refs": "docs/experiments/06_full_pipeline_and_labels.md Part B",
+    "objective": "Check the predictor table built by ceiling_rows: other labelers' curves at lag 0 and at lags, the +/-k s best match, run midpoints, the exclusion of the session-start entry, self-consistency columns and the mean of other experts.",
+    "module": "Label agreement analysis script, ceiling part: scores how well one labeler's entries are predicted from the other labelers, the same way the model is scored.",
+    "assumptions": "Synthetic students with t_last 120 s. Track A has ratings 3, 2, 4, 3 at 0, 20, 50, 80 s. A 'late' labeler gives the same ratings 2 s later.",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_identical_labelers_predict_each_other_exactly",
+       "execution": "Build ceiling rows for a student where labeler_01 and labeler_02 both have track A. Stack the 'step|0' predictions of entry rows with stack_pairs.",
+       "result": "The predictions equal the targets exactly."},
+      {"method": "test_a_late_labeler_is_recovered_by_the_matching_lag",
+       "execution": "Build ceiling rows with labeler_01 = A and labeler_02 = A shifted 2 s later. Take entry rows with target labeler_01.",
+       "result": "At lag 0 the absolute error summed over entries is above 0. The column 'labeler_02|step|2' equals the targets exactly, and so does the best match within +/-2 s ('labeler_02|tol2')."},
+      {"method": "test_run_midpoints_are_unaffected_by_a_small_shift",
+       "execution": "With the same 2 s shift, take midpoint rows with target labeler_01.",
+       "result": "The 'labeler_02|step|0' values equal the targets exactly."},
+      {"method": "test_gauss_puts_half_the_jump_at_the_entry",
+       "execution": "Interpolate entries 2 at 0 s and 4 at 10 s in gauss mode at t = 10 s.",
+       "result": "Returns 3.0, half way through the jump."},
+      {"method": "test_session_start_is_excluded_and_self_consistency_columns",
+       "execution": "Build ceiling rows for two labelers with track A and take labeler_01's entry rows.",
+       "result": "Entry times are [20, 50, 80]; the t = 0 entry is the session start and is excluded. own_prev is [3, 2, 4]. own_loro for the first entry is (3*20 + 4*30 + 3*40) / 90, the time-weighted mean of the other runs."},
+      {"method": "test_median_and_mean_of_other_experts_skip_the_target_and_self",
+       "execution": "Build ceiling rows for a student with labeler_01 = A, labeler_02 constant 2, labeler_03 constant 4 and self_labeling constant 5. Call others on labeler_01's entry rows with 'step|0' and 'mean'.",
+       "result": "Returns [3.0, 3.0, 3.0], the mean of 2 and 4. The target and the self-rating are not included."}
+    ],
+    "comments": "test_gauss_puts_half_the_jump_at_the_entry tests src/labels/interp.py directly; it sits here because the ceiling uses gauss curves."
+  },
+  {
+    "file": "tests/test_label_agreement.py",
+    "class": "TestCoarse",
+    "component": "Agreement on coarse units",
+    "references": ["scripts/labels/label_agreement.py"],
+    "design_refs": "docs/experiments/06_full_pipeline_and_labels.md Part B",
+    "objective": "Check that agreement on student x activity means is high when labelers differ only in timing, and that the labeler list has six entries.",
+    "module": "Label agreement analysis script, coarse part: agreement on per-student session means and k-minute means.",
+    "assumptions": "30 synthetic students (seed 2), t_last 300 s. Each has a base rating in 2-4 with ratings base, base+1, base, base at 0, 30, 60, 90 s. labeler_01 and labeler_03 use these times; labeler_02 enters the same ratings 3 s later.",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_coarse_means_agree_when_labelers_differ_only_in_timing",
+       "execution": "Call coarse on the 30 students and read student_x_activity, overall, experts_pairwise.",
+       "result": "The mean pairwise Spearman correlation between experts is above 0.95. LABELERS has length 6 (five experts plus self_labeling)."}
+    ],
+    "comments": "-"
+  }
+]

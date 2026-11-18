@@ -252,7 +252,7 @@ their box) get a NaN label and are left out of training.
 - **Early** (`engagement.aggregate = "early"`): one row per window = the window's Vec (58 class-level
   features, Chapter 6, §6.4). Label: the window label `y` (§13.5).
 - **Late** (the config): one row per (window, visible track) = that track's own `trk.*` features
-  (22 numbers), plus the window's Vec appended **if `engagement.late_context` is true** (it is).
+  (22 numbers), plus the window's Vec appended **if `engagement.use_class_context` is true** (it is).
   Label: the linked student's label (§13.4), NaN if unlinked. The row also carries its window
   index and its window's activity (`exp`).
 
@@ -495,7 +495,7 @@ one group):
 | O6 | `window_labels.py:43` | window label = threshold of a threshold | target granularity |
 | O7 | `window_labels.py:43` | windows with < 3 labelled students: no label, but a share | metric populations differ |
 | O8 | `association.py:66` | static boxes, IoU ≥ 0.3, ≥ 50% of frames; 8% of rows unlinked | who gets a training label |
-| O9 | config `late_context` | every student's row carries the same class Vec | session-level offsets |
+| O9 | config `use_class_context` | every student's row carries the same class Vec | session-level offsets |
 | O10 | `expert.py:42` | experts trained class-balanced; mean P 0.52 vs 64% engaged | score scale |
 | O11 | `expert.py:115` | hand-weighted score centred near 0.5 by construction | score scale |
 | O12 | `expert.py:52`, `expert.py:109` | an expert with no rows: constant 0.5 (learned) or raw features (hand-weighted) | held-out activities |

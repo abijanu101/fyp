@@ -28,7 +28,7 @@ import numpy as np
 
 from scripts.run_pipeline import parse_sets
 from scripts.train_models import engagement_rows, load_table, mixture_factory
-from src.core.config import load_config
+from src.core.config import use_class_context, load_config
 from src.core.pipeline import SCENE_PREFIX, VEC_PREFIX
 from src.evaluation import binary_metrics, context_metrics
 from src.experts import fit_engagement, predict_windows
@@ -114,7 +114,7 @@ def main() -> None:
             from scripts.train_models import label_rows
             rows = label_rows(cfg, df)
             row_cols = sorted(c for c in rows if c.startswith("trk.")) + \
-                (vec_cols if cfg["engagement"].get("late_context", True) else [])
+                (vec_cols if use_class_context(cfg) else [])
             jobs.append(("expert", cfg["expert"], per_labeler_expert_scorer(cfg, rows, row_cols),
                          rows["group"].to_numpy()))
         else:

@@ -148,7 +148,7 @@ Some metrics flatter baselines (§12.5); that is the main reason to always show 
 | `shared_expert` | one expert for all activities |
 | `hand_weighted` | fixed hand-written weights (no learning); a sanity baseline |
 | `majority` | the trivial baseline |
-| *late, no context* | `engagement.late_context = false`: the experts see each student's own features but not the class summary Vec |
+| *late, no context* | `engagement.use_class_context = false`: the experts see each student's own features but not the class summary Vec |
 | *minus flow* | no model: the class's negative mean residual flow used directly as the score |
 
 **Gate, classified, oracle.** The *gate* predicts which of six activities is happening; the

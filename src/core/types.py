@@ -42,9 +42,17 @@ class Detections:
 
     xyxy: np.ndarray         # (N, 4) float
     conf: np.ndarray         # (N,)
+    keypoints: np.ndarray | None = None   # (N, 17, 2) COCO keypoints, when the detector is a pose model
+    kp_conf: np.ndarray | None = None     # (N, 17) their confidences
 
     def __len__(self) -> int:
         return len(self.conf)
+
+    def take(self, keep: np.ndarray) -> "Detections":
+        """The detections selected by a boolean mask or indices, keypoints included."""
+        kp = None if self.keypoints is None else self.keypoints[keep]
+        kc = None if self.kp_conf is None else self.kp_conf[keep]
+        return Detections(self.xyxy[keep], self.conf[keep], kp, kc)
 
     @staticmethod
     def empty() -> "Detections":
@@ -59,6 +67,8 @@ class TrackState:
     xyxy: np.ndarray         # (4,)
     conf: float
     velocity: np.ndarray | None = None   # Kalman centre velocity (vx, vy) in px/frame, if exposed
+    keypoints: np.ndarray | None = None  # (17, 2) of the detection this frame's update used (pose detector)
+    kp_conf: np.ndarray | None = None    # (17,)
 
 
 # Column prefixes of the feature tables (one definition, used by the pipeline and the experts).

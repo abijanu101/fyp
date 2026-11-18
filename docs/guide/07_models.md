@@ -166,7 +166,7 @@ and the window counts as engaged if that is at least `mixture.tau` (0.5).
 
 **Late aggregation: the example is a student in a window.** No squashing first. The expert gets
 **three examples**, each one student's own features, plus Vec as shared context when
-`engagement.late_context` is true:
+`engagement.use_class_context` is true:
 
 ```
 input  [0.9 | 0.63, 0.31, ...]   (A's own features | Vec)   target  1   (A's own label)
@@ -185,7 +185,7 @@ aggregation. That is all the names mean.
 | | `early` | `late` (default) |
 |---|---|---|
 | One example per | window | visible student in a window |
-| Its features | the window's Vec | that student's own features (`trk.*`), plus Vec if `late_context` |
+| Its features | the window's Vec | that student's own features (`trk.*`), plus Vec if `use_class_context` |
 | Its target | the window label | that student's own label |
 | Window score | the one prediction | the mean of the students' predictions |
 | Engaged if score ≥ | `mixture.tau` | `labels.tau_share` |
@@ -325,7 +325,7 @@ Compare modes on AUC first.
 In late mode, `train_models.expert_factory` maps each one to the student's own feature with
 `student_key` (`vec.kg.stillness.mean` → `trk.kg.stillness`), so the baseline scores each student
 from that student's features, just as the learned experts do, and still works with
-`late_context=false`.
+`use_class_context=false`.
 
 ### Consensus labels or a per-labeler ensemble (`engagement.labelers`)
 
@@ -477,7 +477,7 @@ self), except the shared session-start entry, gets a window of `window.length_s`
 time. `Pipeline.window_features` computes the same features for those windows as for the regular
 grid; the table is cached per session as `<stem>.labelwin.csv` next to the window CSVs. A training
 row is the rated student's own linked track in that window (`trk.*`, plus the window's Vec when
-`engagement.late_context` is on); entries whose student has no linked visible track are dropped.
+`engagement.use_class_context` is on); entries whose student has no linked visible track are dropped.
 
 **Targets: soft, per labeler** (`src/labels/session.py`, `label_entries`; `src/labels/interp.py`):
 

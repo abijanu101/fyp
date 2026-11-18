@@ -1,0 +1,65 @@
+[
+  {
+    "file": "tests/test_mixture.py",
+    "class": "TestMixture",
+    "component": "Gated mixture of engagement experts",
+    "references": ["src/experts/mixture.py", "src/experts/expert.py", "src/spu/context.py"],
+    "design_refs": "Design §8 (mixture), §8.2 (hand-weighted baseline), §8.3 (per-experiment training), §7 (oracle context)",
+    "objective": "Check that ExpertMixture combines per-experiment expert probabilities correctly in soft, hard, oracle and shared configurations, that each expert is trained only on its own experiment's windows, and that the hand-weighted baseline applies the per-experiment phone-use sign.",
+    "module": "Engagement-scoring stage: takes each window's feature vector (Vec) and the SPU context gate's class probabilities and returns P(window engaged).",
+    "assumptions": "Synthetic inputs only. Experts are replaced by a stub class 'Constant' that returns a fixed probability per experiment (01: 0.1, 02: 0.5, 03: 0.9, shared: 0.3), so the test checks the mixing arithmetic, not any learned model. Feature matrices are zeros where their values do not matter.",
+    "prerequisites": "None beyond the Python environment (numpy). No data files, model weights or GPU.",
+    "steps": [
+      {
+        "method": "test_soft",
+        "execution": "Build a soft-mode, per-experiment mixture over classes ['01', '02', '03'] and call predict_proba on 2 rows with gate probabilities g = [[0.5, 0.5, 0.0], [0.1, 0.2, 0.7]].",
+        "result": "Output equals the gate-weighted sum of expert probabilities: [0.5*0.1 + 0.5*0.5, 0.1*0.1 + 0.2*0.5 + 0.7*0.9] = [0.30, 0.74] (assert_allclose). Observed: as expected."
+      },
+      {
+        "method": "test_hard_routes_to_argmax",
+        "execution": "Same gate probabilities, mixture built in hard mode.",
+        "result": "Each row takes the probability of the argmax expert only: [0.1, 0.9] (row 0 ties 01/02 and argmax picks the first, 01). Observed: as expected."
+      },
+      {
+        "method": "test_oracle_is_one_hot",
+        "execution": "Build g with context_probs('oracle', classes, ['03', '02']) and pass it to a soft-mode mixture.",
+        "result": "The oracle gate is one-hot on the true experiment, so the output is the matching expert's value: [0.9, 0.5]. Observed: as expected."
+      },
+      {
+        "method": "test_shared_scope_uses_one_expert",
+        "execution": "Build a soft-mode mixture with scope 'shared' (one expert built with exp_id None) and call predict_proba with the same g.",
+        "result": "Every class maps to the single shared expert, so both rows return 0.3 regardless of g. Observed: as expected."
+      },
+      {
+        "method": "test_each_expert_trains_on_its_own_experiment",
+        "execution": "Build a per-experiment mixture with a Recorder expert that logs the first feature column it receives in fit(). Call fit with X = [[1], [2], [3], [4]], y = [0, 1, 0, 1], experiment ids ['01', '02', '01', '03'].",
+        "result": "Each expert sees only its own experiment's rows: {'01': [1.0, 3.0], '02': [2.0], '03': [4.0]}. Observed: as expected."
+      },
+      {
+        "method": "test_hand_weighted_phone_sign",
+        "execution": "Build two HandWeightedExpert instances on features ['vec.still', 'vec.phone'] with weight vec.still = 1.0 and phone_sign {'01': +1, '02': -1}: one for experiment 01 (phone on-task), one for 02 (phone off-task). Fit both on X = [[0, -1], [0, 1]] and predict on the same X.",
+        "result": "For experiment 01, the row with higher phone use (row 1) gets a higher P(engaged) than row 0. For experiment 02 the order is reversed: row 1 gets a lower P(engaged). Observed: as expected."
+      }
+    ],
+    "comments": "The helper class 'Constant' and the factory function 'mixture' are fixtures, not test cases. In the phone-sign step vec.phone has no explicit weight, so it takes the default 1.0 multiplied by the experiment's sign."
+  },
+  {
+    "file": "tests/test_mixture.py",
+    "class": "TestLogo",
+    "component": "Leave-one-group-out split",
+    "references": ["src/spu/splits.py"],
+    "design_refs": "Design §7",
+    "objective": "Check that logo_splits yields one fold per group and that each fold's test set is exactly the held-out group, with none of that group in training.",
+    "module": "Evaluation protocol used by the SPU gate and expert experiments, so that all cameras of a held-out group stay together in the test fold.",
+    "assumptions": "Synthetic group labels; no features or models involved.",
+    "prerequisites": "None beyond the Python environment (numpy).",
+    "steps": [
+      {
+        "method": "test_held_out_group_is_whole_test_fold",
+        "execution": "Call logo_splits on groups ['g1', 'g1', 'g2', 'g3', 'g2'] and collect the folds as (group, train_idx, test_idx).",
+        "result": "Folds come in sorted group order ['g1', 'g2', 'g3']. In every fold all test rows belong to the held-out group and no training row does. Observed: as expected."
+      }
+    ],
+    "comments": "-"
+  }
+]

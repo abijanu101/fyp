@@ -1,0 +1,84 @@
+[
+  {
+    "file": "tests/test_head_pose.py",
+    "class": "TestHeadGeometry",
+    "component": "Head-direction geometry from COCO keypoints",
+    "references": ["src/bfmu/head_pose.py"],
+    "design_refs": "-",
+    "objective": "Check that head_geometry computes yaw, head height, face confidence and the matched flag correctly from one person's keypoints, including the fallback to shoulders when ears are not visible and NaN output when the nose is missing.",
+    "module": "Head-pose feature unit (BFMU d, experiment 09 visual focus of attention): per-frame head direction for each tracked student.",
+    "assumptions": "Synthetic keypoints from the helper person(): an upright person with nose at (100 + nose_dx, nose_y), eyes at y 35, ears at x 85 and 115 (30 px apart), shoulders at (60, 100) and (140, 100) (80 px apart). Keypoint confidence 0.9; ears set to 0.1 when ears=False. Visibility threshold kp_conf is the default 0.5.",
+    "prerequisites": "None beyond the Python environment (numpy). No pose model weights or GPU.",
+    "steps": [
+      {
+        "method": "test_facing_forward",
+        "execution": "Call head_geometry on the default person (nose at (100, 40), centred between the ears).",
+        "result": "hp.yaw = 0.0, hp.head_height = 60/80 = 0.75 (shoulder y 100 minus nose y 40, over shoulder width 80), hp.matched = 1.0, hp.face_conf = 0.9. Observed: as expected."
+      },
+      {
+        "method": "test_turned_and_lowered",
+        "execution": "Call head_geometry on a person with the nose moved 9 px left (nose_dx = -9), then on a person with the nose lowered to y 80.",
+        "result": "Turned: hp.yaw is negative and equals -9/30 = -0.3, using the ears as the reference pair. Lowered: hp.head_height (20/80) is smaller than the default person's 0.75. Observed: as expected."
+      },
+      {
+        "method": "test_shoulders_replace_missing_ears",
+        "execution": "Call head_geometry on a person with nose_dx = 8 and ear confidence 0.1 (below kp_conf).",
+        "result": "hp.yaw = 8/80 = 0.1: the shoulders replace the ears as the reference pair. Observed: as expected."
+      },
+      {
+        "method": "test_missing_nose_gives_nan",
+        "execution": "Take the default person and set the nose confidence to 0.1, then call head_geometry.",
+        "result": "hp.yaw and hp.head_height are both NaN, and hp.matched is still 1.0 (a pose was present). Observed: as expected."
+      }
+    ],
+    "comments": "The module docstring ties this unit to experiment 09 (visual focus of attention); it cites no design-document section."
+  },
+  {
+    "file": "tests/test_head_pose.py",
+    "class": "TestMatching",
+    "component": "Pose-to-track matching",
+    "references": ["src/bfmu/head_pose.py", "src/tracking/association.py"],
+    "design_refs": "-",
+    "objective": "Check that match_poses pairs pose instances with tracks one-to-one by box IoU, drops pairs below the IoU threshold, and handles an empty pose list.",
+    "module": "Head-pose unit, 'frame' input mode: links each pose detected in the frame to the tracked student it belongs to.",
+    "assumptions": "Synthetic boxes. min_iou is 0.3.",
+    "prerequisites": "None beyond the Python environment (numpy, scipy).",
+    "steps": [
+      {
+        "method": "test_one_to_one_by_iou",
+        "execution": "Tracks [0,0,10,10] and [20,0,30,10]. Poses [21,0,31,10], [0,1,10,11] and [100,100,110,110]. Call match_poses(poses, tracks, 0.3). Then call it with an empty (0, 4) pose array.",
+        "result": "Returns {0: 1, 1: 0} (track index to pose index): track 0 gets pose 1, track 1 gets pose 0, and the far pose is unmatched. With no poses the result is {}. Observed: as expected."
+      }
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_head_pose.py",
+    "class": "TestUnit",
+    "component": "Head-pose feature extractor (BFMU d)",
+    "references": ["src/bfmu/head_pose.py", "src/core/types.py", "src/bfmu/base.py"],
+    "design_refs": "-",
+    "objective": "Check the extractor without a pose model: 'tracks' mode reads keypoints carried by the tracks, detections keep their keypoints when the tracker selects a subset, and window features aggregate the per-frame signals correctly.",
+    "module": "Head-pose unit in the per-frame and feature passes; in 'tracks' mode (experiment 09's setting) the person detector is itself a pose model and passes keypoints through the tracker.",
+    "assumptions": "Synthetic tracks, detections and tracklets; a blank 4 x 4 frame. No pose network is run in any step.",
+    "prerequisites": "None beyond the Python environment (numpy, scipy). No pose model weights or GPU: the model loads lazily and is never accessed here.",
+    "steps": [
+      {
+        "method": "test_tracks_mode_reads_keypoints_from_the_tracks",
+        "execution": "Build head_pose in mode 'tracks'. Track 1 carries the keypoints of person(nose_dx=-9); track 2 carries no keypoints. Call frame_signals on a blank 4 x 4 frame.",
+        "result": "Track 1 has hp.yaw = -9/30 = -0.3 and hp.matched = 1.0. Track 2 has hp.matched = 0.0 and hp.yaw NaN. unit._model is still None (no model of its own). Observed: as expected."
+      },
+      {
+        "method": "test_tracker_hands_each_track_its_detections_keypoints",
+        "execution": "Build Detections with 2 boxes, confidences [0.9, 0.8], keypoints arange(68) reshaped to (2, 17, 2) and keypoint confidences of ones. Call take with mask [False, True].",
+        "result": "The result has length 1 and its keypoints[0] equals the second detection's keypoints. Observed: as expected."
+      },
+      {
+        "method": "test_registered_and_window_features",
+        "execution": "Build head_pose with defaults from the registry. Make a 10-frame tracklet (fps 5) with hp.yaw = five 0.2 then five -0.2, hp.head_height = four 0.05 then six 0.3, hp.face_conf all 0.8, hp.ear_asym all 0, hp.matched = eight 1 then two 0. Call window_features. Then call it on a 3-frame tracklet with no signals.",
+        "result": "uses_frames is True. The feature names equal unit.keys. hp.yaw.mean = 0.0, hp.yaw.abs = 0.2, hp.head_low = 0.4 (4 of 10 frames below the 0.1 threshold), hp.matched = 0.8. For the empty tracklet every feature is NaN. Observed: as expected."
+      }
+    ],
+    "comments": "The second step tests Detections.take in src/core/types.py, which the tracker uses to keep each detection's keypoints aligned with its box."
+  }
+]

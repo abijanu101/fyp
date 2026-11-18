@@ -1,0 +1,57 @@
+[
+  {
+    "file": "tests/test_labels.py",
+    "class": "TestAttentionTrack",
+    "component": "Attention label parsing",
+    "references": ["src/labels/attention.py", "src/core/clock.py"],
+    "design_refs": "Design §8.1 step 1",
+    "objective": "Check that a labeler's list of change events is turned into a correct attention step function, and that the wall-clock parser reads both timestamp formats. Covers clock parsing, event filtering, the time-weighted window mean, the unlabelled period and the clock offset.",
+    "module": "First stage of the label side of the training pipeline: it reads DIPSER labeler JSON events before window and per-labeler targets are built.",
+    "assumptions": "Synthetic event lists built by a helper stand in for DIPSER labeler files. Every event has emotion '1'; the attention key is added only where the test gives a value. All events fall in the minute after 10:00:00 (T0).",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_clock",
+       "execution": "Call parse_clock on the label format '10:40:43:047895' and the frame-filename format '10_40_43_4'.",
+       "result": "Returns seconds since midnight: 10*3600 + 40*60 + 43.047895 for the first and 10*3600 + 40*60 + 43.4 for the second. The fractional part is read with its own number of digits."},
+      {"method": "test_emotion_only_entries_do_not_change_attention",
+       "execution": "Call parse_events on three events at T0, T0+5 s and T0+10 s with attention 3, no attention key, and 5.",
+       "result": "The track values are [3, 5]. The emotion-only entry is skipped and does not add a value."},
+      {"method": "test_time_weighted_mean",
+       "execution": "Parse events with attention 2 at T0 and 4 at T0+4 s. Call mean_over on [T0, T0+8) and on [T0+6, T0+10).",
+       "result": "The first mean is 3.0 (4 s at 2 and 4 s at 4). The second is 4.0, because the last value holds after the last entry."},
+      {"method": "test_unlabeled_before_first_entry",
+       "execution": "Parse a single event with attention 3 at T0+5 s. Call mean_over on [T0, T0+8).",
+       "result": "Returns NaN, because the window starts before the labeler's first entry."},
+      {"method": "test_out_of_range_values_dropped",
+       "execution": "Parse events with attention 3, 7 and 2 at T0, T0+5 s and T0+10 s.",
+       "result": "The track values are [3, 2]. The value 7 is outside 1-5 and is dropped."},
+      {"method": "test_offset",
+       "execution": "Parse one event at T0 with offset_s = 2.0.",
+       "result": "The first track time equals T0 + 2.0 s, so the offset shifts labels onto the camera clock."}
+    ],
+    "comments": "The 'value 7' case mirrors a real DIPSER entry noted in the parse_events docstring (group_01/experiment_03/subject_18 self_labeling)."
+  },
+  {
+    "file": "tests/test_labels.py",
+    "class": "TestWindowLabeler",
+    "component": "Window engagement labels",
+    "references": ["src/labels/window_labels.py", "src/labels/attention.py"],
+    "design_refs": "Design §8.1 steps 3-5",
+    "objective": "Check how per-student labeler tracks become a window label: the median consensus per student, the share of engaged students, the minimum number of labelled students, and the option to leave out the self-rating.",
+    "module": "Label side of the training pipeline: produces the engaged / not engaged window labels and the share engaged used for training and evaluation.",
+    "assumptions": "Each synthetic labeler gives one constant rating from T0, so the window mean equals that rating. Labeler names follow the DIPSER pattern (labeler_00, labeler_01, ..., self_labeling).",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_median_consensus_and_share",
+       "execution": "Label the window [T0, T0+8) for three students with labeler ratings s1 = (5, 4, 1), s2 = (2, 2, 5), s3 = (4, 4, 4), using WindowLabeler(tau_att=4, tau_share=0.5, min_labeled_students=3).",
+       "result": "Student medians are 4, 2 and 4, so two of three students are engaged. engaged = 1, n_labeled = 3 and share_engaged = 2/3."},
+      {"method": "test_too_few_students_dropped",
+       "execution": "Label the window [T0, T0+8) for one student rated 5, with min_labeled_students=3.",
+       "result": "engaged is None (the window is dropped) and n_labeled is 1."},
+      {"method": "test_exclude_self",
+       "execution": "Compute consensus for one student with labeler_01 = 2 and self_labeling = 5 over [T0, T0+8), once with exclude_self=False and once with exclude_self=True.",
+       "result": "Without exclusion the consensus is the median 3.5. With exclusion the self-rating is ignored and the consensus is 2.0."}
+    ],
+    "comments": "-"
+  }
+]

@@ -3,7 +3,7 @@
 The experts always see **rows**:
   early  one row per window: the window's Vec (design §6, §8 as written);
   late   one row per (window, visible track): that track's own BFMU features, plus the window's Vec
-         as classroom context when `engagement.late_context` is true. Trained on per-student labels.
+         as classroom context when `engagement.use_class_context` is true. Trained on per-student labels.
 
 Each row carries the index of its window. Prediction gives each row its window's gate
 probabilities, and the window score is the mean of its rows' probabilities: for late aggregation

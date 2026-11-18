@@ -45,3 +45,11 @@ def config_hash(cfg: dict) -> str:
         clean.pop(k, None)
     canonical = json.dumps(clean, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def use_class_context(cfg: dict) -> bool:
+    """Whether each per-student row also gets the class-level columns (Vec) of its window
+    (engagement.use_class_context). Configs written before 18 November 2026 call it
+    `late_context`; it is read as a fallback so their hashes and results stay valid."""
+    eng = cfg.get("engagement", {})
+    return bool(eng.get("use_class_context", eng.get("late_context", True)))

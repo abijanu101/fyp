@@ -50,7 +50,7 @@ outputs classroom-level aggregates. But development needs the link in three plac
 1. **Window labels**: to know which students' labels describe a given camera, we need to know
    which subjects that camera can see (`labels.students: "camera"`).
 2. **Tracking evaluation**: to score a tracker, we need ground truth for which track is which
-   student ([BoxMOT document](02_boxmot.md), §4).
+   student ([tracking document](03_tracking.md), §4).
 3. **Per-student training labels.** With late aggregation (the default; contributor's guide, §7.5)
    the engagement experts learn from each student's own features and own label, so every track
    must be linked to the student it follows (`associate_sids`, training only). Across six

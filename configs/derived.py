@@ -6,12 +6,12 @@ here override configs/deliverable3.json; `--set` still overrides them. Only comp
 
 from src.core.derive import Sourced, result
 
-# D3: the augmented detector scan (docs/experiments/02_boxmot.md §3). The highest confidence
+# D3: the augmented detector scan (docs/experiments/02_detection.md §3). The highest confidence
 # threshold that keeps every student within 10 recall points of the floor on degraded footage.
 D3 = "outputs/tuning/detector_search_augmented.json"
 detector_conf = result(D3, "optimal_threshold")
 
-# T2: the augmented tracker scans (02_boxmot.md §6-7). BoT-SORT with ReID and CMC won (IDF1 0.930);
+# T2: the augmented tracker scans (03_tracking.md §6-7). BoT-SORT with ReID and CMC won (IDF1 0.930);
 # its best trial's tracker options, found with D3's threshold fixed (and passed as det_thresh).
 T2 = "outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_bisect.json"
 tracker_name = result(T2, "tracker")

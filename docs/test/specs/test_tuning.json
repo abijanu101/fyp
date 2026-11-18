@@ -1,0 +1,94 @@
+[
+  {
+    "file": "tests/test_tuning.py",
+    "class": "TestAlpha",
+    "component": "Inter-labeler agreement (Krippendorff's alpha, ordinal)",
+    "references": ["src/evaluation/agreement.py"],
+    "design_refs": "Design §11",
+    "objective": "Check the ordinal Krippendorff's alpha implementation against a published reference value and against the perfect-agreement case.",
+    "module": "Evaluation: measures agreement between human labelers, which sets the accuracy ceiling the attention models are compared against.",
+    "assumptions": "Missing ratings are given as NaN. Units with fewer than two ratings are ignored. The reference value is the ordinal alpha of the worked example in Krippendorff (2011), 'Computing Krippendorff's Alpha-Reliability'.",
+    "prerequisites": "None beyond the Python environment (numpy).",
+    "steps": [
+      {"method": "test_krippendorff_reference_example",
+       "execution": "Build the reference data set of 4 coders by 12 units (values 1 to 5, with NaN for missing ratings), transpose it to one list of ratings per unit, and call krippendorff_alpha_ordinal.",
+       "result": "Alpha equals 0.815 to 3 decimal places."},
+      {"method": "test_perfect_agreement",
+       "execution": "Call krippendorff_alpha_ordinal on units [[1, 1], [2, 2, 2], [3, 3], [5, 5]], where every unit's ratings agree.",
+       "result": "Alpha equals 1.0."}
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_tuning.py",
+    "class": "TestTrackingMetrics",
+    "component": "Tracking quality metrics",
+    "references": ["src/evaluation/tracking.py", "src/tracking/association.py"],
+    "design_refs": "Design §11",
+    "objective": "Check IDF1, coverage, ID switches, TIDs per subject and subjects found, computed against static subject boxes, for perfect tracking, a fragmented track and a missed subject.",
+    "module": "Evaluation and tracker tuning: scores raw tracker output against the manual subject boxes; it is the objective of the tracker parameter search.",
+    "assumptions": "Two subjects with static boxes: a at [0, 0, 100, 100] and b at [200, 0, 300, 100]. Ground truth assumes every subject is present in every frame. Synthetic static tracks sit exactly on the subject boxes. 10 frames, min_iou 0.3.",
+    "prerequisites": "None beyond the Python environment (numpy, scipy).",
+    "steps": [
+      {"method": "test_perfect_tracking",
+       "execution": "TID 1 covers subject a and TID 2 covers subject b in all 10 frames. Call tracking_metrics with n_frames 10 and min_iou 0.3.",
+       "result": "idf1 is 1.0; coverage is 1.0; id_switches_per_subject is 0.0; tids_per_subject is 1.0."},
+      {"method": "test_id_switch_and_fragmentation",
+       "execution": "Subject a is covered by TID 1 in frames 0 to 5 and by TID 3 in frames 6 to 9; subject b is covered by TID 2 in all 10 frames. Call tracking_metrics.",
+       "result": "id_switches_per_subject is 0.5 (one switch over two subjects); tids_per_subject is 1.5; idf1 equals 2*16 / (2*16 + 4 + 4): 16 correctly identified frames, and TID 3's 4 frames count both as false positives and as false negatives under the one-to-one TID-SID mapping."},
+      {"method": "test_missed_subject",
+       "execution": "Only TID 1 is present, on subject a, for 10 frames. Call tracking_metrics.",
+       "result": "coverage is 0.5 and subjects_found is 0.5."}
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_tuning.py",
+    "class": "TestSearch",
+    "component": "Hyperparameter search (random, beam bisection, nested leave-one-group-out)",
+    "references": ["src/tuning/search.py", "src/spu/splits.py"],
+    "design_refs": "Design §7 (leave-one-group-out splits)",
+    "objective": "Check that parameter sampling is seeded and in range, that the searches evaluate the baseline as trial 0 and return trials best first, that beam bisection finds a known optimum within its budget and is deterministic, and that nested search never selects parameters on its outer test group.",
+    "module": "Tuning: searches over config-defined parameter spaces for the tracker, detector and models.",
+    "assumptions": "Objectives are cheap synthetic functions with known optima, not real pipeline runs. The search space format is: a list for a categorical parameter, or {low, high, log, int} for a range.",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_sampling_is_seeded_and_in_range",
+       "execution": "Space: c categorical [1, 2, 3]; x log range 0.01 to 1.0; n integer range 1 to 9. Call sample_params twice with numpy generators seeded 1.",
+       "result": "Both samples are equal. c is in [1, 2, 3]; x is in [0.01, 1.0]; n is an int."},
+      {"method": "test_baseline_is_trial_zero_and_best_first",
+       "execution": "Run random_search on the same space for 20 trials, seed 0, baseline {'x': 0.9}, with objective score = -|x - 0.3| (x defaults to 0.5 when absent).",
+       "result": "The trial numbered 0 has params exactly {'x': 0.9}. The first trial in the returned list has the highest score of all trials."},
+      {"method": "test_bisection_finds_the_optimum_and_respects_the_budget",
+       "execution": "Space: a in [0, 1]; b integer in [1, 100] on a log scale. Objective: -(a - 0.73)^2 - (ln b - ln 20)^2 / 10, maximal at a = 0.73, b = 20. Run beam_bisection_search with a budget of 60 trials, baseline {a: 0.5, b: 50} and beam 2.",
+       "result": "At most 60 trials are run. Trial 0 has params {a: 0.5, b: 50}. The best trial has a within 0.03 of 0.73 and b between 15 and 27."},
+      {"method": "test_bisection_is_deterministic_and_holds_inactive_and_categorical_params",
+       "execution": "Space: a and z in [0, 1], c categorical [1, 2]. Objective -|a - 0.2|, recording every point it is called with. Run beam_bisection_search twice with a budget of 12, baseline {a: 0.9, z: 0.4, c: 2} and z marked inactive.",
+       "result": "Both runs return the same list of params in the same order. Every evaluated point has z = 0.4 and c = 2: the inactive and categorical parameters keep their baseline values."},
+      {"method": "test_nested_search_never_scores_selection_on_outer_test",
+       "execution": "12 rows in three groups (g1, g2, g3, four rows each). The score function returns params['c'] and records the groups in each train and test index set. Run nested_logo_search with space {c: [1, 2, 3]}, 5 trials, seed 0, baseline {c: 1}.",
+       "result": "The selected params are {'c': 3}. For every outer fold, at least one recorded score call used train and test sets that both exclude that fold's held-out group, showing the inner searches ran without it."}
+    ],
+    "comments": "The nested-search step checks that inner searches without the held-out group took place; it does not by itself prove that no inner call ever touched the held-out group."
+  },
+  {
+    "file": "tests/test_tuning.py",
+    "class": "TestSharedFrames",
+    "component": "Shared-frame multi-tracker runs and search prefetch",
+    "references": ["scripts/tuning/tune_tracker.py", "src/tuning/search.py", "src/tracking/tracker.py", "src/tracking/tracklets.py"],
+    "design_refs": "-",
+    "objective": "Check that running several trackers over one pass of a session's frames (run_trackers) gives each tracker exactly the tracks it gives when run alone (run_tracker), and that the prefetch hook of beam bisection search does not change the search.",
+    "module": "Tracker tuning (scripts/parallel_runs.py): decodes each frame once and feeds it to many tracker configurations, and computes a search level's probe points together.",
+    "assumptions": "Synthetic detections stand in for cached detector output: 60 frames 0.2 s apart, four people (60 x 160 px boxes) walking right at 3 px per frame, Gaussian box jitter (sd 1.5 px) and confidences uniform in [0.2, 0.9], numpy seed 0. Frame size 480 x 640. All tracker specs turn CMC and ReID embeddings off, so blank frames are used and the ZIP path 'none.zip' is never opened.",
+    "prerequisites": "BoxMOT installed (BoT-SORT tracker). No video, GPU or detection cache needed.",
+    "steps": [
+      {"method": "test_several_trackers_on_one_pass_match_each_run_alone",
+       "execution": "Three BoT-SORT specs (use_cmc False, use_embeddings False): track_high_thresh 0.5 with det_conf 0.3; match_thresh 0.6 with det_conf 0.5; max_lost_frames 5 with det_conf 0.2. Call run_trackers once with all three, then run_tracker separately for each spec.",
+       "result": "For each spec, the list of (tid, timestamps, boxes) from the shared run equals the list from the run alone."},
+      {"method": "test_prefetch_does_not_change_the_search",
+       "execution": "Space: a and b in [0, 1]. Objective -(a - 0.3)^2 - (b - 0.8)^2. Run beam_bisection_search with a budget of 20 and baseline {a: 0.5, b: 0.5}, once plainly and once with prefetch collecting the requested points and the objective recording every evaluated point.",
+       "result": "Both runs return the same list of params. The prefetch hook was called with at least one point, and every prefetched point was later evaluated (no prefetched work is wasted)."}
+    ],
+    "comments": "This class is defined after the module's 'if __name__ == \"__main__\": unittest.main()' block. It runs under unittest or pytest discovery, but not when the file is executed directly as a script, because unittest.main() runs before the class is defined."
+  }
+]

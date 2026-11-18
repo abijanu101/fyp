@@ -2,7 +2,7 @@
 
 Training rows are windows of length window.length_s centred on each rating entry (session-start
 entry excluded); a row is the rated student's own track features in that window, plus the window's
-Vec when engagement.late_context is on. Every (labeler, entry) is its own row, used only by that
+Vec when engagement.use_class_context is on. Every (labeler, entry) is its own row, used only by that
 labeler's model; nothing is averaged in training. The target is a soft label in [0, 1] (the
 normalised rating; labels.train_target picks the entry's rating or that labeler's interpolated
 curve over the window). A model's output p reads back as the rating 1 + 4p.

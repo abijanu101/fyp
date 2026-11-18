@@ -32,7 +32,15 @@ class YoloDetector(PersonDetector):
                        quantize="fp16" if half and self.device != "cpu" else None)
 
     def detect(self, frame: Frame) -> Detections:
-        boxes = self.model.predict(frame.image, **self.kw)[0].boxes
+        """Person boxes; with a pose model (e.g. yolo11s-pose.pt) also each person's 17 COCO
+        keypoints, which the tracker hands to the track the detection updates (bfmu head_pose,
+        mode "tracks", reads them: no second model)."""
+        res = self.model.predict(frame.image, **self.kw)[0]
+        boxes = res.boxes
         if boxes is None or len(boxes) == 0:
             return Detections.empty()
+        kp = getattr(res, "keypoints", None)
+        if kp is not None and kp.xy is not None and len(kp.xy) == len(boxes):
+            return Detections(boxes.xyxy.cpu().numpy().astype(float), boxes.conf.cpu().numpy().astype(float),
+                              kp.xy.cpu().numpy().astype(float), kp.conf.cpu().numpy().astype(float))
         return Detections(boxes.xyxy.cpu().numpy().astype(float), boxes.conf.cpu().numpy().astype(float))

@@ -1,0 +1,57 @@
+[
+  {
+    "file": "tests/test_augment.py",
+    "class": "TestAugmentation",
+    "component": "Session-level data augmentation",
+    "references": ["src/ingestion/augment.py", "src/ingestion/source.py", "scripts/train_models.py", "src/spu/splits.py"],
+    "design_refs": "-",
+    "objective": "Check that augmentation parameters are fixed per (session, copy) and reproducible, that the same transform is applied to every frame of a copy, that the augmented frame source keeps the original timestamps, and that augmented rows never enter a test fold.",
+    "module": "Ingestion and training: makes augmented copies of whole sessions (flip, colour shift, noise, masks) that are read on the fly and used only to train models and tune the tracker.",
+    "assumptions": "The augmentation settings come from configs/deliverable3.json (hue_deg 3 at the time of writing). Small synthetic ZIP files of 4 PNG frames (64 x 48 random noise, named images/10_00_0<i>_000000.png) stand in for DIPSER camera ZIPs. A tiny DataFrame stands in for the training table.",
+    "prerequisites": "Run from the repository root; configs/deliverable3.json and the results files read by configs/derived.py must exist (the config is loaded at import). OpenCV, pandas and PyTorch installed. Test ZIPs are written only to temporary directories.",
+    "steps": [
+      {"method": "test_hflip_mirrors_boxes",
+       "execution": "Call hflip_boxes on box [[10, 5, 30, 20]] with frame width 100, then flip the result again.",
+       "result": "The flipped box is [[70, 5, 90, 20]]. Flipping twice returns the original box."},
+      {"method": "test_parameters_are_fixed_per_session_and_copy",
+       "execution": "Call sample_augmentation for session 'group_01/experiment_01/context_cam_01' copy 1 twice, for the same session copy 2, and for 'group_02/experiment_01/context_cam_01' copy 1.",
+       "result": "The two calls with the same session and copy give equal parameters. A different copy number, and a different session, each give different parameters."},
+      {"method": "test_hue_shift_stays_small",
+       "execution": "Sample parameters for 50 sessions ('s0' to 's49') and copies 1 and 2, and collect hue_deg.",
+       "result": "Every |hue_deg| is at most the configured hue_deg, and the configured hue_deg is at most 5 degrees."},
+      {"method": "test_tag_ignores_copy_count",
+       "execution": "Compute aug_tag for copy 1 with the config's settings at copies = 1 and at copies = 3, and with hue_deg changed to 4.",
+       "result": "The tag is the same for copies = 1 and copies = 3. Changing hue_deg to 4 gives a different tag."},
+      {"method": "test_same_transform_on_every_frame_noise_aside",
+       "execution": "Take the sampled parameters for session 's' copy 1, with noise 0 and hflip True. Apply augment_frame to two identical 8 x 8 frames of value 40, as frame indices 0 and 1.",
+       "result": "The two output frames are identical: the flip, colour shift and masks do not change from frame to frame."},
+      {"method": "test_source_is_a_dataset_with_the_original_timestamps",
+       "execution": "Write a 4-frame ZIP. Build an AugmentedZipFrameSource with only hflip on (noise 0, no masks, neutral colour: brightness 0, contrast 1, saturation 1, hue 0, gamma 1) and a plain ZipFrameSource on the same ZIP.",
+       "result": "The augmented source is a torch Dataset with length 4. Its timestamps equal the plain source's. Item 2's image equals the plain frame 2 flipped horizontally. Iterating it yields frame indices [0, 1, 2, 3]."},
+      {"method": "test_a_copy_is_the_same_video_every_time_it_is_read",
+       "execution": "Write a 4-frame ZIP. Read all frames through AugmentedZipFrameSource with copy 1 parameters for 'group_01/experiment_01/context_cam_01' and noise 0.3, then read them again with freshly sampled copy 1 parameters and noise 0.3. Read frame 0 with copy 2 parameters and noise 0.3.",
+       "result": "Every frame of the two copy 1 reads is identical, noise included. Frame 0 of copy 2 differs from frame 0 of copy 1."},
+      {"method": "test_augmented_rows_never_reach_a_test_fold",
+       "execution": "Build a table of 6 rows: groups [g1, g1, g2, g2, g1, g2], aug flags [False, False, False, False, True, True]. Iterate heldout_splits from scripts/train_models.py.",
+       "result": "In every fold, no test row is augmented; the training rows include augmented rows (copies of the other group); and no training row belongs to the held-out group."}
+    ],
+    "comments": "Augmented copies are never written to disk. test_a_copy_is_the_same_video_every_time_it_is_read checks that seeding alone makes every read of a copy identical."
+  },
+  {
+    "file": "tests/test_augment.py",
+    "class": "TestColourLookupTables",
+    "component": "Colour augmentation (lookup-table implementation)",
+    "references": ["src/ingestion/augment.py"],
+    "design_refs": "-",
+    "objective": "Check that the fast lookup-table colour transform gives bit-identical output to the per-pixel floating-point reference.",
+    "module": "Ingestion: the colour step (brightness and contrast, hue and saturation, gamma) applied to every frame of an augmented copy.",
+    "assumptions": "A random 48 x 64 BGR image (numpy seed 0) stands in for a video frame. Parameter ranges cover and slightly exceed the configured augmentation ranges.",
+    "prerequisites": "OpenCV installed. As for the rest of the file, the config is loaded at import.",
+    "steps": [
+      {"method": "test_lookup_tables_reproduce_the_per_pixel_maths_exactly",
+       "execution": "For 25 random parameter sets (brightness in [-35, 35], contrast in [0.85, 1.15], saturation in [0.8, 1.2], hue in [-3, 3] degrees, gamma = exp of a value in [-0.14, 0.14]), call colour and _colour_reference on the same image.",
+       "result": "For every parameter set the two output images are exactly equal."}
+    ],
+    "comments": "colour is about 20 times faster than the reference according to its docstring; the test checks only equality, not speed."
+  }
+]

@@ -1,0 +1,116 @@
+[
+  {
+    "file": "tests/test_aggregation_modes.py",
+    "class": "TestLateSettings",
+    "component": "Late aggregation settings",
+    "references": ["src/experts/levels.py", "scripts/train_models.py", "src/experts/expert.py"],
+    "design_refs": "Design §8.1, §8.2; config engagement.aggregate",
+    "objective": "Check the decision threshold for each aggregation mode, the mapping from window-mean feature names to per-student names, and that the hand-weighted baseline reads per-student columns in late mode.",
+    "module": "Engagement stage: settings that differ between early (one row per window) and late (one row per student per window) aggregation.",
+    "assumptions": "The hand-weighted weights come from configs/deliverable3.json, which names window-level keys such as vec.kg.stillness.mean.",
+    "prerequisites": "configs/deliverable3.json must be present and loadable.",
+    "steps": [
+      {"method": "test_late_scores_are_cut_at_the_label_share",
+       "execution": "Call decision_threshold with mixture_tau 0.5 and tau_share 0.6 for 'late' and for 'early'.",
+       "result": "Late returns 0.6 (tau_share). Early returns 0.5 (mixture_tau)."},
+      {"method": "test_window_mean_key_maps_to_the_student_feature",
+       "execution": "Call student_key on 'vec.kg.stillness.mean', 'vec.kg.stillness.std' and 'vec.n_tracks'.",
+       "result": "Returns 'trk.kg.stillness', 'vec.kg.stillness.std' and 'vec.n_tracks'. Only .mean keys are mapped."},
+      {"method": "test_hand_weighted_baseline_reads_students_in_late_mode",
+       "execution": "Load configs/deliverable3.json, set engagement to {aggregate: 'late', late_context: false}, and build a hand_weighted expert for experiment '02' with columns ['trk.kg.stillness', 'trk.scb.write'].",
+       "result": "The expert's selected column indices cover both columns, so the window-level weights were mapped to the per-student features."}
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_aggregation_modes.py",
+    "class": "TestNobodyVisible",
+    "component": "Late inference with no visible student",
+    "references": ["src/experts/levels.py"],
+    "design_refs": "Design §8",
+    "objective": "Check that late aggregation handles a session with no visible tracks: no rows are built, the model is not called, and every window gets the fill value.",
+    "module": "Engagement stage at inference, late aggregation.",
+    "assumptions": "Two windows whose only feature vec.a.mean is NaN, and an empty track table with columns window and tid (what to_track_frame returns with no tracks).",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_late_inference_without_any_student_falls_back_to_fill",
+       "execution": "Call late_rows with context off and fixed columns ['trk.a', 'vec.a.mean'], then predict_windows for windows [0, 1] with a stub model whose predict_proba raises an AssertionError, gate 0.5 and fill 0.3.",
+       "result": "late_rows returns X with shape (0, 2). predict_windows returns [0.3, 0.3] without calling the model."}
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_aggregation_modes.py",
+    "class": "TestRows",
+    "component": "Late row construction and window scores",
+    "references": ["src/experts/levels.py"],
+    "design_refs": "Design §8",
+    "objective": "Check that late rows carry each track's features plus optional window context, that fixed column lists fill missing columns with NaN, and that window scores average rows and fill empty windows.",
+    "module": "Engagement stage: builds expert inputs per (window, track) and turns row probabilities into window scores.",
+    "assumptions": "Three windows with vec.a.mean [1, 2, 3] and vec.n_tracks [2, 0, 1]; tracks in windows [0, 0, 2] with tids [7, 8, 7] and trk.a [0.5, 1.5, 3.0].",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_late_rows_carry_window_context",
+       "execution": "Call late_rows with context=True.",
+       "result": "Columns are ['trk.a', 'vec.a.mean', 'vec.n_tracks'], window indices are [0, 0, 2], and X is [[0.5, 1, 2], [1.5, 1, 2], [3, 3, 1]]."},
+      {"method": "test_late_rows_without_context_and_fixed_columns",
+       "execution": "Call late_rows with context=False, then again with fixed columns ['trk.a', 'trk.missing'].",
+       "result": "The first call has columns ['trk.a']. In the second call the 'trk.missing' column is all NaN."},
+      {"method": "test_window_scores_mean_rows_and_fill_empty_windows",
+       "execution": "Call window_scores with row probabilities [0.2, 0.6, 0.9], row windows [0, 0, 2], 3 windows and fill 0.4.",
+       "result": "Returns [0.4, 0.4, 0.9]: window 0 is the mean of 0.2 and 0.6, window 1 has no rows and gets the fill."}
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_aggregation_modes.py",
+    "class": "TestEarlyEqualsDirectMixture",
+    "component": "Early aggregation equivalence",
+    "references": ["src/experts/levels.py", "src/experts/mixture.py", "src/experts/expert.py"],
+    "design_refs": "Design §6, §8",
+    "objective": "Check that the row-based fitting path in early mode gives the same predictions as fitting the window-level mixture directly.",
+    "module": "Engagement stage, early aggregation (one row per window).",
+    "assumptions": "60 synthetic windows (seed 0) with features vec.x and vec.z, experiments alternating '01' and '02', and label y = (vec.x + 0.3 * noise > 0). Per-experiment soft mixture of logistic regression with seed 0. Gate probabilities [0.3, 0.7]. Windows 0-39 train, 40-59 test.",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_early_rows_reproduce_the_window_level_mixture",
+       "execution": "Build rows with early_rows and call fit_predict. Separately fit a new mixture on the training windows and predict the test windows.",
+       "result": "The two prediction arrays are equal (assert_allclose)."}
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_aggregation_modes.py",
+    "class": "TestStudentLabels",
+    "component": "Per-student labels for late aggregation",
+    "references": ["src/labels/window_labels.py", "src/labels/attention.py"],
+    "design_refs": "Design §8.1",
+    "objective": "Check that per-student labels use the same rule as the window label, so their mean equals the window's share engaged.",
+    "module": "Label side of late aggregation: per-student training targets.",
+    "assumptions": "Three synthetic students, each with one labeler giving a constant rating from 10:00:00 (4, 2 and 5).",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_student_labels_match_the_window_share",
+       "execution": "With WindowLabeler(tau_att=4, tau_share=0.5, min_labeled_students=1), call student_labels and label on the 8 s window from 10:00:00.",
+       "result": "student_labels returns {s1: 1.0, s2: 0.0, s3: 1.0}. The window's share_engaged equals their mean (2/3)."}
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_aggregation_modes.py",
+    "class": "TestFeaturePassRows",
+    "component": "Feature pass per-track rows",
+    "references": ["src/core/pipeline.py", "src/core/types.py"],
+    "design_refs": "Design §4, §6",
+    "objective": "Check that the feature pass emits one per-track row for each visible track in each window, consistent with the window's track count, and that the track frame has per-track feature columns.",
+    "module": "Feature pass of the pipeline (after tracking, before the engagement experts).",
+    "assumptions": "A synthetic SessionTrack with 100 frames at 5 fps (0 to 19.8 s), frame size 1280 x 720, and three fixed boxes. Tracks 0 and 1 are visible for all 20 s; track 2 only for the first 8 s (40 frames). Scene rows have motion 0. Settings come from configs/deliverable3.json.",
+    "prerequisites": "configs/deliverable3.json must be present. No video, detector or GPU is needed: the detector is built only on first use.",
+    "steps": [
+      {"method": "test_one_row_per_visible_track_per_window",
+       "execution": "Run Pipeline(cfg).features on the synthetic session, count track_rows per window, and convert with to_track_frame.",
+       "result": "The row count per window equals each window's n_tracks in the Vec. The track frame has a 'trk.kg.speed' column and its tids are {0, 1, 2}."}
+    ],
+    "comments": "-"
+  }
+]

@@ -1,0 +1,36 @@
+[
+  {
+    "file": "tests/test_spread.py",
+    "class": "TestSpread",
+    "component": "Within/between-cluster spread decomposition",
+    "references": ["src/cfmu/spread.py"],
+    "design_refs": "Design §10.4",
+    "objective": "Check that spread_decomposition splits the population variance of per-track descriptors exactly into within-cluster and between-cluster parts, and that the per-block between-cluster share behaves correctly in the limiting cases.",
+    "module": "CFMU (cluster feature unit), part of FYP-1. Not active in Deliverable III; the maths is implemented and tested ahead of the clustering step (§10.3), which is not built yet.",
+    "assumptions": "Synthetic inputs: x is a 20 x 4 matrix of standard-normal values and labels are random cluster ids in {0, 1, 2}, both from numpy default_rng(0). Some steps replace the labels or data with degenerate cases.",
+    "prerequisites": "None beyond the Python environment (numpy).",
+    "steps": [
+      {
+        "method": "test_within_plus_between_equals_total_population_variance",
+        "execution": "Call spread_decomposition(x, labels) on the random 20 x 4 data with 3 clusters.",
+        "result": "total_sd squared equals the population variance x.var(axis=0) per feature (rtol 1e-10), and within_sd squared plus between_sd squared equals total_sd squared. Observed: as expected."
+      },
+      {
+        "method": "test_single_cluster_has_no_between_spread",
+        "execution": "Call spread_decomposition with all 20 labels set to 0 and one block 'all' covering columns [0, 1, 2, 3].",
+        "result": "between_sd is 0 for every feature and between_share['all'] is exactly 0.0. Observed: as expected."
+      },
+      {
+        "method": "test_singletons_have_no_within_spread",
+        "execution": "Call spread_decomposition with labels 0..19 (every track its own cluster) and block 'a' covering columns [0, 1].",
+        "result": "within_sd is 0 for every feature (atol 1e-12) and between_share['a'] is 1.0 (assertAlmostEqual). Observed: as expected."
+      },
+      {
+        "method": "test_zero_total_spread_gives_zero_share",
+        "execution": "Call spread_decomposition on a 5 x 2 matrix of ones, labels [0, 0, 1, 1, 2], block 'b' covering columns [0, 1].",
+        "result": "Total variance is zero, so between_share['b'] is returned as 0.0 instead of a division by zero. Observed: as expected."
+      }
+    ],
+    "comments": "-"
+  }
+]

@@ -33,6 +33,7 @@ python scripts/downloading/validate_dipser_remote.py    # optional: check the lo
 | File | What | How to get it |
 |---|---|---|
 | `models/yolo11n.pt` | person detector (`detector.weights`) | Ultralytics release asset: `curl -L -o models/yolo11n.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt` |
+| `models/yolo11s-pose.pt` | head-pose keypoints (`bfmu` `head_pose`, experiment 09; `yolo11n-pose.pt` for the pilot's nano variant) | Ultralytics release asset: `curl -L -o models/yolo11s-pose.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s-pose.pt` |
 | `models/osnet_x0_25_msmt17.pt` | ReID appearance model of the tracker (BoT-SORT with `use_embeddings`, the tuned T2 setting) | BoxMOT's default ReID model, downloaded by BoxMOT itself the first time a tracker with ReID runs from the repo root |
 
 ### SCB behaviour checkpoints (`data/SCB-ST-Dataset4/`, git-ignored)

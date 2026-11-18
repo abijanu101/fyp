@@ -148,7 +148,7 @@ tracks update, unmatched detections can start new tracks, and tracks unmatched f
 (`max_lost_frames`) are dropped. Optionally it also compares appearance (ReID embeddings of each
 person crop) and compensates for camera motion (CMC). The current config has both off, the
 winner of the quick tuning search; which tracker and options become the default is being
-decided by three full-dataset experiments (Chapter 8, and `docs/experiments/02_boxmot.md`).
+decided by three full-dataset experiments (Chapter 8, and `docs/experiments/03_tracking.md`).
 
 ### The wrapper
 
@@ -215,24 +215,80 @@ sliding, which the Kalman velocity already captures. So:
 
 ### SCB behaviour detector (`src/bfmu/scb.py`)
 
-SCB is a YOLOv7 model trained by the SCB dataset authors on classroom images, with classes
-`hand-raising`, `read`, `write`. On DIPSER its class decisions transfer poorly (`read` fires on
-anyone looking down at a desk or a device). So by default (`mode: "soft"`) we do not use its
-decisions at all; we pass its raw scores along and let our own models learn what they mean here:
+SCB is a YOLOv7 model trained by the SCB dataset authors on classroom images. It is the only
+component meant to say *what a student is doing* rather than *how they move* (design §5c).
+
+**Which checkpoint.** The design named `wintonYF/SCB3-YOLOv7`, which does not exist; the official
+SCB3 student models are only on Baidu Netdisk, the authors' Hugging Face runs are all on a
+*teacher*-behaviour subset, and the hobby models on GitHub have subjective classes and no reported
+accuracy. The usable weights are the authors' YOLOv7 student runs shipped inside the downloaded
+dataset (`data/SCB-ST-Dataset4/`); final validation numbers from each run's `results.txt`:
+
+| Checkpoint (`data/SCB-ST-Dataset4/...`) | Classes | mAP50 | mAP50-95 |
+|---|---|---|---|
+| **`SCB5-Handrise-Read-write-2024-9-17/exp/weights/best.pt`** (used) | hand-raising, read, write | 0.74 | 0.57 |
+| `SCB5-Discuss-2024-9-17/exp/weights/best.pt` | discuss | 0.75 | 0.39 |
+| `SCB_BowTurnHead_20250509/exp/exp/weights/best.pt` | BowHead, TurnHead | 0.22 | 0.08 |
+
+That covers three of the design's six behaviours: bowing the head has only a weak model, and phone
+use and leaning over the table have none. The model is YOLOv7 with 37.2M parameters; YOLOv7's model
+code comes from `lib/yolov7` and the checkpoint is loaded without running pickled code (Chapter 11,
+§11.1 and §11.2).
+
+**Its classes do not transfer to DIPSER.** A check on 12 random frames
+(`python -m scripts.data_visualization.check_scb`, images in `outputs/scb_check/`):
+- `read` fires on anyone looking down at a desk *or a device*: in the Canva design task, 15 of about
+  17 students, most of them on phones, tablets and laptops. SCB has no device class, so `read` is in
+  effect "head down at something" (and the de facto device-use signal, §11.6).
+- `hand_raising` fires on hand-to-face poses: both detections in the sample were students resting
+  their head on a hand; nobody actually raised a hand.
+- `write` is rare and mostly wrong (one detection in 12 frames, on a phone user).
+- Students facing forward get no detection, which is right: SCB has no "listening" class.
+
+The boxes land on the right students; only the class names are wrong, the domain shift the design
+warned of (trained on classrooms with paper, raised hands and no laptops).
+
+**So the pipeline passes its scores, not its decisions** (`mode: "soft"`, the default) and lets our
+own models learn what they mean on DIPSER. "Wrong but consistent" is then useful, and confusion is
+information too (0.4 on both read and write differs from 0.8 on read alone):
 
 1. run YOLOv7 and keep every candidate box with objectness of at least 0.01 (`obj_floor`, which
    only drops empty anchors) with its per-class probabilities, before any class threshold or
-   non-maximum suppression;
+   non-maximum suppression (which would delete the overlapping, confused candidates);
 2. assign each candidate to the single track it overlaps best, if it lies at least half inside
    that track's box;
 3. per track: the highest `objectness × class probability` per class, and the highest objectness
-   alone. Zero if no candidate landed on the person.
+   alone. Zero if no candidate landed on the person. YOLOv7's class probabilities are independent
+   sigmoids, so classes can co-fire.
 
 That gives four signals per person per frame: `scb.hand_raising`, `scb.read`, `scb.write`,
-`scb.m0.obj`. The alternative `mode: "flags"` (thresholded detections, 0/1 per class) is kept so
-the two can be compared.
+`scb.m0.obj`; the window keeps the mean and the peak of each (Chapter 6), the peak preserving brief
+events such as a hand going up for one second. The alternative `mode: "flags"` (thresholded,
+NMS'd detections, a 0/1 flag per class) is kept so the two can be compared.
 
-Loading the checkpoint safely and the environment quirks around it are covered in Chapter 11.
+What soft scores look like, on the first 40 frames of the Canva session above (mean / peak per
+track):
+
+| Track | read | write | hand_raising | objectness |
+|---|---|---|---|---|
+| 0 | 0.84 / 0.91 | 0.02 / 0.08 | 0.00 / 0.01 | 0.84 / 0.91 |
+| 1 | 0.05 / 0.18 | 0.00 / 0.01 | 0.01 / 0.02 | 0.05 / 0.18 |
+| 3 | 0.52 / 0.88 | 0.01 / 0.03 | 0.05 / 0.44 | 0.52 / 0.88 |
+| 9 | 0.49 / 0.87 | 0.33 / 0.81 | 0.01 / 0.01 | 0.60 / 0.87 |
+
+Where flags would mark nearly everyone `read = 1`, soft scores grade students from 0.05 to 0.84;
+track 9 sits between read and write, and track 3's brief hand-raising blip survives only in the
+peak. Objectness closely follows the strongest class and may be redundant.
+
+**Tools.** `scripts.data_visualization.check_scb` (the 12-frame check) and
+`scripts.data_visualization.scb_viewer <group> <experiment> <camera>` (plays a camera with SCB
+boxes, a confidence slider and a detection timeline per class; Chapter 8).
+
+**Open.** SCB is the second most expensive stage (§5.8). Whether it earns that cost is the
+feature-family ablation (all features against without SCB), not yet run; what its columns track per
+labeler is in experiment 08, Appendix A. Possible additions: the BowTurnHead model in soft mode
+(weak, but head pose matters for attention; experiment 09 measures the head directly instead), or a
+frozen image encoder on student crops in place of fixed classes.
 
 ## 5.7 Scene features for the gate (`src/spu/scene.py`)
 

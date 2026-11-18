@@ -105,7 +105,7 @@ nothing. Put comments on their own line.
   variants each), in the user's terminal.
 - **Augmented tracker scans T2** next (BoT-SORT, BoT-SORT + ReID + CMC, StrongSORT; beam
   bisection from the clean winners). The clean scans T1 are complete: BoT-SORT 0.905 IDF1,
-  StrongSORT 0.878 (`docs/experiments/02_boxmot.md` §6); the clean BoT-SORT + ReID scan was
+  StrongSORT 0.878 (`docs/experiments/03_tracking.md` §6); the clean BoT-SORT + ReID scan was
   dropped as not needed for seeding.
 - **Full extraction and training** follow once the tracker is chosen.
 
@@ -145,7 +145,7 @@ These wait on the full extraction of all 52 sessions, which is best run once the
 - **CMC on for every full-dataset tracker trial**, for reliability: no full-dataset result depends
   on the blank-frame shortcut.
 - **SCB in soft mode.** On DIPSER, `read` fires on anyone looking down at a desk or device and
-  `hand_raising` on hand-to-face poses (`docs/experiments/03_scb.md`). Raw scores are passed to the
+  `hand_raising` on hand-to-face poses (Chapter 5, SCB behaviour detector). Raw scores are passed to the
   experts instead of decisions; a with/without-SCB comparison will decide whether it stays.
 - **In the window-grid paths, late aggregation is the configured mode; early is a config switch
   away** (`engagement.aggregate`), so the two can be compared on the same features and labels.
@@ -216,7 +216,7 @@ through the code (Chapter 9, §9.6–9.7).
   `HandWeightedExpert` silently skips it (`src/experts/expert.py`).
 - Evidence for a substitute: on DIPSER, SCB's `read` fires on students looking at phones, tablets
   and laptops (15 of about 17 students tagged `read` in a Canva session;
-  `docs/experiments/03_scb.md`, §4). `read` is the de facto device-use signal.
+  guide Chapter 5, SCB). `read` is the de facto device-use signal.
 - Options: (a) remove both keys; (b) point `phone_key` at `vec.scb.read.mean`, so the per-activity
   signs apply to the signal that actually tracks device use (it would then replace `read`'s fixed
   0.5 weight); (c) keep as is for a future SCB model with a phone class.
@@ -245,7 +245,7 @@ Both are in the tracking hash, so changing them forces a needless frame pass whi
 **☑ 5. `tracker.options.det_thresh`: removed.** BoxMOT 26 stores it but neither BoT-SORT nor
 StrongSORT reads it. Removed from the config and from `tune_tracker`; the detector's own threshold
 (`detector.conf`) is the only confidence filter, and it was verified not to drop any student
-(`docs/experiments/02_boxmot.md`, §3).
+(`docs/experiments/02_detection.md`, §3).
 
 **☑ 7. On-the-fly augmentation.** Augmented copies are no longer written to disk at all (the
 materialised datasets and `scripts/augment_dataset.py` were removed on 15 November 2026): frames are
@@ -254,7 +254,7 @@ training run, raise `augmentation.copies` as far as extraction time allows; no d
 
 **☑ 6. StrongSORT scan restarted with its quick-tuned baseline, and complete.** Migrated (trials
 1–5 kept, trial 0 re-ran at 0.843), finished at a best IDF1 of 0.878
-(`docs/experiments/02_boxmot.md`, T1). The BoT-SORT scan was restarted with `--fresh` instead of
+(`docs/experiments/03_tracking.md`, T1). The BoT-SORT scan was restarted with `--fresh` instead of
 migrated; its recomputed trials matched the old ones exactly.
 
 ## 11.7 Change log: 15–16 November 2026
@@ -266,7 +266,7 @@ names where the details are.
 
 - `scan_detector --augment` defaults to 5 variants per frame (was 5–10) and prints every frame; the
   augmented detector scan D3 and the augmented tracker scans T2 are ready to run
-  (`docs/experiments/02_boxmot.md`). T1 is complete: BoT-SORT 0.905 vs StrongSORT 0.878 IDF1.
+  (`docs/experiments/03_tracking.md`). T1 is complete: BoT-SORT 0.905 vs StrongSORT 0.878 IDF1.
 
 **Analysis and reference documents**
 

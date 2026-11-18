@@ -200,7 +200,7 @@ python -m scripts.train_models --set engagement.labelers='"consensus"' engagemen
 Each writes its own `outputs/results/<hash>.json` (the setting is part of the config hash) with the
 same window-level metrics. Also check `data.row_label_coverage` in the late results: the share of
 student rows that could be linked to a labelled student. Low coverage means association, not the
-model, is limiting late aggregation. `engagement.late_context=false` tests whether students'
+model, is limiting late aggregation. `engagement.use_class_context=false` tests whether students'
 own features carry any signal without the classroom context.
 
 Compare the two on AUC first. F1 and balanced accuracy depend on each mode's

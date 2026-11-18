@@ -226,7 +226,7 @@ must re-run after changing it.
 | `gate`, `gate_uses_vec` | training | gate model and its inputs |
 | `context_mode` | nothing yet | unused: training reports both oracle and classified context, inference always uses classified |
 | `expert`, `hand_weighted`, `mixture` | training | expert model, baseline weights, mixing |
-| `engagement` | training | `labelers`: `per_labeler` (default), `consensus` or `ensemble`; for the window-grid paths, `aggregate`: `late` (experts see each student) or `early` (experts see Vec); `late_context`; `ensemble_exclude` |
+| `engagement` | training | `labelers`: `per_labeler` (default), `consensus` or `ensemble`; for the window-grid paths, `aggregate`: `late` (experts see each student) or `early` (experts see Vec); `use_class_context`; `ensemble_exclude` |
 | `augmentation` | extraction, training | augmented training copies and their transform ranges |
 | `labels` | label pipeline | `tau_att`, `tau_share`, minimum labelled students, offset, `students`, `train_target`, `interp` |
 | `output` | inference, `plot_results` | PNG smoothing; prediction mode (`per_labeler` or `majority`) and majority resolution |

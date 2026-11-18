@@ -280,7 +280,7 @@ go with *not* engaged):
 
 SCB scores separate students (which students are rated less attentive) more than moments:
 students on whom `read` and `write` fire are rated *less* engaged, consistent with `read`
-firing on device use (`03_scb.md`). Residual flow works within sessions.
+firing on device use (guide Chapter 5, SCB). Residual flow works within sessions.
 
 ### 6.4 The models use the signal worse than one feature does
 
@@ -346,5 +346,5 @@ testable on the full extraction (or already on these six sessions).
    Tracks that move across the room or never sit in one place could be excluded by a simple
    position or stillness rule, which needs no identity.
 
-Prerequisites, unchanged: the full extraction once the tracker is chosen (`02_boxmot.md`, §7), and
+Prerequisites, unchanged: the full extraction once the tracker is chosen (`03_tracking.md`, §7), and
 a decision on the label target (Chapter 11 of the guide).

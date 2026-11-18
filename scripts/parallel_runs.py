@@ -12,7 +12,7 @@ extract
   window .csv is written last), so it is resumable and raising `copies` only extracts the new ones.
 
 tracker-scans
-  The augmented tracker scans (docs/experiments/02_boxmot.md, T2), all at once:
+  The augmented tracker scans (docs/experiments/03_tracking.md, T2), all at once:
   1. prepare  every session's floor-level detections and, where a scan can use ReID, its embeddings,
               in GPU worker processes: each session's frames are decoded and augmented ONCE for both
               (tune_tracker would read them twice, one session at a time).

@@ -1,0 +1,131 @@
+[
+  {
+    "file": "tests/test_stages.py",
+    "class": "TestWindows",
+    "component": "Windowing (aggregation)",
+    "references": ["src/aggregation/windows.py"],
+    "design_refs": "-",
+    "objective": "Check that a session's time span is cut into fixed-length windows with the configured fractional overlap, and that a span shorter than one window gives no windows.",
+    "module": "Feature pass: splits a session into overlapping fixed-length windows before per-track features are aggregated into one vector per window.",
+    "assumptions": "Times are plain seconds. A trailing partial window is dropped by design.",
+    "prerequisites": "None beyond the Python environment (numpy).",
+    "steps": [
+      {"method": "test_overlap",
+       "execution": "Call make_windows(t_first=0, t_last=16, length_s=8, overlap=0.5).",
+       "result": "Three windows are returned with (t_start, t_end) = (0, 8), (4, 12), (8, 16): a step of 4 s, as expected for 50% overlap."},
+      {"method": "test_too_short",
+       "execution": "Call make_windows(0, 5, 8, 0.5): a 5 s span with 8 s windows.",
+       "result": "An empty list is returned."}
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_stages.py",
+    "class": "TestTracklets",
+    "component": "Tracklet building and visibility filtering",
+    "references": ["src/tracking/tracklets.py", "src/core/types.py"],
+    "design_refs": "Design §4 (stage 4)",
+    "objective": "Check that per-frame tracker states are assembled into tracklets with their per-frame signals, and that filter_visible splits a tracklet only where the tracker lost it, not where the camera dropped frames.",
+    "module": "Feature pass, first step: turns the frame-pass tracker output into tracklets and removes short or broken pieces before windowing.",
+    "assumptions": "A synthetic tracker output stands in for real tracks: one track (TID 7) with a fixed box [0, 0, 10, 10], confidence 0.9 and a per-frame signal 'sig' equal to the frame time. Gaps are counted in existing frames that lack the track, converted to seconds with the given fps.",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_split_where_tracker_lost_the_track",
+       "execution": "Frames exist every 0.2 s from 0 to 3.8 s (5 fps). The track is present at t = 0, 0.2, 0.4, 0.6, 2.4, 2.6, so it is absent from 8 existing frames (1.6 s). Build the tracklet, then call filter_visible with fps 5, max_gap_s 1.0 and min_visible_s 0.0, then again with min_visible_s 0.7.",
+       "result": "The built tracklet's 'sig' signal equals the input times [0, 0.2, 0.4, 0.6, 2.4, 2.6]. With min_visible_s 0.0 the tracklet is split into two pieces of 4 and 2 observations. With min_visible_s 0.7 only the 4-observation piece (0.8 s visible) is kept; the 2-observation piece (0.4 s) is dropped."},
+      {"method": "test_camera_frame_drop_is_not_a_gap",
+       "execution": "Frame times are [0, 0.2, 0.4, 0.6, 3.6, 3.8]: the camera dropped 3 s of frames, but the track is present in every frame that exists. Call filter_visible with fps 5, min_visible_s 0.0, max_gap_s 1.0.",
+       "result": "One piece with all 6 observations is returned; the wall-clock jump of 3 s is not treated as a tracking gap."}
+    ],
+    "comments": "The second step documents a property of the DIPSER footage: cameras drop frames for several seconds, and a track that keeps its TID across such a drop was not lost by the tracker."
+  },
+  {
+    "file": "tests/test_stages.py",
+    "class": "TestAssociation",
+    "component": "SID-TID association",
+    "references": ["src/tracking/association.py"],
+    "design_refs": "Design §4",
+    "objective": "Check that tracks are linked to annotated student boxes by per-frame Hungarian IoU matching and a majority vote, and that a person who only passes over a student's box is not linked to that student.",
+    "module": "Training and evaluation only: links tracker IDs (TIDs) to the manually annotated subject IDs (SIDs) so per-student labels can be attached to tracks. Not used at inference.",
+    "assumptions": "Subject annotations are one static box per subject, as in DIPSER. Synthetic tracklets of 20 frames (0.4 s apart) with 50 x 100 px boxes stand in for tracker output. min_iou = 0.3.",
+    "prerequisites": "None beyond the Python environment (numpy, scipy).",
+    "steps": [
+      {"method": "test_majority_vote",
+       "execution": "Two subject boxes: subject_01 at [100, 100, 150, 200] and subject_02 at [400, 100, 450, 200]. Three static tracks: TID 1 on subject_01's box, TID 2 on subject_02's box, TID 3 at x = 900 (overlapping no subject). Call associate_sids with min_iou 0.3 and min_match_share 0.5.",
+       "result": "The result is exactly {1: 'subject_01', 2: 'subject_02'}; TID 3 is left unassociated."},
+      {"method": "test_walker_passing_a_student_stays_unassociated",
+       "execution": "One subject box (subject_01). TID 1 sits still on that box. TID 9 has 40 frames and moves right at 50 px/s from x = 0, so it sweeps across the student's box for a few frames. Call associate_sids on both tracks with min_match_share 0.5, then on the walker alone with min_match_share 0.0.",
+       "result": "With both tracks and min_match_share 0.5 the result is exactly {1: 'subject_01'}; the walker (TID 9) gets no SID. With the walker alone and min_match_share 0.0 (the earlier behaviour without the share guard), TID 9 is associated."}
+    ],
+    "comments": "The second call in test_walker_passing_a_student_stays_unassociated reproduces the earlier behaviour on purpose, to show the case the min_match_share guard was added for (a teaching assistant walking past a seated student)."
+  },
+  {
+    "file": "tests/test_stages.py",
+    "class": "TestKalmanGeometry",
+    "component": "BFMU (a): Kalman/geometry motion features",
+    "references": ["src/bfmu/kalman_geometry.py", "src/bfmu/base.py"],
+    "design_refs": "Design §5a",
+    "objective": "Check the per-track window features computed from box motion: speed normalised by the box diagonal, stillness, and aspect trend, and the choice between the tracker's Kalman velocity and finite differences.",
+    "module": "Feature pass: per-track behaviour features computed from tracker output only, later aggregated per window.",
+    "assumptions": "A synthetic tracklet of 20 frames, 0.4 s apart, with a 50 x 100 px box moving right at 10 px/s stands in for a real track. Default still_threshold is 0.05 diagonals/s. The extractor is built through the FEATURE_EXTRACTORS registry.",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_finite_difference_speed",
+       "execution": "Build 'kalman_geometry' with use_kalman=True. The tracklet's Kalman velocity is NaN, so the extractor must fall back to finite differences. Call window_features(tracklet, fps=2.5).",
+       "result": "kg.speed equals 10 / hypot(50, 100) (about 0.0894 diagonals/s) to 6 decimal places; kg.stillness is 0.0 (the track is always above the threshold); kg.aspect_trend is 0.0 (the box shape does not change)."},
+      {"method": "test_kalman_velocity_preferred_when_present",
+       "execution": "Build 'kalman_geometry' with defaults. Take the same moving tracklet but set its Kalman velocity to [0, 0] on every frame (the tracker reports the person as still). Call window_features with fps 2.5.",
+       "result": "kg.stillness is 1.0: the finite Kalman velocity is used instead of the box displacement."}
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_stages.py",
+    "class": "TestAggregation",
+    "component": "Window aggregation (class-level vector Vec)",
+    "references": ["src/aggregation/vec.py", "src/cfmu/extractor.py"],
+    "design_refs": "Design §6",
+    "objective": "Check that every window produces the same set of keys, that windows without visible tracks give NaN statistics, and that track count, threshold fractions and the occupancy heatmap are computed correctly.",
+    "module": "Feature pass: combines the per-track features of all visible tracks in a window into one fixed-length class-level vector (Vec).",
+    "assumptions": "Two synthetic tracklets (20 frames, 0.4 s apart, so t = 0 to 7.6 s): TID 1 moving at 10 px/s, TID 2 still. One BFMU extractor (kalman_geometry), the null CFMU extractor, a threshold of 0.5 on kg.stillness, frame size 1280 x 720, default 3 x 3 heatmap and min_coverage 0.5.",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_vec_keys_stable_and_nan_when_empty",
+       "execution": "Aggregate window [0, 8) with both tracklets (fps 2.5), and window [100, 108) with TID 1, which has no observations there.",
+       "result": "Both vectors have the same sorted key set. The full window has n_tracks = 2.0 and kg.stillness.frac = 0.5 (one still track of two). The empty window has kg.speed.mean = NaN. The occupancy keys (occ_*) of the full window sum to 1.0."}
+    ],
+    "comments": "-"
+  },
+  {
+    "file": "tests/test_stages.py",
+    "class": "TestConfigAndWiring",
+    "component": "Configuration hashing, cache keys, pipeline wiring, track store and output graph",
+    "references": ["src/core/config.py", "src/core/pipeline.py", "src/core/store.py", "src/output/graph.py"],
+    "design_refs": "Design §3, §9",
+    "objective": "Check that config hashes and the two cache keys (frame pass and feature pass) change exactly when the settings they depend on change, that the pipeline can be built and run from a cached track without a GPU or video, that the track cache round-trips, and that the output graph carries no identity fields.",
+    "module": "Core wiring: config loading and hashing select cached results; the Pipeline builds every stage from the config; the track store persists the frame pass; build_graph writes the final retention graph.",
+    "assumptions": "configs/deliverable3.json is the reference config. It names configs/derived.py, which reads values from experiment results files. Synthetic tracklets and scene rows stand in for a real frame pass. The SCB behaviour detector loads its weights on first use, so building the pipeline needs no weights.",
+    "prerequisites": "Run from the repository root. configs/deliverable3.json and configs/derived.py must be present, and the results files read by configs/derived.py (outputs/tuning/detector_search_augmented.json and outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_bisect.json) must exist. No GPU, video or model weights are needed. test_track_store_round_trip writes only to a temporary directory.",
+    "steps": [
+      {"method": "test_hash_excludes_output_dir_and_tuning",
+       "execution": "Load the config three times: unchanged; with output_dir = 'elsewhere' and tuning.seed = 7; with labels.tau_att = 3. Compute config_hash for each.",
+       "result": "The first two hashes are equal (output_dir and tuning are excluded). The hash with labels.tau_att = 3 differs from the base hash."},
+      {"method": "test_cache_keys_split_frame_pass_from_feature_pass",
+       "execution": "Build config variants: labels.tau_att = 3; window.length_s = 10; kalman_geometry still_threshold = 0.1 (bfmu[0], a window-level setting); residual_flow grid + 1 (bfmu[1], a pixel-level setting); tracker.name = 'strongsort'. Compute tracking_hash and feature_hash for each and compare with the base config.",
+       "result": "The label change leaves feature_hash unchanged. The window length and still_threshold changes leave tracking_hash unchanged but change feature_hash (feature pass only). The residual_flow grid and tracker changes change both tracking_hash and feature_hash (a new frame pass is needed)."},
+      {"method": "test_pipeline_builds_without_gpu",
+       "execution": "Construct Pipeline(cfg) from the reference config.",
+       "result": "Construction succeeds and the extractor classes, in order, are ['KalmanGeometry', 'ResidualFlow', 'ScbBehaviour']."},
+      {"method": "test_track_store_round_trip",
+       "execution": "Build a SessionTrack (group_01 / experiment_02 / context_cam_03, 30 frame times 0.4 s apart, frame size 1280 x 720) with two tracklets: TID 1 with velocity [1.5, -2.0] and a signal 'rf.mag_00' (linspace 0 to 1), and TID 4 (5 frames) with no signals. Save it with save_track to a temporary .npz and load it with load_track.",
+       "result": "Key, frame size, timing and scene rows are equal to the original. Tracklet TIDs are [1, 4]. For each tracklet the t, xyxy, conf and velocity arrays are equal to the original. TID 1's 'rf.mag_00' signal is equal to the original; TID 4's 'rf.mag_00' is all NaN."},
+      {"method": "test_feature_pass_runs_from_a_track_without_video",
+       "execution": "Build a SessionTrack with 100 frame times 0.2 s apart (0 to 19.8 s, fps 5), three still tracklets of 100 frames at x = 100, 300 and 500, scene rows {'motion': 0.0}, and no session key. Override window to length 8 s with 50% overlap and call Pipeline(cfg).features(track).",
+       "result": "Three windows are produced. Each window's vector has n_tracks = 3.0. The first window's scene features contain 'motion.mean'."},
+      {"method": "test_graph_has_no_identity_fields",
+       "execution": "Call build_graph with one window [0, 8), context probabilities [[0.2, 0.8]], classes ['01', '02'], engagement probability [0.7], track count [12] and tau 0.5.",
+       "result": "The record's keys are exactly {t_start, t_end, predicted_context, layout_family, engaged, engagement_prob, n_visible_tracks}: no box, TID or SID. predicted_context.label is '02'."}
+    ],
+    "comments": "test_feature_pass_runs_from_a_track_without_video pins the window settings (8 s, 50%) so the expected window count does not depend on the value in the config file (4 s at the time of writing)."
+  }
+]

@@ -301,7 +301,7 @@ Values are the current ones. "Re-run" uses the marks of §9.5.
 | `ingestion.stride` | 1 | keep every n-th frame. Faster, but lowers the measured fps, and frame-counted tracker settings (`max_lost_frames`) then span more seconds | F |
 | `ingestion.max_frames` | null | stop after n frames (smoke tests); null = all | F |
 | `detector.weights` | `models/yolo11n.pt` | YOLO checkpoint; only the person class is kept | F |
-| `detector.conf` | 0.22 | confidence a person box needs to reach the tracker; the only confidence filter before tracking. Lower = more people found, more false boxes. Verified not to drop any student (`docs/experiments/02_boxmot.md`, §3; `scripts/tuning/scan_detector.py`) | F |
+| `detector.conf` | 0.22 | confidence a person box needs to reach the tracker; the only confidence filter before tracking. Lower = more people found, more false boxes. Verified not to drop any student (`docs/experiments/02_detection.md`, §3; `scripts/tuning/scan_detector.py`) | F |
 | `detector.imgsz` | 640 | YOLO input size in pixels. Higher = far students found better, slower | F |
 | `detector.half` | true | half precision on the GPU (ignored on CPU) | F |
 | `scene.size` | [64, 36] | the frame is shrunk to this many pixels before the gate's scene features are computed | F |
@@ -376,7 +376,7 @@ differently.
 |---|---|---|---|---|---|---|
 | `residual_flow.grid` (BFMU entry) | 3 | each **student's box**, in the flow image (frame scaled by `residual_flow.scale`) | mean residual-flow magnitude in box diagonals per second: body-part motion after the box's own drift is removed (Chapter 5) | g² per student per frame (`rf.mag_ij`, row i, column j); per window `trk.rf.mag_ij` per student and `vec.rf.mag_ij.mean` / `.std` | the engagement experts | F |
 | `scene.grid` | 3 | the **whole frame**, after shrinking to `scene.size` (64 × 36) | mean grey level of the cell | g² per frame (`int_ij`); per window `scene.int_ij.mean` / `.std` | the activity gate | F |
-| `aggregation.heatmap_grid` | 3 | the **whole frame** (full resolution) | share of the window's visible students whose mean centre falls in the cell (sums to 1) | g² per window (`vec.occ_ij`) | the experts (as class context, with `late_context`) | P |
+| `aggregation.heatmap_grid` | 3 | the **whole frame** (full resolution) | share of the window's visible students whose mean centre falls in the cell (sums to 1) | g² per window (`vec.occ_ij`) | the experts (as class context, with `use_class_context`) | P |
 
 **Cost.** None of the three changes the expensive work. The flow is computed once per frame
 whatever its grid (the grid only pools it; `residual_flow.scale` is what costs), the scene image is
@@ -417,7 +417,7 @@ columns change.
 | `mixture.expert_scope` | `per_experiment` | six experts, one per activity; `shared` = one for all | T |
 | `mixture.tau` | 0.5 | engaged cut-off in **early** aggregation (unused in late) | T |
 | `engagement.aggregate` | `late` | `late`: score each student, average per window; `early`: score Vec (§7.5) | T |
-| `engagement.late_context` | true | late only: append the window's Vec to every student row | T |
+| `engagement.use_class_context` | true | append the window's class-level columns (Vec) to every student row, before training (one model, more inputs). Called `late_context` before 18 Nov 2026; configs with the old name still load (`src/core/config.py`, `use_class_context`) | T |
 | `engagement.labelers` | `per_labeler` | `per_labeler`: one model per labeler, trained on windows centred on each rating entry and evaluated per label (§7.9, `docs/misc/targets.md` §7); `pooled`: the same windows and evaluation, but one model trained on every labeler's rows that answers for all of them (the aggregated ablation of experiment 06); `consensus`: train on the median-of-labelers window label; `ensemble`: one model per labeler on the window grid, averaged over the labelers who rated each student (§7.5). `consensus` and `ensemble` are the window-grid paths. `plot_results`, `tune_models` and the output viewer support all three | T |
 | `engagement.ensemble_exclude` | `["self_labeling"]` | labelers left out of the ensemble (the self-ratings by default) | T |
 | `context_mode` | `classified` | **unused**: training always reports both, inference always uses classified | T |

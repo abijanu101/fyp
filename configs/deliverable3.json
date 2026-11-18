@@ -45,7 +45,7 @@
     "phone_sign": {"01": 1, "02": -1, "03": -1, "04": 1, "05": 1, "06": 0}
   },
   "mixture": {"mode": "soft", "expert_scope": "per_experiment", "tau": 0.5},
-  "engagement": {"aggregate": "late", "late_context": true,
+  "engagement": {"aggregate": "late", "use_class_context": true,
                  "labelers": "per_labeler", "ensemble_exclude": ["self_labeling"]},
 
   "augmentation": {"copies": 0, "seed": 0,

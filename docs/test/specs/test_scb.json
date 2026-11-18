@@ -1,0 +1,99 @@
+[
+  {
+    "file": "tests/test_scb.py",
+    "class": "TestScbExtractor",
+    "component": "SCB student-behaviour feature extractor (BFMU c)",
+    "references": ["src/bfmu/scb.py", "src/bfmu/base.py", "src/tracking/association.py"],
+    "design_refs": "Design §5c",
+    "objective": "Check the parts of the SCB extractor that do not need the detector network: feature key naming, assignment of behaviour boxes and candidate scores to tracks, per-class confidence thresholds, and window feature computation, in both 'soft' and 'flags' modes.",
+    "module": "Behaviour feature unit in the per-frame pass: turns SCB YOLOv7 behaviour detections (hand raising, read, write) into per-track, per-frame signals, then into window features for the engagement experts.",
+    "assumptions": "Synthetic boxes, scores and tracklets. The extractor is built with weights 'unused.pt' and classes ['hand_raising', 'read', 'write']; the detector is never loaded, so the YOLOv7 inference path (frame_signals) is not exercised here. min_overlap is 0.5.",
+    "prerequisites": "None beyond the Python environment (numpy, scipy). No SCB weights and no GPU are needed, because the detectors load lazily on first use.",
+    "steps": [
+      {
+        "method": "test_keys_known_without_loading_weights",
+        "execution": "Build one extractor in 'flags' mode and one in 'soft' mode from the registry and read their keys.",
+        "result": "Flags mode keys are ('scb.hand_raising', 'scb.read', 'scb.write'). Soft mode keys are each class plus its '.max' variant, then the objectness key: ('scb.hand_raising', 'scb.hand_raising.max', 'scb.read', 'scb.read.max', 'scb.write', 'scb.write.max', 'scb.m0.obj', 'scb.m0.obj.max'). _detectors is still None. Observed: as expected."
+      },
+      {
+        "method": "test_soft_scores_take_max_of_candidates_per_track",
+        "execution": "Two track boxes [0,0,100,200] and [120,0,220,200]. Four candidate boxes: two inside track 0, one inside track 1, one at [400,0,450,50] that overlaps no track. Each candidate has 4 scores. Call soft_scores.",
+        "result": "Track 0 gets the column-wise maximum of its two candidates, [0.2, 0.7, 0.3, 0.8]. Track 1 gets its single candidate's scores, [0.4, 0.0, 0.1, 0.5]. The outside candidate (scores 0.9) is discarded. Observed: as expected."
+      },
+      {
+        "method": "test_soft_candidate_goes_to_one_track_only",
+        "execution": "Two identical track boxes [0,0,100,200] (duplicate tracks on one student) and one candidate [10,10,50,50] with score 1.0. Call soft_scores.",
+        "result": "The output sums to 1.0, so the candidate is credited to exactly one track, not both. Observed: as expected."
+      },
+      {
+        "method": "test_soft_window_features_mean_and_peak",
+        "execution": "Tracklet of 4 frames with signal scb.hand_raising = [0, 0, 0.8, 0]. Call window_features in soft mode with fps 5.0.",
+        "result": "scb.hand_raising = 0.2 (window mean) and scb.hand_raising.max = 0.8 (window peak). Observed: as expected."
+      },
+      {
+        "method": "test_normalize_class",
+        "execution": "Call normalize_class on 'hand-raising', 'Read', 'Using Phone'.",
+        "result": "Returns 'hand_raising', 'read', 'using_phone' (lower case, '-' and ' ' replaced by '_'). Observed: as expected."
+      },
+      {
+        "method": "test_behaviour_box_assigned_to_containing_track",
+        "execution": "Flags mode. Track boxes [0,0,100,200] and [120,0,220,200] with track ids [7, 9]. Behaviour boxes [130,40,200,120] (inside the second track) and [400,0,450,50] (outside both). Call match.",
+        "result": "Returns [9]: only the track that contains the box is flagged; the outside box flags nobody. Observed: as expected."
+      },
+      {
+        "method": "test_one_box_flags_one_track",
+        "execution": "Flags mode. Two identical track boxes [0,0,100,200] with ids [1, 2] and one behaviour box [10,10,50,50]. Call match.",
+        "result": "The returned list has length 1: one-to-one (Hungarian) matching flags one track, not both duplicates. Observed: as expected."
+      },
+      {
+        "method": "test_class_conf_overrides_default",
+        "execution": "Build a flags-mode extractor whose model spec has conf 0.25 and class_conf {'hand_raising': 0.6}. Read thresholds.",
+        "result": "thresholds == [[0.6, 0.25, 0.25]]: hand_raising uses its own threshold, read and write fall back to conf. Observed: as expected."
+      },
+      {
+        "method": "test_window_feature_is_share_of_flagged_frames",
+        "execution": "Flags mode. Tracklet of 10 frames with scb.write = [1, 1, 1, 0, 0, 0, 0, 0, 0, 0] and no scb.read signal. Call window_features with fps 5.0.",
+        "result": "scb.write = 0.3 (3 of 10 frames flagged). scb.read is NaN because the signal is absent. Observed: as expected."
+      }
+    ],
+    "comments": "The thresholds (conf, class_conf) only apply in flags mode; soft mode uses no thresholds or NMS."
+  },
+  {
+    "file": "tests/test_scb.py",
+    "class": "TestScbInPipeline",
+    "component": "SCB extractor wiring in the pipeline and frame-pass cache key",
+    "references": ["src/core/pipeline.py", "src/bfmu/scb.py", "configs/deliverable3.json"],
+    "design_refs": "Design §5c",
+    "objective": "Check that the Deliverable III configuration builds a pipeline containing the SCB extractor, and that SCB settings are part of the frame-pass (tracking) hash, so changing them forces a new frame pass instead of reusing a stale cache.",
+    "module": "Pipeline construction and result caching: tracking_hash keys the cached per-frame pass, which includes every BFMU unit that reads frames.",
+    "assumptions": "Uses the real configs/deliverable3.json, whose third bfmu entry (index 2) is the SCB extractor in soft mode with min_overlap 0.5. No video is processed.",
+    "prerequisites": "configs/deliverable3.json present. No model weights or GPU: the pipeline builds its detector and SCB networks lazily.",
+    "steps": [
+      {
+        "method": "test_pipeline_builds_and_scb_is_frame_level",
+        "execution": "Load configs/deliverable3.json and construct Pipeline(cfg). Load a second copy, set bfmu[2].min_overlap to 0.6, and compute tracking_hash for both.",
+        "result": "'ScbBehaviour' is among the pipeline's extractor class names, and the two tracking hashes differ. Observed: as expected."
+      }
+    ],
+    "comments": "The hash differs because ScbBehaviour has uses_frames = True, so its config is included in the frame-pass hash."
+  },
+  {
+    "file": "tests/test_scb.py",
+    "class": "TestSafeLoader",
+    "component": "Safe YOLOv7 checkpoint loader",
+    "references": ["src/bfmu/yolov7.py"],
+    "design_refs": "Design §5c",
+    "objective": "Check that load_yolov7 refuses a checkpoint that references a Python global outside its allow-list, so a tampered third-party pickle cannot run code.",
+    "module": "Model-loading layer of the SCB behaviour detector; checkpoints are scanned for referenced globals before torch's weights_only unpickler loads them.",
+    "assumptions": "The checkpoint is a temporary file created by the test: torch.save of {'model': fractions.Fraction(1, 3)}. fractions.Fraction is not in the ALLOWED prefixes.",
+    "prerequisites": "PyTorch installed and the YOLOv7 repository cloned at lib/yolov7 (lib/yolov7/models/yolo.py must exist); otherwise the class is skipped. No SCB weights or GPU needed. Writes only to a temporary directory that is deleted afterwards.",
+    "steps": [
+      {
+        "method": "test_refuses_unexpected_globals",
+        "execution": "Save {'model': Fraction(1, 3)} to bad.pt in a temporary directory and call load_yolov7 on it.",
+        "result": "load_yolov7 raises RuntimeError (refusing to load because of the unexpected global). Observed: as expected; the test ran and passed (lib/yolov7 was present, so it was not skipped)."
+      }
+    ],
+    "comments": "Conditional test: decorated with skipUnless on the presence of lib/yolov7/models/yolo.py."
+  }
+]

@@ -1,0 +1,28 @@
+[
+  {
+    "file": "tests/test_per_labeler.py",
+    "class": "TestLabelerEnsemble",
+    "component": "Per-labeler ensemble on the window grid",
+    "references": ["src/experts/levels.py", "src/experts/mixture.py", "src/experts/expert.py"],
+    "design_refs": "Design §8.1; config engagement.labelers = 'ensemble'",
+    "objective": "Check that the labeler ensemble trains one mixture per labeler (excluding the self-rating), and that at prediction a labeler votes only for students it rated, while all labelers vote when nothing is known. Also check that consensus mode fits a single mixture.",
+    "module": "Engagement model fitting and window prediction in late aggregation (fit_engagement, predict_windows).",
+    "assumptions": "400 synthetic student rows (seed 0) with one feature x, grouped into 100 windows of 4. labeler_01 and self_labeling label a row engaged when x > 0; labeler_02 gives the opposite. All rows are in experiment '01'. Windows 0-49 train and 50-99 test, with gate probabilities [1, 0]. The score is the correlation between predicted window scores and the true share of rows with x > 0.",
+    "prerequisites": "None beyond the Python environment.",
+    "steps": [
+      {"method": "test_a_labeler_who_did_not_rate_a_student_does_not_vote",
+       "execution": "Build rows where labeler_02 rated no student (rated_by false for labeler_02). Fit with engagement config {labelers: 'ensemble', ensemble_exclude: ['self_labeling']} and predict the test windows.",
+       "result": "The model is a LabelerEnsemble with mixtures for labeler_01 and labeler_02 only. The correlation with the true share is above 0.8, so only labeler_01's view is used."},
+      {"method": "test_both_labelers_vote_where_both_rated",
+       "execution": "Same as above, but labeler_02 rated every student.",
+       "result": "The ensemble has labeler_01 and labeler_02. The absolute correlation is below 0.5, because the two opposite views cancel."},
+      {"method": "test_without_labeler_information_every_labeler_votes",
+       "execution": "Same as above, but rated_by is None (as at inference).",
+       "result": "The ensemble has labeler_01 and labeler_02. The absolute correlation is below 0.5, because all labelers are averaged."},
+      {"method": "test_consensus_mode_fits_one_mixture",
+       "execution": "Call fit_engagement with {labelers: 'consensus'} on the same rows.",
+       "result": "The returned model is a single ExpertMixture."}
+    ],
+    "comments": "-"
+  }
+]
