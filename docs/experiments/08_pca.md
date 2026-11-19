@@ -1120,3 +1120,58 @@ What the pies show:
 
 For the PCA arms (§2–§6), this means a variance-ranked cut keeps the student's flow only if it
 keeps at least three components, and keeps the student's SCB signal only past about eleven.
+
+## Appendix C: held-out timelines
+
+The best arm of each model by held-out Spearman on expert entries, over time. Each figure: experiment 03 (a lecture), camera 01 of each group, one panel per group. Every window
+is predicted by models that never saw its group (leave one group out, the same folds as the tables).
+- **one student per panel**: the one with the most self-reports in the session (ties: the larger
+  variance of those self-reports), named in the title. The class curve (mean over students) is too
+  smooth to show how the predictions move;
+- **thick orange line**: the self-report model's prediction for that student, drawn on top since the
+  self-report is the target that matters most; **thin light lines**: one per expert labeler's model,
+  each in its own colour (labeler_01 blue, _02 green, _03 purple, _04 cyan, _05 olive). Gaps are
+  windows where the student is not tracked;
+- **orange ●** and **coloured ×**: the student's self-reports and each expert's ratings of the
+  student, as entered, at their time (jittered vertically so stacked entries show);
+- **dashed line**: 3, the engaged cut-off. Each panel's title gives the gate's hit rate on the
+  activity, and the MAE of each labeler's model against that labeler's own entries (experts pooled,
+  and self), as the tables score them.
+
+Made with `python -m scripts.reporting.plot_results --config <the experiment's JSON> --set <the arm's
+overrides> --sessions experiment_03/context_cam_01 --out <folder>`; each arm's overrides reproduce
+its results hash. The single-session images are next to each `overview.png`.
+
+**Logistic regression, all 27 columns without the context** (`c724586518c0`):
+
+![Logistic regression, experiment 03](../../outputs/experiments/08_pca/timelines/logistic_regression/overview.png)
+
+**Random forest, all 27 PCs without the context** (`c36f89504032`):
+
+![Random forest, experiment 03](../../outputs/experiments/08_pca/timelines/random_forest/overview.png)
+
+**k-NN, k = 500, PCA 90% without the context** (`659b59ec05eb`):
+
+![k-NN k = 500, experiment 03](../../outputs/experiments/08_pca/timelines/knn_k500/overview.png)
+
+**k-NN, k = 5, PCA 20 without the context** (`8f5cfb454394`):
+
+![k-NN k = 5, experiment 03](../../outputs/experiments/08_pca/timelines/knn_k5/overview.png)
+
+What they show (the same students as experiment 06's Appendix C: subject_16, subject_02 and
+subject_01 for groups 01, 02, 03; MAE pairs below are experts / self, in group order):
+- **Nothing in this experiment changed the picture of experiment 06 (its Appendix C).** With logistic
+  regression and the forest the self model is still a flat line just below 3 (2.6–3.0) that does not
+  dip when the student reports 2. Its MAE is 0.49 / 0.50 / 0.55 (LR) and 0.48 / 0.50 / 0.56 (RF),
+  against 0.47 / 0.50 / 0.66 and 0.50 / 0.51 / 0.58 in 06. The best arms rank entries slightly better
+  (§3–§6), but the gain is not visible in time.
+- **k = 500 is flat for the student too**: the self curve stays between 2.7 and 3.4, a little above
+  3, and the expert curves within about 0.3 of 3, the smoothing of §5 seen directly. Being above 3
+  costs it where the student mostly reports 2 (self MAE 0.57 / 0.53 / 0.49).
+- **k = 5 is noise.** For one student the self curve jumps across the whole scale, 1 to 5, from one
+  window to the next, in steps of 0.8 (an average of five neighbours' ratings), and so does every
+  expert curve. It has the worst MAE of all (0.96 / 0.74 / 0.93 experts, 0.79 / 0.77 / 0.86 self):
+  memorised neighbours, not signal (§6).
+- **No curve follows the self-reports.** The students chosen have the most self-reports in their
+  session, and those reports move between 2 and 3 (and 4), yet no model's self curve moves with
+  them; the smooth models score about half a point by sitting between the levels.

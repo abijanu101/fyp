@@ -150,8 +150,8 @@ on clean footage.
 BoT-SORT ignores every box at or below its `track_low_thresh` (BoxMOT 26, `split_by_confidence`),
 and T2's winner sets it to 0.1745, so in the tracked pipeline the effective floor is 0.1745, not
 0.1098. D2's guarantee holds for the detector's output, not for what reaches a track. T2 chose that
-value on IDF1, which weighs missed students against false ones; experiment 09 §1 (T3) re-tunes it
-for the pose detector, where coverage matters more.
+value on IDF1, which weighs missed students against false ones; experiment 09 §1 (T3) re-tuned it
+for the pose detector, and IDF1 pushed it up to 0.2373.
 
 ### D3. The pose model as the detector, augmented, 1-point criterion (done, 19 November 2026)
 
@@ -180,16 +180,18 @@ probe, plus D2's threshold for comparison:
 - **The criterion puts the threshold at the floor: 0.0535.** Mean recall hardly moves between 0.05
   and 0.11 (0.996 to 0.994); what moves is the hardest student, who loses 7.5 points by 0.11 and
   11.8 by 0.16. Keeping that student costs boxes that are not students: 41% of kept boxes at 0.0535
-  against 33% at 0.11. Experiment 09 accepts that trade (`configs/derived_vfoa.py` reads the value).
+  against 33% at 0.11. Experiment 09 accepts that trade (its config names this scan under `derived`, and `configs/derived.py` reads the value).
 - **Against YOLO11n (D2, same images, each at its own floor):** the pose model finds more students
   on average (mean recall 0.996 against 0.993, 10th percentile 0.993 against 0.988) but its hardest
   student is harder (0.855 against 0.943). No student is undetected at any threshold probed, and none is below 50%
   up to 0.275.
 - **The floor bounds the search.** The criterion is measured against the 0.05 floor, so the search
   cannot ask for less; the hardest student is missed in 15% of frames even at the floor.
-- **The tracker comes after.** BoT-SORT drops boxes at or below its own `track_low_thresh` (the note
-  under D2), and T2's 0.1745 would throw away everything D3 keeps below it; experiment 03's T3
-  re-tunes the tracker for this detector.
+- **The tracker comes after, and overrides it.** BoT-SORT drops boxes at or below its own
+  `track_low_thresh` (the note under D2). T3 (experiment 03; experiment 09 §1) re-tuned the tracker
+  for this detector with the thresholds free down to 0.05, and IDF1 chose 0.2373: every box D3 keeps
+  below that is dropped before tracking, so for the tracked pipeline D3's threshold makes no
+  difference. Its value stands for the detector's own output.
 
 ## Appendix A: how the threshold search works
 
@@ -287,8 +289,9 @@ boundary lies between 0.0535 and 0.057. Every search starts with the same probes
 **6. What is written.** `outputs/tuning/detector_search<suffix>.csv` (every probe, one row each, with
 the columns of the tables above) and `.json`: the criterion, the detector, the answer
 (`optimal_threshold`), the full row at the answer, at the floor and at the configured threshold, and
-whether the configured threshold passes. `configs/derived.py` (D2) and `configs/derived_vfoa.py` (D3)
-read `optimal_threshold` from these files, so the config's threshold always comes from a scan.
+whether the configured threshold passes. `configs/derived.py` reads `optimal_threshold` from the scan
+each config names under `derived` (`detector_scan`: D2 for the base config, D3 for experiment 09), so
+the config's threshold always comes from a scan.
 `--grid` instead scores a fixed list of thresholds (D1's table), which is how the boundary's shape
 is checked rather than assumed.
 

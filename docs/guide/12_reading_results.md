@@ -112,7 +112,7 @@ agreement is close to chance. Consequences for reading 05:
 - every number in 04 is measured against noisy labels; a modest score may be close to the best
   achievable;
 - a model can look good by learning a *labeler's habits* instead of student behaviour;
-- part of a student's label changing over time is labeler noise (04 §6.2).
+- part of a student's label changing over time is labeler noise (04 Appendix B.2).
 
 The published works report agreement differently (each labeler against the majority vote, F1
 0.41–0.61; `docs/misc/benchmarks.md` §3.1), but it tells the same story.
@@ -156,7 +156,7 @@ Some metrics flatter baselines (§12.5); that is the main reason to always show 
 predictions (what a real deployment gets); *oracle* results use the true activity, as if the gate
 were perfect. In 05 every activity appears in only one group, so the held-out group's activities
 are never seen in training: the gate scores 0% and the oracle rows are uninterpretable by
-construction (04 §4). Only `shared_expert` and `hand_weighted` are meaningful there.
+construction (04 §2). Only `shared_expert` and `hand_weighted` are meaningful there.
 
 ## 12.5 The metrics
 
@@ -182,7 +182,7 @@ From those four counts:
 - **Balanced accuracy**: the average of the recalls of both classes. Chance = 0.5 whatever the
   class balance.
 
-**How a constant games them.** With 36% of student-windows not engaged (04 §3.1):
+**How a constant games them.** With 36% of student-windows not engaged (04 Appendix A):
 
 | Constant | Accuracy | F1 not engaged | Balanced accuracy | AUC |
 |---|---|---|---|---|
@@ -209,7 +209,7 @@ The four engaged/not pairs: (w1, w3) right, (w1, w4) right, (w2, w3) **wrong**, 
 AUC = 3/4 = 0.75.
 
 - 1 = perfect ranking, **0.5 = chance**, 0 = perfectly reversed.
-- An AUC **below 0.5** means higher scores go with the *other* class. In 04 §6.3 a single feature
+- An AUC **below 0.5** means higher scores go with the *other* class. In 04 Appendix B.3 a single feature
   with AUC 0.36 is useful: *low* values go with engaged, it is just signed the other way.
 - AUC ignores the cut-off and the scale of the scores, so it compares models whose scores are not
   calibrated.
@@ -232,7 +232,7 @@ The hand-weighted score and "minus flow" are on arbitrary scales, so 05 leaves t
   relation) to +1. It ignores offset and scale: a curve that is always 0.3 too high but rises and
   falls exactly with the labels has r = 1. A constant has no r (undefined, treated as 0).
 - **Spearman ρ**: Pearson on the *ranks* instead of the values, so it only asks "when one goes up,
-  does the other?", and is not thrown off by outliers or curved relations. 04 §6.3 uses it for
+  does the other?", and is not thrown off by outliers or curved relations. 04 Appendix B.3 uses it for
   features: ρ = −0.3 between class motion and the labelled share means "more motion, fewer students
   rated attentive", consistently but weakly.
 
@@ -264,7 +264,7 @@ share of variance** says how much of the target is the first kind. In 05 it is 6
 there is to predict is each session's overall level, which depends on group and activity, exactly
 what leave-one-group-out holds out. The within-session movement is about ±0.1.
 
-The same split exists for students (04 §6.2: 44% of student-label variance is *between* students,
+The same split exists for students (04 Appendix B.2: 44% of student-label variance is *between* students,
 some are generally rated attentive; 56% *within* a student over time).
 
 This matters because a model can score well by getting the **level** right and still have no idea
@@ -279,7 +279,7 @@ metrics mix in the "level".
 | **Pooled** | put all held-out predictions from all folds in one pile, score once | differences *between* groups and sessions |
 | **Per session** | score each session, average over sessions | movement *within* sessions |
 
-04 §3.1 shows the size of the effect on the same predictions: the shared expert's window AUC is
+04 Appendix A shows the size of the effect on the same predictions: the shared expert's window AUC is
 0.51 per fold, **0.85 pooled** and 0.56 per session. Pooled, it is rewarded for ranking the three
 held-out groups' overall levels in the right order (its mean scores 0.35, 0.53, 0.88 against
 engaged rates of 12%, 69%, 94%), three points, not a skill. The same pooling makes the train-mean
@@ -297,7 +297,7 @@ four seconds. Counting **per change** gives each run of an unchanged label weigh
 - Per change gives every episode, including short dips in attention, equal say.
 
 On the DIPSER labels the constant "predict 3" scores accuracy 0.62 per second but 0.45 per change
-(`benchmarks.md` §1); in 04 §3.1 the shared expert's student-level AUC falls from 0.61 to 0.53.
+(`benchmarks.md` §1); in 04 Appendix A the shared expert's student-level AUC falls from 0.61 to 0.53.
 Neither is "right"; they answer different questions, and a result should say which it used.
 
 ## 12.7 Reading 05, section by section

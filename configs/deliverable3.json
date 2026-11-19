@@ -1,5 +1,7 @@
 {
-  "derived": "configs/derived.py",
+  "derived": {"module": "configs/derived.py",
+              "detector_scan": "outputs/tuning/detector_search_augmented.json",
+              "tracker_scan": "outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_bisect.json"},
   "seed": 0,
   "dataset": {
     "root": "data/DIPSER",

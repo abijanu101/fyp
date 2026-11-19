@@ -21,3 +21,5 @@ setting shown (docs/experiments/06_full_pipeline_and_labels.md §2.2).
 | mixture of experts (moved to experiment 09) | `mixture.expert_scope=per_experiment` | `38c985c0f859` | `moe.log` |
 
 `rerun_index.log` lists every re-run arm with its hash, each checked against the hash above.
+
+`timelines/<model>/`: held-out timelines of experiment 03, camera 01 of each group (logistic regression, random forest, k-NN; the document's Appendix C).

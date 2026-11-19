@@ -141,16 +141,30 @@ modes.
 
 ```
 python -m scripts.reporting.plot_results [--set ...]        # same --set values as train_models
+    [--sessions experiment_03/context_cam_01 ...] [--out DIR] [--class-curve] [--final]
 ```
 
-`train_models` reports averages. `plot_results` draws, per session, out-of-sample curves with the
-gate's predicted activity as background shading. In per-labeler mode, on the 1–5 scale: each
-labeler model's class curve (experts blue, self orange), the final curve in black (median or
-majority, `output.prediction`), every held-out rating entry as a dot at its time (experts ×, self
-●) and `tau_att` dashed; the title gives the final curve's MAE against the expert entries
-(`heldout_curves` in `train_models` computes the curves). In the window-grid modes it draws the
-predicted engagement score against the labelled share of engaged students, with the engaged
-cut-off. Every curve is out-of-sample: it repeats the
+`train_models` reports averages. `plot_results` draws out-of-sample curves per session.
+`--sessions` keeps only the sessions whose key contains one of the given substrings (the models are
+still fit on every training group), and `--out` picks the folder.
+
+**Per-labeler mode** (1–5 scale). Each panel follows one student: the one with the most
+self-reports in the session, ties broken by the larger variance of those self-reports, among the
+students with a linked track. A class curve (the mean over the window's students) is too smooth to
+show how the predictions move, and a student with many, varied self-reports shows the most. Each
+labeler model's curve is drawn for that student alone (mean over the student's tracks per window;
+gaps where it is not tracked), against only that student's entries. The self-report is the target
+that matters most, so its model is a thick orange line drawn on top, with self entries as orange
+dots. Each expert labeler's model is a thin line in its own light colour (labeler_01 blue, _02 green,
+_03 purple, _04 cyan, _05 olive), with that labeler's entries as crosses of the same colour.
+`tau_att` is drawn dashed. The title names the student and gives the MAE of each labeler's model
+against that labeler's own entries (experts pooled, and self). `heldout_curves` in `train_models`
+computes the curves. `--class-curve` plots the class curves and every entry instead; only then does
+`--final` add the final curve (median or majority, `output.prediction`), which is off by default
+because, with each curve at its own labeler's level, the median matches no one's entries.
+
+**Window-grid modes** draw the predicted engagement score against the labelled share of engaged
+students, with the engaged cut-off, and shade the background with the gate's predicted activity. Every curve is out-of-sample: it repeats the
 leave-one-group-out fits (seconds) and plots each group from models that never saw it. The
 title gives the true activity, the gate's hit rate and the correlation r with the labelled
 share. Output: `<output_dir>/plots/<config hash>/`, one PNG per session plus `overview.png`.
@@ -546,12 +560,19 @@ the 12 characters you see in a table (`c5341cb6385e`):
 
 1. **A base file.** Either the live config (`configs/deliverable3.json`) or an experiment's frozen
    snapshot (`docs/experiments/NN_name.json`, below).
-2. **Derived values.** If the file has a `derived` key, `load_config` imports that module
-   (`configs/derived.py`, or `configs/derived_vfoa.py` for experiment 09) and writes its
-   `OVERRIDES` into the config. These are the settings that come *from experiments*, read from
-   their result files rather than typed in: `detector.conf` from D2's scan
-   (`outputs/tuning/detector_search_augmented.json`), the tracker and its options from T2's winner.
-   Each value is recorded with its source in `derived_from` (`file#key`).
+2. **Derived values.** If the file has a `derived` key, `load_config` runs `configs/derived.py`
+   with the result files the config names there, and writes what it returns into the config:
+   ```
+   "derived": {"module": "configs/derived.py",
+               "detector_scan": "outputs/tuning/detector_search_augmented.json",
+               "tracker_scan": "outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_bisect.json"}
+   ```
+   These are the settings that come *from experiments*, read from their result files rather than
+   typed in: `detector.conf` from the detector scan, the tracker and its options from the tracker
+   scan's winner (it refuses a pair tuned at different thresholds). The base config names D2 and T2;
+   experiment 09 names D3 and T3 (the pose model). One module, so each config only says which
+   experiments its values come from. Each value is recorded with its source in `derived_from`
+   (`file#key`).
 3. **`--set` overrides**, applied last, so a command line always wins.
 4. **The resolved config is hashed.** SHA-256 of the canonical JSON (sorted keys, no whitespace),
    leaving out the keys that do not change what a run produces: `output_dir`, `tuning`,
@@ -610,8 +631,7 @@ on, each experiment document has a **frozen snapshot** of the config it used nex
 
 A snapshot is never edited after the first run against it; a later experiment starts from a copy.
 Experiment 09 is the exception that proves the rule: its config is written *before* its runs and
-still has `derived` (pointing at `configs/derived_vfoa.py`, which reads D3), so it is frozen after
-D3 and the extraction, not before.
+still has `derived` (naming D3 and T3), so it is frozen after the extraction, not before.
 
 ### `outputs/` or `tmp/`: the rule
 

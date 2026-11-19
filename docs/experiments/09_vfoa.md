@@ -2,8 +2,8 @@
 
 *Started 18 November 2026. Config: [`09_vfoa.json`](09_vfoa.json): experiment 08's base
 ([`08_pca.json`](08_pca.json)) with the head-pose unit added and 4 augmented copies. The config has the class context off
-(`engagement.use_class_context=false`); every arm also runs with it on (§5). Hash `4c4c5d6ec4f8` (with D3's threshold);
-frame-pass cache `outputs/cache/tracks/6d9102354e73/`, features `outputs/cache/features/e46e62cfe5f2/`. Extraction
+(`engagement.use_class_context=false`); every arm also runs with it on (§5). Hash `b1c2d485d3db` (D3's threshold, T3's tracker);
+frame-pass cache `outputs/cache/tracks/2a11240a2d42/`, features `outputs/cache/features/4c761244568f/`. Extraction
 pending.*
 
 **Why this experiment.** Experiments 07 and 08 tried every transformation of the 95 inputs within
@@ -47,9 +47,9 @@ python -m scripts.tuning.scan_detector --config docs/experiments/09_vfoa.json --
 python -m scripts.tuning.scan_detector --config docs/experiments/09_vfoa.json --grid --detect --tag pose   # clean data, the full grid table (D1's first step)
 ```
 
-The result (`outputs/tuning/detector_search_augmented_pose.json`) sets `detector.conf` through
-`configs/derived_vfoa.py`, as `configs/derived.py` does with D2: the threshold is read from the scan,
-never typed in.
+The result (`outputs/tuning/detector_search_augmented_pose.json`) sets `detector.conf`: `09_vfoa.json`
+names it under `derived` (`detector_scan`), and `configs/derived.py` reads the threshold from it, as
+it reads D2 for the base config: the threshold is read from the scan, never typed in.
 
 **D3 result (19 November 2026): 0.0535**, essentially the floor. Mean recall barely moves between
 0.05 and 0.11 (0.996 to 0.994), but the hardest student loses 7.5 points by 0.11; keeping them
@@ -78,10 +78,43 @@ python -m scripts.tuning.tune_tracker --config docs/experiments/09_vfoa.json --p
 Results: `outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_pose_bisect.json`; resumable.
 The first run also detects augmented copy 1 with the pose model at 1280 and embeds every box for
 ReID. Compared with T2's 0.930 IDF1, and on coverage, the share of student-frames on a track
-(T2: 0.958), which is what experiment 09 needs. Its options then replace T2's in
-`configs/derived_vfoa.py`.
+(T2: 0.958), which is what experiment 09 needs. Its options then replace T2's in experiment 09's
+config.
 
-*Pending: T3.*
+**T3 result (19 November 2026): IDF1 0.901, coverage 0.982** (trial 19 of 20, every group 0.891–0.913;
+`outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_pose_bisect.json`). Run with
+`scripts/parallel_runs.py tracker-scans` (the same search, with frames shared across the trials of
+each level) after the first 6 trials with `tune_tracker`.
+
+| | T2 (YOLO11n, `detector.conf` 0.1098) | T3 start (T2's options on the pose model, 0.0535) | **T3 best** |
+|---|---|---|---|
+| IDF1 | **0.930** | 0.873 | 0.901 |
+| Coverage | 0.958 | **0.990** | 0.982 |
+| ID switches per subject | 2.06 | 3.30 | **1.39** |
+| Track ids per subject | 1.34 | 1.39 | **1.34** |
+| Subjects found | 0.989 | 1.000 | **1.000** |
+
+Best options: `track_high_thresh 0.4926, track_low_thresh 0.2373, new_track_thresh 0.624,
+match_thresh 0.6583, max_lost_frames 31, proximity_thresh 0.7726, appearance_thresh 0.2429`.
+
+What it shows:
+- **The pose model with T2's options covers more but switches more.** At the start, coverage is
+  0.990 (T2: 0.958) and every student is found, but with 3.3 identity switches per student IDF1 falls
+  to 0.873: the extra low-confidence boxes give the tracker more chances to swap identities.
+- **Raising `track_high_thresh` fixed most of it.** From 0.29 to 0.49 (trial 12), switches halved
+  (3.3 to 1.5) and IDF1 rose to 0.893, for 0.6 points of coverage: fewer boxes in the first
+  association pass, so fewer wrong matches. A shorter memory (`max_lost_frames` 96 to 31) and a
+  stricter `new_track_thresh` (0.55 to 0.62) added the rest.
+- **The search raised the floor instead of lowering it.** The widened ranges allowed thresholds down
+  to 0.05, but every step down lost IDF1 (`track_low_thresh` 0.11: 0.870; `track_high_thresh` 0.17:
+  0.860; `new_track_thresh` 0.30: 0.859). The winner's `track_low_thresh` is 0.2373, above T2's
+  0.1745, so the tracked pipeline drops every box below 0.24 whatever D3 keeps: any detector
+  threshold up to 0.24 gives the same tracks, and D3's 0.0535 makes no difference to them. The pose
+  model still covers more students than YOLO11n did (0.982 against 0.958).
+- **IDF1 is 0.03 below T2's even with fewer identity switches.** This run does not show why. For
+  experiment 09, coverage and every student found matter more than the last points of IDF1.
+
+`09_vfoa.json` now names T3 under `derived` (`tracker_scan`), so `configs/derived.py` applies T3's options.
 
 ## 2. The head-pose unit
 
@@ -132,8 +165,7 @@ look down on students who face them, which is why faces are visible in almost ev
 The unit is a frame unit, so it changes the frame-pass cache key: the 52 recordings and their
 augmented copies are re-extracted from scratch with detection, tracking and every unit: the pose
 model as the detector at D3's threshold, and BoT-SORT + ReID + CMC with T3's options (§1), both read
-by `configs/derived_vfoa.py`. *Not before T3 is done:* until then the module still holds T2's
-options, whose `track_low_thresh` would undo D3.
+by `configs/derived.py` from the scans `09_vfoa.json` names under `derived`.
 
 ```
 python -m scripts.parallel_runs extract --config docs/experiments/09_vfoa.json --workers 3   # resumable

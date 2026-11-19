@@ -8,6 +8,9 @@ data/SCB-ST-Dataset4
 
 #models
 *.pt
+# interrupted model downloads (scripts/setup.py, BoxMOT's ReID fetch)
+models/*.part
+models/.*.part
 
 # vendored third-party repos (cloned, not ours)
 # original StrongSORT reference implementation (the pipeline uses BoxMOT's)

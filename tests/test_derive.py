@@ -44,6 +44,28 @@ class TestDerive(unittest.TestCase):
         moved = dict(cfg, derived_from={"detector.conf": "elsewhere"}, derived="other.py")
         self.assertEqual(config_hash(cfg), config_hash(moved))              # the source is not hashed
 
+    def test_parameters_from_the_config(self):
+        """`derived` as {"module", **params}: the module's overrides(params) reads the files the config names."""
+        (self.d / "param.py").write_text(
+            "from src.core.derive import result\n"
+            "def overrides(params):\n"
+            "    return {'detector.conf': result(params['scan'], 'optimal_threshold')}\n")
+        values, sources = derived_values({"module": (self.d / "param.py").as_posix(),
+                                          "scan": (self.d / "res.json").as_posix()})
+        self.assertEqual(values, {"detector.conf": 0.11})
+        self.assertTrue(sources["detector.conf"].endswith("res.json#optimal_threshold"))
+        with self.assertRaises(TypeError):                  # a fixed OVERRIDES module takes no parameters
+            derived_values({"module": (self.d / "derived.py").as_posix(), "scan": "x"})
+
+    def test_the_project_configs_load(self):
+        """configs/derived.py with each config's own scans: the base (D2/T2) and experiment 09 (D3/T3)."""
+        base = load_config("configs/deliverable3.json")
+        vfoa = load_config("docs/experiments/09_vfoa.json")
+        self.assertEqual(base["tracker"]["options"]["det_thresh"], base["detector"]["conf"])
+        self.assertEqual(vfoa["tracker"]["options"]["det_thresh"], vfoa["detector"]["conf"])
+        self.assertNotEqual(base["detector"]["conf"], vfoa["detector"]["conf"])
+        self.assertIn("_pose", vfoa["derived_from"]["tracker.options"])
+
     def test_a_missing_result_fails_loudly(self):
         with self.assertRaises(FileNotFoundError):
             result(self.d / "missing.json", "x")

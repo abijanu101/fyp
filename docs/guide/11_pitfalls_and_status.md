@@ -186,7 +186,7 @@ These wait on the full extraction of all 52 sessions, which is best run once the
    within-session metrics, per-session feature normalisation, a continuous target (done: the soft
    per-labeler target, §7.9), per-labeler label normalisation (partly addressed by one model per
    labeler), signed baselines, pooled experts, temporal smoothing
-   (`docs/experiments/04_six_session_run.md`, §6–7).
+   (`docs/experiments/04_six_session_run.md`, §3–4 and Appendix B).
 
 ## 11.6 Settings that do nothing: decisions to make
 
@@ -224,7 +224,7 @@ through the code (Chapter 9, §9.6–9.7).
   (a) if it should stay a minimal floor. (c) keeps a silent no-op.
 - Related: on the six-session run, students with higher SCB `read` and `write` scores were rated
   *less* attentive (single-feature AUC 0.36–0.39), while the baseline weights both positively
-  (`docs/experiments/04_six_session_run.md`, §6.3). Decide the weights and the phone term together.
+  (`docs/experiments/04_six_session_run.md`, Appendix B.3). Decide the weights and the phone term together.
 
 **☐ 3. `mixture.tau` (0.5): used only by early aggregation.**
 - Purpose: the engaged cut-off for early aggregation, where the window score is a probability.
@@ -277,7 +277,7 @@ names where the details are.
 - `scripts/labels/label_baselines.py`: the constant baseline on every published target, per second / per
   change and pooled / per subject; `--grid` for every target of `docs/misc/targets.md`, with the
   window length from the config.
-- `docs/experiments/04_six_session_run.md` §3.1: the run re-scored with the benchmarks' metrics
+- `docs/experiments/04_six_session_run.md` Appendix A: the run re-scored with the benchmarks' metrics
   (pooling across folds inflates AUC from 0.51 to 0.85; the shared expert is below the constant
   "not engaged" on not-engaged F1).
 - Guide Chapter 12 (reading results, from scratch) and Chapter 13 (the implementation from rating to

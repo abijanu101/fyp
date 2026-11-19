@@ -12,7 +12,7 @@ labeler's rating entries, scored per entry, leaving one group out. 4,769 entries
 **What it showed:**
 
 1. **Everything is at chance, by construction.** AUC was 0.49–0.52 and Spearman within ±0.06. With
-   one session per activity, a held-out group's activities never appear in training (04 §4).
+   one session per activity, a held-out group's activities never appear in training (04 §2).
 2. **One expert dominates the labels.** `labeler_01` made 59% of all entries and two thirds of the
    expert entries, 10–25 times the training rows of the other labelers. A pooled expert score is
    mostly `labeler_01`'s, so every result is now also reported per labeler (06).

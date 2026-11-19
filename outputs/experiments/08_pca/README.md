@@ -66,3 +66,5 @@ PCA reuse experiment 07's (k-NN) or the base run (logistic regression), so a log
 | k-NN, k = 5: PCA 20 | `expert.name=knn` `n_neighbors` 5 `engagement.late_context=false` `expert.pca=20` | `8f5cfb454394` | `knn5_nctx_pca20.log` |
 | k-NN, k = 5: PCA 90% | `expert.name=knn` `n_neighbors` 5 `engagement.late_context=false` `expert.pca=0.9` | `943933634b4a` | `knn5_nctx_pca90.log` |
 | k-NN, k = 5: PCA 95% | `expert.name=knn` `n_neighbors` 5 `engagement.late_context=false` `expert.pca=0.95` | `2cc43b4528c2` | `knn5_nctx_pca95.log` |
+
+`timelines/<model>/`: held-out timelines of experiment 03, camera 01 of each group (the best arm of each model; the document's Appendix C).

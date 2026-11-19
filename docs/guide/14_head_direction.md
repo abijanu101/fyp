@@ -113,7 +113,7 @@ threshold and tracker were tuned for YOLO11n (D2 in experiment 02, T2 in experim
 the same way, from data, before any extraction (experiment 09 §1):
 - **D3**, the augmented detector scan for the pose model, with a stricter criterion than D2: here a
   missed student is worse than a spurious box, so no student may lose more than 1 point of recall
-  against the confidence floor. Its result sets `detector.conf` through `configs/derived_vfoa.py`.
+  against the confidence floor. Its result sets `detector.conf`: `09_vfoa.json` names it under `derived`, and `configs/derived.py` reads it.
 - **T3**, T2's tracker search re-run with the pose model at D3's threshold. Not just a check of T2's
   settings: BoT-SORT ignores every box at or below its own `track_low_thresh` (T2's: 0.1745), which
   would throw away everything D3 keeps below that, so the tracker's thresholds are re-tuned with

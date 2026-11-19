@@ -5,7 +5,8 @@ script's docstring gives its full usage.
 
 | Folder | Script | Purpose |
 |---|---|---|
-| (top) | `run_pipeline` | extract features (frame pass and feature pass) for every session; inference on one camera |
+| (top) | `setup` | fetch every model the pipeline needs (first thing on a fresh clone; `--check` to report only) |
+| | `run_pipeline` | extract features (frame pass and feature pass) for every session; inference on one camera |
 | | `train_models` | leave-one-group-out training and evaluation, and the final model bundle |
 | | `parallel_runs` | the long jobs (extraction, tuning) in parallel, resumable |
 | `tuning/` | `tune_tracker` | detector confidence and tracker parameters against the manual boxes |
@@ -20,4 +21,4 @@ script's docstring gives its full usage.
 | `analysis/` | `feature_study` | the feature vector against every labeler (experiment 08 §1) |
 | | `experiment_decoders`, `label_interp_compare`, `e2e6/` | frozen one-off analyses behind specific doc tables (`analysis/README.md`) |
 | `data_visualization/` | `output_viewer`, `augment_samples`, `inspect_labels`, viewers | looking at the data and the pipeline's output |
-| `downloading/` | `dipser`, `scb`, `validate_dipser_remote` | getting the dataset and the SCB checkpoints (README, Setup) |
+| `downloading/` | `dipser`, `scb`, `validate_dipser_remote` | getting the dataset, and the whole SCB dataset (`setup` fetches the one checkpoint used) |

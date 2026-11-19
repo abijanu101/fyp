@@ -290,10 +290,10 @@ def per_labeler_factory(cfg: dict, row_cols: list[str], scope: str):
     return lambda: ExpertMixture(cfg["classes"], expert_factory(cfg, row_cols), scope, cfg["mixture"]["mode"])
 
 
-def grid_rows(cfg: dict, df: pd.DataFrame, row_cols: list[str]) -> tuple[np.ndarray, np.ndarray]:
-    """Per-student rows of the regular window grid (what inference scores): (X, global window index)
-    for every session in `df`, columns fixed to the trained model's `row_cols`."""
-    Xs, ws = [], []
+def grid_rows(cfg: dict, df: pd.DataFrame, row_cols: list[str]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Per-student rows of the regular window grid (what inference scores): (X, global window index,
+    track id) for every session in `df`, columns fixed to the trained model's `row_cols`."""
+    Xs, ws, tids = [], [], []
     for _, sdf in df.groupby("session", sort=False):
         t = pd.read_csv(features_dir(cfg) / f"{sdf['stem'].iloc[0]}.tracks.csv")
         if t.empty:
@@ -302,17 +302,20 @@ def grid_rows(cfg: dict, df: pd.DataFrame, row_cols: list[str]) -> tuple[np.ndar
         X, _, w = late_rows(df, t, context=False, cols=row_cols)
         Xs.append(X)
         ws.append(w)
+        tids.append(t["tid"].to_numpy(int))
     if not Xs:
-        return np.zeros((0, len(row_cols))), np.zeros(0, int)
-    return np.vstack(Xs), np.concatenate(ws)
+        return np.zeros((0, len(row_cols))), np.zeros(0, int), np.zeros(0, int)
+    return np.vstack(Xs), np.concatenate(ws), np.concatenate(tids)
 
 
 def heldout_curves(cfg: dict, df: pd.DataFrame, rows: pd.DataFrame | None = None) -> dict:
     """Per-labeler curves on the window grid, every window predicted by models that never saw its
     group (leave-one-group-out; augmented copies train, never predicted). Returns {"final": (W,),
     "curves": {labeler: (W,)}, "g": (W, K) gate probabilities, "rows": the label rows} over the rows
-    of `df` (NaN for augmented copies)."""
+    of `df` (NaN for augmented copies), plus the per-track grid predictions behind the curves:
+    "grid_window", "grid_tid" (R,) and "grid_curves" {labeler: (R,) rating, NaN where not predicted}."""
     from src.experts import PerLabelerModel, window_curves
+    from src.labels.interp import to_rating
 
     classes, mcfg, out = cfg["classes"], cfg["mixture"], cfg["output"]
     rows = label_rows(cfg, df) if rows is None else rows
@@ -321,10 +324,10 @@ def heldout_curves(cfg: dict, df: pd.DataFrame, rows: pd.DataFrame | None = None
     row_cols = sorted(c for c in rows if c.startswith("trk.")) + \
         (vec_cols if use_class_context(cfg) else [])
     Xg, exp_w = df[gate_cols].to_numpy(float), df["exp"].to_numpy()
-    Xgrid, wgrid = grid_rows(cfg, df, row_cols)
+    Xgrid, wgrid, tgrid = grid_rows(cfg, df, row_cols)
     X = rows.reindex(columns=row_cols).to_numpy(float)
     n = len(df)
-    final, g, curves = np.full(n, np.nan), np.zeros((n, len(classes))), {}
+    final, g, curves, grid = np.full(n, np.nan), np.zeros((n, len(classes))), {}, {}
     for grp, tr, te in heldout_splits(df):
         gate = GATES.build(cfg["gate"]["name"], classes=classes, seed=cfg["seed"],
                            **cfg["gate"].get("params", {})).fit(Xg[tr], exp_w[tr])
@@ -336,12 +339,16 @@ def heldout_curves(cfg: dict, df: pd.DataFrame, rows: pd.DataFrame | None = None
         pos = np.full(n, -1)
         pos[te] = np.arange(len(te))
         sel = np.isin(wgrid, te)
+        preds = model.predict(Xgrid[sel], g[wgrid[sel]]) if sel.any() else {k: np.zeros(0) for k in model.labelers}
         f, c = window_curves(model, Xgrid[sel], g[wgrid[sel]], pos[wgrid[sel]], len(te),
-                             out["prediction"], float(out["majority_resolution"]))
+                             out["prediction"], float(out["majority_resolution"]), preds)
         final[te] = f
         for name, v in c.items():
             curves.setdefault(name, np.full(n, np.nan))[te] = v
-    return {"final": final, "curves": curves, "g": g, "rows": rows}
+        for name, v in preds.items():
+            grid.setdefault(name, np.full(len(wgrid), np.nan))[sel] = to_rating(v)
+    return {"final": final, "curves": curves, "g": g, "rows": rows,
+            "grid_window": wgrid, "grid_tid": tgrid, "grid_curves": grid}
 
 
 def main_per_labeler(cfg: dict) -> None:

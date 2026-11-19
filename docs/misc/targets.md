@@ -396,5 +396,5 @@ Items 1–9 are implemented and are the default (`engagement.labelers = "per_lab
 `output.prediction`, `output.majority_resolution` (Chapter 9). The window length is 4 s (`window.length_s`, §7.2). Still open: a curve-shape metric (`docs/misc/proposed_metrics.md`).
 A first run on the six-session caches (`scripts/analysis/e2e6/run_per_labeler.py`, 8 s windows, step labels,
 `train_with_interp`) works end to end: 4,769 entries with a linked track, every prediction at chance
-level, as expected from one session per activity (04 §4).
+level, as expected from one session per activity (04 §2).
 

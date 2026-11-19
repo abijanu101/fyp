@@ -2,7 +2,8 @@
 
 This document records how multi-object tracking was brought up on DIPSER with BoxMOT, how the
 tracker was evaluated and tuned, and what was found. Its input is experiment 02's detector at the
-D2 threshold ([02_detection.md](02_detection.md)).
+D2 threshold ([02_detection.md](02_detection.md)); T3 re-tunes it for experiment 09's pose detector
+(D3).
 
 ## 1. Goal
 
@@ -17,7 +18,7 @@ errors propagate into every downstream number.
 |---|---|---|---|
 | T1 | Trackers on clean data: BoT-SORT without ReID, StrongSORT; random search, 20 trials (§6) | done | BoT-SORT 0.905 IDF1, StrongSORT 0.878 |
 | T2 | Trackers on augmented data: BoT-SORT, BoT-SORT + ReID + CMC, StrongSORT; beam bisection (§6) | done | **BoT-SORT + ReID + CMC 0.930 IDF1**, BoT-SORT 0.914, StrongSORT 0.877 |
-| T3 | T2's search re-run with the pose model as the detector (experiment 02, D3), thresholds widened to the floor (experiment 09 §1) | running | BoT-SORT's own `track_low_thresh` (T2's 0.1745) would drop every box D3 keeps below it |
+| T3 | T2's search re-run with the pose model as the detector (experiment 02, D3), thresholds widened to the floor (§6) | done | **0.901 IDF1**, coverage 0.982 (T2: 0.930, 0.958), 1.39 ID switches per subject (T2: 2.06); `track_low_thresh` rose to 0.2373 |
 
 ## 2. Phase 1: validation notebook (`notebooks/dipser_tracking.ipynb`)
 
@@ -338,6 +339,86 @@ Results: `outputs/tuning/tracker_<tracker>_<profile>_aug1-4f270e71_bisect.{csv,j
 per-session `.sessions.jsonl`. The serial equivalents (`tune_tracker --profile ... --augment 1
 --det-conf-from ...`) resume the same files.
 
+### T3. The pose model as the detector: BoT-SORT + ReID + CMC re-tuned (done, 19 November 2026)
+
+**Why.** Experiment 09 replaces YOLO11n with the pose model (`yolo11s-pose.pt` at 1280), so every
+tracked box carries keypoints for head direction. Its detector threshold is D3's 0.0535 (experiment
+02), essentially the floor. BoT-SORT drops every box at or below its own `track_low_thresh` before
+association, and T2's winner has 0.1745, which would throw away everything D3 keeps below it (§7).
+So T2's options cannot simply be reused.
+
+**Setup.** T2's winning search (BoT-SORT + ReID + CMC, profile `full_reid_cmc`, augmented copy 1,
+beam bisection, beam 2, IDF1 against the manual boxes, 20 trials), with three changes:
+- the pose model's detections, with `detector.conf` fixed at D3's 0.0535;
+- the start is T2's winner (`--start`);
+- the threshold ranges widened down to the floor (`docs/experiments/09_vfoa.json`: `track_high_thresh`
+  and `new_track_thresh` from 0.05; `track_low_thresh` already was), so the search could follow D3
+  down if that helped.
+
+The result files carry the suffix `_pose` (`--tag pose`) so they never mix with T2's.
+
+| Trial | What changed from the start | IDF1 | Coverage | ID switches per subject |
+|---|---|---|---|---|
+| 0 | the start: T2's options on the pose model | 0.873 | 0.990 | 3.30 |
+| 7 | `new_track_thresh` 0.55 → 0.30 | 0.859 | 0.991 | 5.18 |
+| 8 | `new_track_thresh` 0.55 → 0.62 | 0.884 | 0.990 | 2.91 |
+| 11 | `track_high_thresh` 0.29 → 0.17 | 0.860 | 0.992 | 5.55 |
+| 12 | `track_high_thresh` 0.29 → 0.49 | 0.893 | 0.984 | 1.53 |
+| 13 | `track_low_thresh` 0.17 → 0.11 | 0.870 | 0.991 | 2.69 |
+| 14 | `track_low_thresh` 0.17 → 0.24 | 0.877 | 0.990 | 3.98 |
+| **19** | the best: all of 8, 12 and 14, plus `match_thresh` 0.66, `max_lost_frames` 31, `appearance_thresh` 0.24 | **0.901** | 0.982 | **1.39** |
+
+The other trials (1–6, 9–10, 15–18) moved IDF1 by about 0.01 or less from their parent. Against T2:
+
+| | T2 (YOLO11n, 0.1098) | **T3 (pose model, 0.0535)** |
+|---|---|---|
+| IDF1 | **0.930** | 0.901 |
+| IDF1 per group G01 / G02 / G03 | **0.923 / 0.937 / 0.931** | 0.897 / 0.891 / 0.913 |
+| Coverage | 0.958 | **0.982** |
+| ID switches per subject | 2.06 | **1.39** |
+| Track ids per subject | 1.34 | 1.34 |
+| Subjects found | 0.989 | **1.000** |
+| Tracks per session | 24.3 | 31.4 |
+
+Best parameters: `track_high_thresh 0.4926, track_low_thresh 0.2373, new_track_thresh 0.624,
+match_thresh 0.6583, max_lost_frames 31, proximity_thresh 0.7726, appearance_thresh 0.2429` (ReID
+and CMC on).
+
+Readings:
+
+- **The pose model with T2's options covers more but switches more.** Coverage 0.990 and every
+  student found at the start, but 3.3 identity switches per student, and IDF1 0.873.
+- **Raising `track_high_thresh` fixed most of it.** From 0.29 to 0.49, switches halved and IDF1 rose
+  by 0.02, for 0.6 points of coverage: fewer boxes in the first association pass, so fewer wrong
+  matches. A stricter `new_track_thresh` and a shorter memory (`max_lost_frames` 96 to 31, about 6 s)
+  added the rest.
+- **The search raised the floor instead of lowering it.** Every step down lost IDF1 (trials 7, 11
+  and 13). The winner's `track_low_thresh` is 0.2373, above T2's 0.1745, so the tracked pipeline drops
+  every box below 0.24: any detector threshold up to 0.24 gives the same tracks, and D3's 0.0535 makes
+  no difference to them. The pose model still covers more students than YOLO11n did (0.982 against
+  0.958).
+- **IDF1 is 0.03 below T2's even with fewer identity switches,** and below it in every group. This run
+  does not show why. It also makes 7 more tracks per session than T2 with the same track ids per
+  subject, so the extra tracks are not on students. For experiment 09, coverage and every student
+  found matter more than the last points of IDF1.
+
+**How it was run.** First serially, with the check on one session:
+
+```
+python -m scripts.tuning.tune_tracker --config docs/experiments/09_vfoa.json --profile full_reid_cmc --augment 1 --det-conf-from outputs/tuning/detector_search_augmented_pose.json --tag pose --check
+python -m scripts.tuning.tune_tracker --config docs/experiments/09_vfoa.json --profile full_reid_cmc --augment 1 --det-conf-from outputs/tuning/detector_search_augmented_pose.json --tag pose --start outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_bisect.json
+```
+
+At about 100 minutes per trial, it was stopped after 6 trials and finished with the parallel
+launcher, which resumes the same files (`--start` and `--tag` added to it for this):
+
+```
+python -m scripts.parallel_runs tracker-scans --config docs/experiments/09_vfoa.json --profiles full_reid_cmc --augment 1 --workers 5 --gpu-workers 2 --det-conf-from outputs/tuning/detector_search_augmented_pose.json --start outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_bisect.json --tag pose
+```
+
+Results: `outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_pose_bisect.{csv,json}` and
+the per-session `.sessions.jsonl`. Experiment 09's config names this file under `derived` (`tracker_scan`), and `configs/derived.py` applies the winner.
+
 ## 7. Tracker decision
 
 **Final (16 November 2026): BoT-SORT with ReID and CMC, with T2's winning parameters, at
@@ -349,10 +430,16 @@ from the results files themselves, so the frame pass of the full run uses exactl
 
 Until 16 November: BoT-SORT without ReID with quick-tuned values was the interim default.
 
+**Experiment 09 (19 November 2026): the same tracker with T3's parameters**, on the pose model at
+D3's 0.0535: `09_vfoa.json` names D3 and T3 under `derived`, and `configs/derived.py` applies them. The base configuration (experiments up to 08)
+keeps T2's.
+
 **Detector and tracker thresholds interact.** BoT-SORT drops every box at or below its own
 `track_low_thresh` (0.1745 in T2's winner) before association, so in this pipeline the effective
 detection floor is 0.1745, not D2's 0.1098 (experiment 02, note under D2). Experiment 09 uses a
-detector threshold at the floor (D3, 0.0535) and so re-tunes the tracker for it (T3).
+detector threshold at the floor (D3, 0.0535) and so re-tuned the tracker for it (T3, thresholds free
+down to 0.05): IDF1 raised `track_low_thresh` to 0.2373 instead, so there the effective floor is
+0.2373 (T3).
 
 ## 8. Engineering issues encountered
 

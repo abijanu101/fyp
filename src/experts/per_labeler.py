@@ -100,7 +100,8 @@ class PerLabelerModel:
 
 
 def window_curves(model: PerLabelerModel, X: np.ndarray, g_rows: np.ndarray, row_window: np.ndarray,
-                  n_windows: int, mode: str, resolution: float) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+                  n_windows: int, mode: str, resolution: float,
+                  preds: dict[str, np.ndarray] | None = None) -> tuple[np.ndarray, dict[str, np.ndarray]]:
     """Class-level rating curves over windows from per-student rows.
 
     per_labeler: each labeler's curve = mean over the window's students of that model's rating;
@@ -108,10 +109,12 @@ def window_curves(model: PerLabelerModel, X: np.ndarray, g_rows: np.ndarray, row
     majority:    per student, the majority rating across labeler models (quantised to `resolution`);
                  the final curve is its mean over the window's students. Labeler curves are also
                  returned (for display), computed as in per_labeler.
-    Windows without rows get each labeler's training mean (fill)."""
+    Windows without rows get each labeler's training mean (fill). preds: model.predict(X, g_rows), if
+    the caller already has it."""
     if mode not in ("per_labeler", "majority"):
         raise ValueError(f"output.prediction must be 'per_labeler' or 'majority', got {mode!r}")
-    preds = model.predict(X, g_rows) if len(X) else {n: np.zeros(0) for n in model.labelers}
+    if preds is None:
+        preds = model.predict(X, g_rows) if len(X) else {n: np.zeros(0) for n in model.labelers}
     count = np.bincount(row_window, minlength=n_windows)
     curves = {}
     for n, p in preds.items():

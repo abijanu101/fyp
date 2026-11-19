@@ -2,6 +2,7 @@
 
   python -m scripts.parallel_runs tracker-scans --augment 1 [--profiles full full_reid_cmc full_strongsort]
                                  [--trials 26 34 22] [--workers 5] [--gpu-workers 2] [--beam 2]
+                                 [--det-conf-from JSON] [--start JSON] [--tag TAG]
   python -m scripts.parallel_runs extract --set augmentation.copies=8 [--workers 3]
 
 extract
@@ -263,7 +264,7 @@ def tracker_scans(args) -> None:
             print(f"  [{n}/{len(futs)}] {k}: {what}  ({(time.monotonic() - start) / 60:.1f} min)", flush=True)
 
     # 2. search: one thread per scan, one shared pool of tracking workers
-    scans = [Scan(cfg, p, None, t, args.augment, beam=args.beam, fix_det_conf=fix)
+    scans = [Scan(cfg, p, None, t, args.augment, beam=args.beam, start=args.start, fix_det_conf=fix, tag=args.tag)
              for p, t in zip(args.profiles, trials)]
     pool = SessionPool(args.workers)
     results, threads = {}, []
@@ -334,6 +335,8 @@ def main() -> None:
     t.add_argument("--fix-det-conf", action="store_true", help="keep the detection threshold at detector.conf")
     t.add_argument("--det-conf-from", metavar="JSON",
                    help="detector.conf from a detector scan's result (D2: outputs/tuning/detector_search_augmented.json), fixed")
+    t.add_argument("--start", help="bisection search: start from an earlier scan's .json (its best trial), as tune_tracker")
+    t.add_argument("--tag", help="suffix for the result files, as tune_tracker --tag (T3: pose)")
     e = sub.add_parser("extract", help="run_pipeline extract --reuse, several recordings at once")
     e.add_argument("--workers", type=int, default=3, help="worker processes, each with its own pipeline on the GPU")
     for p in (t, e):

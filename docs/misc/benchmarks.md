@@ -346,8 +346,8 @@ version found. Code: <https://bitbucket.org/rovitlib/dipser/>.
    multimodal model scores below a constant. Our near-chance six-session result
    (`docs/experiments/04_six_session_run.md`) is in line with this, not an outlier.
 2. **Always report the trivial baseline**, computed on the same target, sampling and pooling (§1).
-   We already report `majority`; for a continuous target (direction 3 of `04_six_session_run.md`
-   §7) add a predict-the-mean MAE. Prefer metrics a constant cannot game: macro F1, minority-class
+   We already report `majority`; for a continuous target (`04_six_session_run.md` §4: what the
+   run led to) add a predict-the-mean MAE. Prefer metrics a constant cannot game: macro F1, minority-class
    F1, AUC or correlation over weighted F1 and accuracy.
 3. **State how the metric was computed**: target, per second or per change, pooled or per subject,
    what was filtered (§2.2). Report per second *and* per change where it matters: they differ by

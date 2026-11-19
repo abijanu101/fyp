@@ -449,9 +449,9 @@ python -m scripts.run_pipeline extract --config docs/experiments/06_full_pipelin
 python -m scripts.train_models --config docs/experiments/06_full_pipeline_and_labels.json                     # c5341cb6385e
 python -m scripts.train_models --config docs/experiments/06_full_pipeline_and_labels.json --set engagement.labelers=pooled
 python -m scripts.train_models --config docs/experiments/06_full_pipeline_and_labels.json \
-    --set expert.name=random_forest 'expert.params={"n_estimators": 200, "max_depth": 6, "min_samples_leaf": 20}'
+    --set expert.name=random_forest 'expert.params={"n_estimators": 200, "max_depth": 6, "min_samples_leaf": 20, "n_jobs": 4}'   # 5df1987449dd
 python -m scripts.train_models --config docs/experiments/06_full_pipeline_and_labels.json \
-    --set expert.name=knn 'expert.params={"n_neighbors": 25}'
+    --set expert.name=knn 'expert.params={"n_neighbors": 25, "n_jobs": 4}'   # 75a55ca34835
 
 # compare two results (hash prefixes; --plot saves confusion heatmaps to outputs/plots/)
 python -m scripts.reporting.compare_results c5341cb6385e <other hash> --names per_labeler other --plot
@@ -975,3 +975,59 @@ Each row is scored on A's entries for the students B also rated, and "MAE const 
 those same entries. It is therefore the same within a block wherever B rated every student
 (labeler_01–03 and self: 321 student-sessions each). It differs where B is labeler_04 or labeler_05,
 who rated only some students (178 and 143), so the entry counts differ too.
+
+## Appendix C: held-out timelines (added 19 November 2026)
+
+What the tables of §2.3 look like over time, for each model's arm. Each figure: experiment 03 (a lecture), camera 01 of each group, one panel per group. Every window
+is predicted by models that never saw its group (leave one group out, the same folds as the tables).
+- **one student per panel**: the one with the most self-reports in the session (ties: the larger
+  variance of those self-reports), named in the title. The class curve (mean over students) is too
+  smooth to show how the predictions move;
+- **thick orange line**: the self-report model's prediction for that student, drawn on top since the
+  self-report is the target that matters most; **thin light lines**: one per expert labeler's model,
+  each in its own colour (labeler_01 blue, _02 green, _03 purple, _04 cyan, _05 olive). Gaps are
+  windows where the student is not tracked;
+- **orange ●** and **coloured ×**: the student's self-reports and each expert's ratings of the
+  student, as entered, at their time (jittered vertically so stacked entries show);
+- **dashed line**: 3, the engaged cut-off. Each panel's title gives the gate's hit rate on the
+  activity, and the MAE of each labeler's model against that labeler's own entries (experts pooled,
+  and self), as the tables score them.
+
+Made with `python -m scripts.reporting.plot_results --config <the experiment's JSON> --set <the arm's
+overrides> --sessions experiment_03/context_cam_01 --out <folder>`; each arm's overrides reproduce
+its results hash. The single-session images are next to each `overview.png`.
+
+**Logistic regression** (`c5341cb6385e`):
+
+![Logistic regression, experiment 03](../../outputs/experiments/06_full_pipeline/timelines/logistic_regression/overview.png)
+
+**Random forest** (`5df1987449dd`):
+
+![Random forest, experiment 03](../../outputs/experiments/06_full_pipeline/timelines/random_forest/overview.png)
+
+**k-NN, k = 25** (`75a55ca34835`):
+
+![k-NN, experiment 03](../../outputs/experiments/06_full_pipeline/timelines/knn/overview.png)
+
+What they show (students: subject_16, subject_02 and subject_01 for groups 01, 02, 03, with 18, 28
+and 9 self-reports; group 03's subject_13 has more, 19, but no linked track in camera 01; MAE pairs
+below are experts / self, in group order):
+- **The labels are levels, not a curve, even for one student.** Each student's self-reports jump
+  between 2 and 3 through the lecture (subject_16: nine of each; subject_02: fourteen of each;
+  subject_01: two 2s, five 3s and two 4s), and the experts' ratings of the
+  same student sit at 2 and 3 too, often a different level from the self-report at the same moment.
+  There is no slow rise and fall for a curve to follow.
+- **The self model is a flat line just below 3** with logistic regression (2.4–3.1) and the forest
+  (2.6–3.1): it sits between the student's 2s and 3s and does not dip when the student reports 2.
+  Self MAE is 0.47 / 0.50 / 0.66 (LR) and 0.50 / 0.51 / 0.58 (RF), about half a point, which is
+  what a constant between 2 and 3 gives. Each expert's curve is flat at that labeler's own level
+  (labeler_04 highest in group 01, labeler_05 in group 02), expert MAE 0.50–0.56. This is the
+  "predicts 3 for 96% of entries" of §2.3, seen in time.
+- **k-NN moves, but not with the labels.** For one student every curve swings by 1–2 points from
+  window to window, and the expert curves sink to 1–1.5 for long stretches. None of it lines up with
+  the entries: self MAE 0.47 / 0.72 / 0.74, expert MAE 0.84 / 0.97 / 0.89, the worst of the three
+  models.
+- **The gate is right only where it has seen the room.** 100% in group 01, 6% in group 02 (it calls
+  the lecture activity 04) and 0% in group 03 (activity 06). These arms use one shared expert per
+  labeler (`mixture.expert_scope = shared`), so the gate does not affect the curves; a gate this
+  room-bound is why the mixture of experts was delayed.
