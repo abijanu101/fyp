@@ -255,31 +255,77 @@ def base_columns(cfg: dict, rows: pd.DataFrame) -> list[str]:
 
 
 # ------------------------------------------------------------------ folds (train_models' protocol)
-def folds(rows: pd.DataFrame):
-    """Leave-one-group-out: (held-out group, training mask incl. augmented copies, test mask of
-    original rows only), exactly as train_models.main_per_labeler splits."""
-    group, aug = rows["group"].to_numpy(), rows["aug"].to_numpy(bool)
-    groups = sorted(set(group.tolist()))
-    if len(groups) < 2:
-        raise SystemExit(f"leave-one-group-out needs at least two groups with label rows; have {groups}. "
-                         f"Extract sessions of more groups first.")
-    for g in groups:
-        yield g, group != g, (group == g) & ~aug
+SPLITS = ("activity", "group")
 
 
-def fold_context(cfg: dict, rows: pd.DataFrame, windows: pd.DataFrame | None, g: str, mode: str) -> np.ndarray:
+def splits(arg: str) -> list[str]:
+    """--split activity | group | both."""
+    return list(SPLITS) if arg == "both" else [arg]
+
+
+def split_parser_arg(ap: argparse.ArgumentParser) -> None:
+    ap.add_argument("--split", choices=["both", *SPLITS], default="both",
+                    help="activity: train on 4 activities, test on the other 2, over all 15 pairs; "
+                         "group: leave one group out (unseen students); both (default): report each")
+
+
+def check_split(cfg: dict, split: str) -> None:
+    """An activity split tests on activities the model never saw: that needs one expert shared by
+    every activity (mixture.expert_scope = shared, as in experiments 06-09). Per-activity experts
+    would have no expert for a held-out activity."""
+    if split == "activity" and cfg["mixture"]["expert_scope"] != "shared":
+        raise SystemExit("--split activity needs mixture.expert_scope=shared (a per-activity expert has nothing "
+                         "to predict a held-out activity with); add --set mixture.expert_scope=shared or use --split group")
+
+
+def folds(rows: pd.DataFrame, split: str = "group"):
+    """(fold name, training mask incl. augmented copies, test mask of original rows only).
+
+    group     leave one group out, exactly as train_models.main_per_labeler splits: the test
+              students are never seen in training
+    activity  every way of holding out 2 of the activities (15 folds for 6): train on the other
+              activities, of every group. The same students and seats are in train and test
+              (each group records every activity), so this tests generalisation to new activities,
+              not to new students; compare with the group split to see how much that helps."""
+    from itertools import combinations
+
+    aug = rows["aug"].to_numpy(bool)
+    if split == "group":
+        group = rows["group"].to_numpy()
+        groups = sorted(set(group.tolist()))
+        if len(groups) < 2:
+            raise SystemExit(f"leave-one-group-out needs at least two groups with label rows; have {groups}. "
+                             f"Extract sessions of more groups first.")
+        for g in groups:
+            yield g, group != g, (group == g) & ~aug
+    elif split == "activity":
+        exp = rows["exp"].astype(str).to_numpy()
+        exps = sorted(set(exp.tolist()))
+        if len(exps) < 3:
+            raise SystemExit(f"the activity split holds out 2 activities and needs at least 3 with label rows; have {exps}")
+        for pair in combinations(exps, 2):
+            test = np.isin(exp, pair)
+            yield f"test_{pair[0]}+{pair[1]}", ~test, test & ~aug
+    else:
+        raise SystemExit(f"unknown split {split!r}")
+
+
+def fold_context(cfg: dict, rows: pd.DataFrame, windows: pd.DataFrame | None, train_rows: np.ndarray,
+                 mode: str, split: str = "group") -> np.ndarray:
     """Gate probabilities for every row in one fold: `oracle` (the true activity, isolates the
-    experts' inputs) or `classified` (the configured gate trained on the other groups' grid windows,
-    as train_models does)."""
+    experts' inputs) or `classified` (the configured gate trained on the grid windows of the
+    training sessions, as train_models does). The activity split always uses oracle: a gate cannot
+    name an activity it never saw, and with a shared expert the context does not change the rating."""
     from src.spu import GATES, context_probs
 
     classes = cfg["classes"]
-    if mode == "oracle":
-        return context_probs("oracle", classes, rows["exp"].to_numpy())
+    if mode == "oracle" or split == "activity":
+        return context_probs("oracle", classes, rows["exp"].astype(str).to_numpy())
     scene = sorted(c for c in windows if c.startswith("scene."))
     vec = sorted(c for c in windows if c.startswith("vec."))
     gate_cols = scene + (vec if cfg["gate_uses_vec"] else [])
-    tr = windows["group"].to_numpy() != g
+    held_out = set(rows.loc[~train_rows, "group"])
+    tr = ~windows["group"].isin(held_out).to_numpy()
     gate = GATES.build(cfg["gate"]["name"], classes=classes, seed=cfg["seed"], **cfg["gate"].get("params", {}))
     gate.fit(windows.loc[tr, gate_cols].to_numpy(float), windows.loc[tr, "exp"].to_numpy())
     return gate.predict_proba(rows.reindex(columns=gate_cols).to_numpy(float))

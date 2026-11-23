@@ -103,7 +103,17 @@ python -m scripts.clustering.candidates --workers 8 --channels rf.total hp.yaw k
 - **Other thresholds:** changing τ or the channels writes to a new folder, and the old one stays.
   The next steps use the newest folder unless given `--candidates <folder>`.
 
-## 6. Do the features predict attention? (labels, leave-one-group-out, CPU)
+## 6. Do the features predict attention? (labels, CPU)
+
+Two train/test splits, both run by default (`--split both`) and reported separately:
+
+| Split | Train | Test | Folds | Tests generalisation to |
+|---|---|---|---|---|
+| `activity` (main) | 4 of the 6 activities (experiments 01–06), every group | the other 2 activities | all 15 pairs, averaged | new activities. The same students and seats are in train and test, because every group records every activity |
+| `group` | 2 groups | the third group | 3 | new students (the protocol of `train_models` and experiments 06–09) |
+
+The gap between the two shows how much of a score comes from knowing the students. `--split activity`
+or `--split group` runs only one.
 
 ```
 python -m scripts.clustering.feature_screen
@@ -113,17 +123,27 @@ python -m scripts.clustering.ablation --best agglomerative
 python -m scripts.clustering.ablation --best agglomerative --no-window
 ```
 
-- **`feature_screen`:** within-student correlation and mutual information, training folds only.
-- **`importance`:** held-out permutation importance with the true activity, so only the inputs
-  differ; `--context classified` uses the gate instead. `--gate` also tests the window features in
-  the activity gate.
-- **`ablation`:** every arm on the configured gate.
-  - The first run chooses `sync+best` on the held-out folds. Read which arm it picked, then rerun
-    with `--best <that arm>`, so the cited result doesn't choose on the test data.
-  - `--no-window` checks whether the window-level features only act as session identifiers.
-  - `--context oracle` repeats the ablation with the true activity.
+- **`feature_screen`:** within-student correlation and mutual information, training rows only,
+  per split. Plots: `feature_screen_activity.png`, `feature_screen_group.png`.
+- **`importance`:** held-out permutation importance per split, with the true activity as context.
+  `--context classified` uses the gate instead, on the group split only. `--gate` also tests the
+  window features in the activity gate, on the group split only: a gate can't be tested on
+  activities it never saw.
+- **`ablation`:** every arm on both splits.
+  - **Context:** the activity split always uses the true activity, because the gate can't name an
+    activity it never saw. With experiment 09's shared expert this doesn't change the ratings. The
+    group split uses the configured gate.
+  - **`--best`:** the first run chooses `sync+best` on the held-out folds. Read which arm it picked
+    for each split, then rerun with `--best <that arm>`, so the cited result doesn't choose on the
+    test data.
+  - **`--no-window`** checks whether the window-level features only act as session identifiers.
+  - **Reading the verdict:** the 15 activity folds overlap, since each activity is tested in 5 of
+    them. So their spread understates the uncertainty: treat the activity verdict as indicative,
+    and the group verdict (independent folds) as the stricter one.
 - **Expert model:** the scripts use the config's expert (logistic regression in experiment 09). To
-  try another, add the same `--set` you would give `train_models`.
+  try another, add the same `--set` you would give `train_models`. The activity split needs one
+  expert shared by all activities (`mixture.expert_scope=shared`, as in experiment 09); the scripts
+  stop with a message otherwise.
 
 ## 7. Bring the results back
 
@@ -147,5 +167,7 @@ The caches in `outputs/cache/` stay on the GPU machine.
 | `no cached sessions in outputs/cache/...` | step 3 not run, or a different config | run step 3 with `--config docs/experiments/09_vfoa.json` |
 | `augmented copy 1 not extracted` | step 3 stopped before the copies | rerun step 3 (it resumes) |
 | `leave-one-group-out needs at least two groups` | only one group downloaded or extracted | download and extract all three groups |
+| `the activity split ... needs at least 3` | too few activities extracted | extract experiments 01–06 |
+| `--split activity needs mixture.expert_scope=shared` | the config uses per-activity experts | `--set mixture.expert_scope=shared`, or `--split group` |
 | `no candidate tables` | step 5 not run | run step 5 |
 | CUDA out of memory in step 3 | too many workers for the GPU | `--workers 2` or `1` |

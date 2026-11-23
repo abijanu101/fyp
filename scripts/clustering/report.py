@@ -12,9 +12,9 @@ Reads what the other scripts wrote to --out (any that has not run is reported as
   descriptors  screen A5: the chosen subset
   stability    screen A6: the usable settings, most stable first
   candidates   B7: every candidate folder, its settings and session count
-  screen       B8: the 30 strongest candidates on the experts' training folds
-  importance   B9: the per-labeler model and the gate
-  ablation     B10: every ablation run (arm table and verdict)
+  screen       B8: the 30 strongest candidates on the experts' training folds, per split
+  importance   B9: the per-labeler model per split, and the gate (group split)
+  ablation     B10: every ablation run (arm table and verdict, per split)
 """
 
 from __future__ import annotations
@@ -64,7 +64,8 @@ def main() -> None:
     rep["candidates"] = [{"folder": d.name, "settings": json.loads((d / "params.json").read_text(encoding="utf-8")),
                           "sessions": len(candidate_files(d))}
                          for d in sorted((out / "candidates").glob("*-*")) if (d / "params.json").exists()] or "missing"
-    rep["screen"] = records(out / "feature_screen.json", lambda d: d[d["track"] == "experts"], head=30)
+    rep["screen"] = records(out / "feature_screen.json",
+                            lambda d: d[d["track"] == "experts"].groupby("split", sort=False).head(30))
     rep["importance"] = {"model": records(out / "importance_summary.json"),
                          "gate": records(out / "importance_gate.json")}
     abl = sorted((out / "ablation").glob("*-*.json"))
@@ -72,7 +73,7 @@ def main() -> None:
                         "verdict": json.loads(p.read_text(encoding="utf-8"))["verdict"]} for p in abl] or "missing"
     if (out / "ablation" / "ablation.json").exists():
         rep["ablation_table_latest"] = records(out / "ablation" / "ablation.json",
-                                               lambda d: d[d["split"].isin(["heldout", "train"])])
+                                               lambda d: d[d["eval"].isin(["heldout", "train"])])
     path = out / "clustering_report.json"
     path.write_text(json.dumps(rep, indent=1), encoding="utf-8")
     def missing(v):

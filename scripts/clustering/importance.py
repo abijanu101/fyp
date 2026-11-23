@@ -2,13 +2,15 @@
 
   python -m scripts.clustering.importance [--config docs/experiments/09_vfoa.json] [--set k=v ...]
          [--candidates <dir>] [--arms sync agg hdb proto] [--prototypes 8] [--by family]
-         [--repeats 5] [--context oracle] [--gate] [--out outputs/experiments/10_clustering]
+         [--repeats 5] [--context oracle] [--gate] [--split both] [--out outputs/experiments/10_clustering]
 
 The model: the configured per-labeler model (expert, e.g. `--set expert.name=...`, mixture and
 labelers as in the config) on the configured inputs (trk.*, plus the class context only if
-engagement.use_class_context) plus the candidates of the chosen arms. Per leave-one-group-out fold
-it is trained on the other groups (augmented copies included) and scored on the held-out group's
-original entries (each entry once): MAE and Spearman per track (experts, self).
+engagement.use_class_context) plus the candidates of the chosen arms. Per fold it is trained on the
+training rows (augmented copies included) and scored on the held-out original entries (each entry
+once): MAE and Spearman per track (experts, self). Two splits (--split; both by default):
+  activity  train on 4 activities, test on the other 2, over all 15 pairs (same students in both)
+  group     leave one group out (the test students are unseen)
 
 Importance of a column or family (--by family: e.g. every sync.hp.yaw.* column together, so
 correlated columns are not each judged with their partners still in place): shuffle it across the
@@ -16,14 +18,17 @@ held-out rows --repeats times and record the rise in MAE and the fall in Spearma
 model uses it on unseen data. Base inputs are included, as a scale.
 
 --context oracle (default) gives the experts the true activity, so only their inputs differ;
-classified uses the configured gate, as train_models' headline numbers do.
+classified uses the configured gate, as train_models' headline numbers do (group split only: the
+activity split always uses oracle, since a gate cannot name an activity it never saw).
 
 --gate: also the activity gate (the configured SPU gate, a random forest in 06-09) on the centred
-windows: held-out accuracy with scene.* alone against scene.* plus the window-level cluster.*
+windows, on the group split only (it predicts the activity, so it cannot be tested on held-out
+activities): held-out accuracy with scene.* alone against scene.* plus the window-level cluster.*
 candidates, and the permutation importance of each cluster.* family on that accuracy.
 
-Writes to --out: importance.csv (per fold, track, feature: base score, permuted score, drop),
-importance_summary.csv (mean and SD over folds), importance.png; with --gate, importance_gate.csv.
+Writes to --out (tables as .csv and .json): importance (per split, fold, track, feature: base score,
+permuted score, drop), importance_summary (mean and SD over a split's folds), importance_<split>.png;
+with --gate, importance_gate.
 """
 
 from __future__ import annotations
@@ -33,8 +38,8 @@ import pandas as pd
 
 from scripts.clustering.common import (PER_STUDENT, PER_WINDOW, base_columns, base_parser, candidate_columns,
                                        fit_model, fold_context, folds, label_table, latest_candidates, load,
-                                       load_candidates, own_ratings, plot_ready, score, with_fold_prototypes,
-                                       write_table)
+                                       load_candidates, own_ratings, plot_ready, score, splits, split_parser_arg,
+                                       check_split, with_fold_prototypes, write_table)
 
 ARM_KEYS = {"sync": ".sync.", "agg": ".agg.", "hdb": ".hdb.", "proto": ".proto."}
 
@@ -106,49 +111,7 @@ def gate_importance(cfg: dict, rows: pd.DataFrame, repeats: int, rng) -> pd.Data
     return pd.DataFrame(recs)
 
 
-def main() -> None:
-    ap = base_parser(__doc__)
-    ap.add_argument("--candidates", default=None)
-    ap.add_argument("--arms", nargs="*", default=["sync", "agg", "hdb", "proto"], choices=list(ARM_KEYS))
-    ap.add_argument("--prototypes", type=int, default=8)
-    ap.add_argument("--proto-set", default="subset")
-    ap.add_argument("--by", choices=["family", "column"], default="family")
-    ap.add_argument("--repeats", type=int, default=5)
-    ap.add_argument("--context", choices=["oracle", "classified"], default="oracle")
-    ap.add_argument("--gate", action="store_true")
-    args = ap.parse_args()
-    cfg, out = load(args)
-    rng = np.random.default_rng(cfg["seed"])
-    tau = float(cfg["labels"]["tau_att"])
-    cdir = latest_candidates(out, args.candidates)
-    rows, windows = label_table(cfg, with_windows=True)
-    rows = load_candidates(rows, cdir)
-    proto_set = args.proto_set if (out / "descriptor_subset.json").exists() or args.proto_set != "subset" else "all"
-    use_proto = "proto" in args.arms and args.prototypes > 0
-
-    recs = []
-    for g, tr, te in folds(rows):
-        r = with_fold_prototypes(cfg, rows, tr, proto_set, args.prototypes, out) if use_proto else rows
-        base = base_columns(cfg, r)
-        extra = arm_columns(candidate_columns(r), args.arms)
-        cols = base + extra
-        groups: dict[str, list[int]] = {}
-        for j, c in enumerate(cols):
-            groups.setdefault(family(c) if args.by == "family" else c, []).append(j)
-        model = fit_model(cfg, r, cols, tr)
-        G = fold_context(cfg, r, windows, g, args.context)
-        rte = r[te].reset_index(drop=True)
-        X = rte.reindex(columns=cols).to_numpy(float)
-        recs += [{"fold": g, **x} for x in permutation_drop(model, X, G[te], rte, groups, args.repeats, tau, rng)]
-        print(f"  fold {g}: {len(base)} base + {len(extra)} candidate columns, {len(groups)} features scored", flush=True)
-    df = pd.DataFrame(recs)
-    write_table(df, out / "importance")
-    summary = df.groupby(["feature", "track"]).agg(
-        mae_rise=("mae_rise", "mean"), mae_rise_sd=("mae_rise", "std"), spearman_fall=("spearman_fall", "mean"),
-        spearman_fall_sd=("spearman_fall", "std"), folds=("fold", "nunique")).reset_index()
-    summary = summary.sort_values(["track", "spearman_fall"], ascending=[True, False])
-    write_table(summary, out / "importance_summary")
-
+def plot(summary: pd.DataFrame, split: str, context: str, path) -> None:
     plt = plot_ready()
     fig, axes = plt.subplots(1, 2, figsize=(14, 0.28 * summary["feature"].nunique() + 2), sharey=True)
     order = summary[summary["track"] == "experts"].sort_values("spearman_fall", ascending=False)["feature"].tolist()
@@ -161,23 +124,76 @@ def main() -> None:
         ax.set_yticks(y, order, fontsize=7)
         ax.invert_yaxis()
         ax.set_xlabel("fall in held-out Spearman when shuffled (mean, SD over folds)")
-        ax.set_title(f"{track} ({args.context} context; grey = base inputs)", fontsize=10)
+        ax.set_title(f"{split} split, {track} ({context} context; grey = base inputs)", fontsize=10)
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
     fig.tight_layout()
-    fig.savefig(out / "importance.png", dpi=130)
+    fig.savefig(path, dpi=130)
     plt.close(fig)
 
-    print(f"\nheld-out permutation importance ({args.context} context, {args.repeats} repeats), experts:")
-    print(summary[summary["track"] == "experts"].round(4).to_string(index=False))
+
+def main() -> None:
+    ap = base_parser(__doc__)
+    ap.add_argument("--candidates", default=None)
+    ap.add_argument("--arms", nargs="*", default=["sync", "agg", "hdb", "proto"], choices=list(ARM_KEYS))
+    ap.add_argument("--prototypes", type=int, default=8)
+    ap.add_argument("--proto-set", default="subset")
+    ap.add_argument("--by", choices=["family", "column"], default="family")
+    ap.add_argument("--repeats", type=int, default=5)
+    ap.add_argument("--context", choices=["oracle", "classified"], default="oracle")
+    ap.add_argument("--gate", action="store_true")
+    split_parser_arg(ap)
+    args = ap.parse_args()
+    cfg, out = load(args)
+    for split in splits(args.split):
+        check_split(cfg, split)
+    rng = np.random.default_rng(cfg["seed"])
+    tau = float(cfg["labels"]["tau_att"])
+    cdir = latest_candidates(out, args.candidates)
+    rows, windows = label_table(cfg, with_windows=True)
+    rows = load_candidates(rows, cdir)
+    proto_set = args.proto_set if (out / "descriptor_subset.json").exists() or args.proto_set != "subset" else "all"
+    use_proto = "proto" in args.arms and args.prototypes > 0
+
+    recs = []
+    for split in splits(args.split):
+        context = "oracle" if split == "activity" else args.context
+        for g, tr, te in folds(rows, split):
+            r = with_fold_prototypes(cfg, rows, tr, proto_set, args.prototypes, out) if use_proto else rows
+            base = base_columns(cfg, r)
+            extra = arm_columns(candidate_columns(r), args.arms)
+            cols = base + extra
+            groups: dict[str, list[int]] = {}
+            for j, c in enumerate(cols):
+                groups.setdefault(family(c) if args.by == "family" else c, []).append(j)
+            model = fit_model(cfg, r, cols, tr)
+            G = fold_context(cfg, r, windows, tr, context, split)
+            rte = r[te].reset_index(drop=True)
+            X = rte.reindex(columns=cols).to_numpy(float)
+            recs += [{"split": split, "context": context, "fold": g, **x}
+                     for x in permutation_drop(model, X, G[te], rte, groups, args.repeats, tau, rng)]
+            print(f"  {split} fold {g}: {len(base)} base + {len(extra)} candidate columns, "
+                  f"{len(groups)} features scored", flush=True)
+    df = pd.DataFrame(recs)
+    write_table(df, out / "importance")
+    summary = df.groupby(["split", "context", "feature", "track"]).agg(
+        mae_rise=("mae_rise", "mean"), mae_rise_sd=("mae_rise", "std"), spearman_fall=("spearman_fall", "mean"),
+        spearman_fall_sd=("spearman_fall", "std"), folds=("fold", "nunique")).reset_index()
+    summary = summary.sort_values(["split", "track", "spearman_fall"], ascending=[True, True, False])
+    write_table(summary, out / "importance_summary")
+    for (split, context), ss in summary.groupby(["split", "context"]):
+        plot(ss, split, context, out / f"importance_{split}.png")
+        print(f"\n{split} split: held-out permutation importance ({context} context, {args.repeats} repeats), experts:")
+        print(ss[ss["track"] == "experts"].drop(columns=["split", "context"]).round(4).to_string(index=False))
     if args.gate:
         gi = gate_importance(cfg, rows, args.repeats, rng)
         write_table(gi, out / "importance_gate")
         acc = gi.dropna(subset=["accuracy"]).groupby("feature")["accuracy"].mean()
-        print("\ngate held-out accuracy on the centred windows:", acc.round(3).to_dict())
+        print("\ngate (group split) held-out accuracy on the centred windows:", acc.round(3).to_dict())
         print(gi.dropna(subset=["accuracy_drop"]).groupby("feature")["accuracy_drop"].mean()
               .sort_values(ascending=False).round(4).to_string())
-    print(f"\nwrote {out}/importance.csv, importance_summary.csv, importance.png" + (", importance_gate.csv" if args.gate else ""))
+    print(f"\nwrote {out}/importance, importance_summary (.csv/.json), importance_<split>.png"
+          + (", importance_gate" if args.gate else ""))
 
 
 if __name__ == "__main__":

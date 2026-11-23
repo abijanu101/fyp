@@ -373,9 +373,9 @@ than the next and removes candidates before it.
 | A5 | `descriptor_subset` | Which descriptors to cluster on: drop seat-like ones (A2), rank by Laplacian score, keep one per redundancy group | no | `descriptor_subset.csv`, `descriptor_subset.json` (the set `subset` the later scripts read) |
 | A6 | `stability` | How stable is each clustering under subsampling of the students, and between overlapping windows? Which thresholds τ are degenerate? | no | `stability.csv`, `stability.png` |
 | B7 | `candidates` | Every candidate of options 0, 1 and 2 on the windows centred on rating entries, at the τ chosen in A6 | no | `candidates/<feature hash>-<settings hash>/<stem>.json` (`--format csv` for flat tables) |
-| B8 | `feature_screen` | Within-student Spearman ρ and mutual information with the ratings, on the **training** groups of each fold (the held-out ρ is shown, not used) | train folds | `feature_screen.csv`, `feature_screen_folds.csv`, `feature_screen.png` |
-| B9 | `importance` | Held-out permutation importance of each feature family in the configured per-labeler model; `--gate` also tests the window-level features in the activity gate | held-out | `importance*.csv`, `importance.png` |
-| B10 | `ablation` | The arms of §15.6 (`null`, `sync`, `agglomerative`, `hdbscan`, `prototype`, `sync+best`) on train_models' folds and metrics, with the §15.6 test | held-out | `ablation/<config hash>-<settings hash>.json`, `ablation.csv`, `ablation_verdict.csv` |
+| B8 | `feature_screen` | Within-student Spearman ρ and mutual information with the ratings, on the **training** rows of each fold (the held-out ρ is shown, not used), per split | train folds | `feature_screen.csv`, `feature_screen_folds.csv`, `feature_screen_<split>.png` |
+| B9 | `importance` | Held-out permutation importance of each feature family in the configured per-labeler model, per split; `--gate` also tests the window-level features in the activity gate (group split) | held-out | `importance*.csv`, `importance_<split>.png` |
+| B10 | `ablation` | The arms of §15.6 (`null`, `sync`, `agglomerative`, `hdbscan`, `prototype`, `sync+best`) on both splits, train_models' models and metrics, with the §15.6 test per split | held-out | `ablation/<config hash>-<settings hash>.json`, `ablation.csv`, `ablation_verdict.csv` |
 | – | `report` | Every result above gathered in one file, to carry back from the machine that ran them | – | `clustering_report.json` |
 
 ```
@@ -399,7 +399,14 @@ tables). The full-dataset run, from a fresh GPU machine to the report, is in
 
 **What needs what:**
 - A1–A6 and B7 run on any cached session, including a single one.
-- B8–B10 need label rows from at least two groups, because they use leave-one-group-out folds.
+- B8–B10 evaluate on two splits (`--split`, both by default):
+  - **activity**, the main split: train on 4 of the 6 activities and test on the other 2, over all
+    15 pairs. The same students are in train and test, so it measures generalisation to new
+    activities. It always uses the true activity as context, and needs a shared expert
+    (`mixture.expert_scope=shared`).
+  - **group:** leave one group out, as `train_models` does, so the test students are unseen.
+  The gap between the two shows how much a score owes to knowing the students. The activity split
+  needs at least 3 activities with label rows; the group split needs at least 2 groups.
 - B10 also needs the augmented copies the config names (`augmentation.copies`), as `train_models` does.
 
 **Choices made here** (the screens report them, so they can be revisited):
