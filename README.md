@@ -49,7 +49,7 @@ comes from its FTP server, with the credentials the dataset authors issue, in a 
 repository root (`FTP_USER=...`, `FTP_PASSWORD=...`; git-ignored; never commit it):
 
 ```
-python scripts/downloading/dipser.py                    # context cameras + per-student labels (filters at the top of the file)
+python scripts/downloading/dipser.py                    # context cameras + per-student labels; pipeline scope by default, narrow with --groups/--experiments/--cameras
 python scripts/downloading/validate_dipser_remote.py    # optional: check the local copy against the server
 ```
 

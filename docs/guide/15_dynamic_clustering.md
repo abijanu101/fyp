@@ -14,8 +14,10 @@ in the same window. This chapter covers:
 - every clustering family we considered, and what each would give us;
 - which ones the clustering experiment tests, and how they plug into the code.
 
-Nothing in this chapter is implemented yet. The CFMU slot it builds on is described in Chapter 6
-§6.6, and its maths in `src/cfmu/spread.py`. Status as of 17 November 2026.
+The pipeline's CFMU extractors (§15.7) are not built yet. The features themselves, and the scripts
+that decide which ones to use, are in `src/cfmu/classrel.py` and `scripts/clustering/` (§15.9).
+The CFMU slot they build on is described in Chapter 6 §6.6, and the spread maths in
+`src/cfmu/spread.py`. Status as of 23 November 2026.
 
 ## 15.1 Why class-relative features
 
@@ -352,6 +354,66 @@ empty windows and to occlusion.
    - two well-separated groups of students form two clusters, and fragmentation is near 1;
    - identical students give chaos 0;
    - the per-track keys reach the student rows.
+
+## 15.9 Finding the features: the screening scripts
+
+Before the extractor contract changes (§15.7), the clustering experiment runs **offline**, from the
+caches `run_pipeline extract` writes. Scripts in `scripts/clustering/`, maths in
+`src/cfmu/classrel.py` (tested in `tests/test_classrel.py`). The extractors of §15.7 will call the
+same functions, so whatever the screens pick is computed identically in the pipeline.
+
+The work splits into two questions: **A**, what to cluster on (which signals, which space), and
+**B**, which features made from the clusters help. Run them in this order: each screen is cheaper
+than the next and removes candidates before it.
+
+| # | Script | Question | Labels? | Output (in `outputs/experiments/10_clustering/`) |
+|---|---|---|---|---|
+| A1–A3 | `signal_screen` | Is the channel above the tracker's jitter (noise ratio, lag-1 autocorrelation)? How much of each descriptor's variance is within a track, where the labels move? Does the class move together more than when each student's series is circularly shifted? | no | `signal_screen_channels.csv`, `signal_screen_descriptors.csv`, `signal_screen.png` |
+| A4 | `event_check` | Do the students move together at moments when the class should react? Events come from half of the class and are tested on the other half, or are given with `--events` | no | `event_check.csv`, `event_times.csv`, `event_check_<channel>.png` |
+| A5 | `descriptor_subset` | Which descriptors to cluster on: drop seat-like ones (A2), rank by Laplacian score, keep one per redundancy group | no | `descriptor_subset.csv`, `descriptor_subset.json` (the set `subset` the later scripts read) |
+| A6 | `stability` | How stable is each clustering under subsampling of the students, and between overlapping windows? Which thresholds τ are degenerate? | no | `stability.csv`, `stability.png` |
+| B7 | `candidates` | Every candidate of options 0, 1 and 2 on the windows centred on rating entries, at the τ chosen in A6 | no | `candidates/<feature hash>-<settings hash>/<stem>.json` (`--format csv` for flat tables) |
+| B8 | `feature_screen` | Within-student Spearman ρ and mutual information with the ratings, on the **training** groups of each fold (the held-out ρ is shown, not used) | train folds | `feature_screen.csv`, `feature_screen_folds.csv`, `feature_screen.png` |
+| B9 | `importance` | Held-out permutation importance of each feature family in the configured per-labeler model; `--gate` also tests the window-level features in the activity gate | held-out | `importance*.csv`, `importance.png` |
+| B10 | `ablation` | The arms of §15.6 (`null`, `sync`, `agglomerative`, `hdbscan`, `prototype`, `sync+best`) on train_models' folds and metrics, with the §15.6 test | held-out | `ablation/<config hash>-<settings hash>.json`, `ablation.csv`, `ablation_verdict.csv` |
+| – | `report` | Every result above gathered in one file, to carry back from the machine that ran them | – | `clustering_report.json` |
+
+```
+python -m scripts.clustering.signal_screen
+python -m scripts.clustering.event_check
+python -m scripts.clustering.descriptor_subset
+python -m scripts.clustering.stability
+python -m scripts.clustering.candidates --tau-desc <from stability> --tau-sync <from stability>
+python -m scripts.clustering.feature_screen
+python -m scripts.clustering.importance --gate
+python -m scripts.clustering.ablation --best <agglomerative|hdbscan|prototype>
+python -m scripts.clustering.report
+```
+
+Every script takes `--config` (default `docs/experiments/09_vfoa.json`, whose head-pose channels
+are the natural input), `--set`, `--sessions` and `--out`. Every result table is written as `.csv`
+and `.json`. `signal_screen`, `stability` and `candidates` take `--workers N` (sessions in parallel,
+CPU). The candidates are stored as one JSON file per session (`--format csv` or `both` for flat
+tables). The full-dataset run, from a fresh GPU machine to the report, is in
+[`scripts/clustering/README.md`](../../scripts/clustering/README.md).
+
+**What needs what:**
+- A1–A6 and B7 run on any cached session, including a single one.
+- B8–B10 need label rows from at least two groups, because they use leave-one-group-out folds.
+- B10 also needs the augmented copies the config names (`augmentation.copies`), as `train_models` does.
+
+**Choices made here** (the screens report them, so they can be revisited):
+- Per-track standardisation uses the regular-grid rows of the session (`tracks.csv`). Where a track
+  has fewer than 5 windows, or a flat descriptor, it uses the whole session's statistics instead.
+- A noise ratio of 1.5 is the default pass mark (`--noise-pass`).
+- Synchrony "passes" with a one-sided sign test p < 0.05 over windows that the real correlation
+  exceeds the surrogate mean.
+- An event-response "move" is a frame-to-frame change above the student's own 90th percentile.
+- The prototype codebook is fitted per fold on the training groups' label-window descriptors, with
+  augmented copies included and no labels (option 4, way 2).
+- `sync+best` chosen automatically uses the held-out folds. Freeze `--best` before a result is cited.
+- Window-level `cluster.*` columns are included by default. They are constant within a window and
+  can identify sessions, as the class context did in experiment 08, so `--no-window` is the check.
 
 ## 15.8 References
 

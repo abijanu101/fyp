@@ -23,22 +23,22 @@ REMOTE_ROOT = "/DIPSEER"
 LOCAL_ROOT = Path(__file__).resolve().parents[2] / "data" / "DIPSER"    # <repo>/data/DIPSER
 DATASET_ROOT = LOCAL_ROOT / "DIPSEER"
 MANIFEST = LOCAL_ROOT / "dataset.json"
-IGNORE_GROUPS = [
-    "group_01",
-    "group_02"
-]
-IGNORE_EXPERIMENTS = [
-    "experiment_01",
-    "experiment_02",
-    "experiment_03",
-    "experiment_04",
-    "experiment_05",
-    "experiment_06",
-    "experiment_07",
-]
-IGNORE_CONTEXT_CAMS = [
-    # "context_cam_04",
-]
+# Scope: by default the pipeline's full scope (groups 01-03, experiments 01-06, context cameras
+# 01-03; configs/deliverable3.json and docs/experiments/*.json). Narrow it on the command line, e.g.
+#   python scripts/downloading/dipser.py --groups group_01 --experiments experiment_03 --cameras context_cam_01
+KEEP_GROUPS = {f"group_{i:02d}" for i in (1, 2, 3)}
+KEEP_EXPERIMENTS = {f"experiment_{i:02d}" for i in range(1, 7)}
+KEEP_CONTEXT_CAMS = {f"context_cam_{i:02d}" for i in (1, 2, 3)}
+
+
+def ignore_lists(groups, experiments, cams):
+    """Everything outside the kept names is ignored (the loops below test the ignore lists)."""
+    return ([f"group_{i:02d}" for i in range(100) if f"group_{i:02d}" not in groups],
+            [f"experiment_{i:02d}" for i in range(100) if f"experiment_{i:02d}" not in experiments],
+            [f"context_cam_{i:02d}" for i in range(100) if f"context_cam_{i:02d}" not in cams])
+
+
+IGNORE_GROUPS, IGNORE_EXPERIMENTS, IGNORE_CONTEXT_CAMS = ignore_lists(KEEP_GROUPS, KEEP_EXPERIMENTS, KEEP_CONTEXT_CAMS)
 
 # ============================================================
 # Directory and filename patterns
@@ -847,4 +847,13 @@ def main():
 
 
 if __name__ == "__main__":
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Download the DIPSER context cameras and per-student labels.")
+    ap.add_argument("--groups", nargs="*", default=sorted(KEEP_GROUPS))
+    ap.add_argument("--experiments", nargs="*", default=sorted(KEEP_EXPERIMENTS))
+    ap.add_argument("--cameras", nargs="*", default=sorted(KEEP_CONTEXT_CAMS))
+    a = ap.parse_args()
+    IGNORE_GROUPS, IGNORE_EXPERIMENTS, IGNORE_CONTEXT_CAMS = ignore_lists(set(a.groups), set(a.experiments), set(a.cameras))
+    print(f"scope: {', '.join(a.groups)} | {', '.join(a.experiments)} | {', '.join(a.cameras)}")
     main()
