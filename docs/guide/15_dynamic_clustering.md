@@ -375,7 +375,7 @@ than the next and removes candidates before it.
 | B7 | `candidates` | Every candidate of options 0, 1 and 2 on the windows centred on rating entries, at the τ chosen in A6 | no | `candidates/<feature hash>-<settings hash>/<stem>.json` (`--format csv` for flat tables) |
 | B8 | `feature_screen` | Within-student Spearman ρ and mutual information with the ratings, on the **training** rows of each fold (the held-out ρ is shown, not used), per split | train folds | `feature_screen.csv`, `feature_screen_folds.csv`, `feature_screen_<split>.png` |
 | B9 | `importance` | Held-out permutation importance of each feature family in the configured per-labeler model, per split; `--gate` also tests the window-level features in the activity gate (group split) | held-out | `importance*.csv`, `importance_<split>.png` |
-| B10 | `ablation` | The arms of §15.6 (`null`, `sync`, `agglomerative`, `hdbscan`, `prototype`, `sync+best`) on both splits, train_models' models and metrics, with the §15.6 test per split | held-out | `ablation/<config hash>-<settings hash>.json`, `ablation.csv`, `ablation_verdict.csv` |
+| B10 | `ablation` | The arms of §15.6 (`null`, `sync`, `agglomerative`, `hdbscan`, `prototype`, `sync+best`), plus `normalised` (`null`'s inputs standardised per student over their session, no class-relative features), on both splits, train_models' models and metrics, with the §15.6 test per split | held-out | `ablation/<config hash>-<settings hash>.json`, `ablation.csv`, `ablation_verdict.csv` |
 | – | `report` | Every result above gathered in one file, to carry back from the machine that ran them | – | `clustering_report.json` |
 
 ```

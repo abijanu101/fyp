@@ -51,10 +51,16 @@ python -m scripts.parallel_runs extract --config docs/experiments/09_vfoa.json -
 - **Workers:** each worker holds its own detector, ReID and SCB models on the GPU. Use 3 with
   16 GB or more of VRAM, 2 with 8–12 GB. If you see a CUDA out-of-memory error, use fewer.
 - **Resumable:** a finished recording is skipped. If the run stops, run the same command again.
-- **Time:** about real time per recording per worker on a GPU (experiment 04 measured 185 ms per
-  frame). On this laptop's CPU it was 61 minutes for one 5-minute recording.
-- **Output:** `outputs/cache/tracks/<hash>/` and `outputs/cache/features/<hash>/`. These are
-  git-ignored and large.
+- **Time:** experiment 09 measured about 17 h for all 260 recordings on 3 workers, about 0.8 min
+  of extraction per minute of footage. On this laptop's CPU it was 61 minutes for one 5-minute
+  recording.
+- **Output:** `outputs/cache/tracks/2a11240a2d42/` and `outputs/cache/features/4c761244568f/`.
+  These are git-ignored and large: about 10–15 GB.
+- **Skip this step if experiment 09's caches exist.** Experiment 10 uses the same config, so
+  experiment 09's extraction produced exactly these two folders. Copy them from the computer that
+  ran experiment 09 into `outputs\cache\tracks\` and `outputs\cache\features\` on this computer,
+  keeping the folder names. Running the extraction command afterwards then just reports every
+  recording as done.
 
 Optional: the experiment 09 baseline itself, which is the `null` arm with the configured gate. It
 also builds the label-window caches that step 6 needs, so step 6 starts faster:
@@ -129,7 +135,7 @@ python -m scripts.clustering.ablation --best agglomerative --no-window
   `--context classified` uses the gate instead, on the group split only. `--gate` also tests the
   window features in the activity gate, on the group split only: a gate can't be tested on
   activities it never saw.
-- **`ablation`:** every arm on both splits.
+- **`ablation`:** every arm on both splits. Besides the clustering arms, `normalised` is `null`'s inputs with each student's features standardised against their own session average and spread: it tests whether the existing features carry more signal once the seat is removed. Compare it with `null` in the verdict.
   - **Context:** the activity split always uses the true activity, because the gate can't name an
     activity it never saw. With experiment 09's shared expert this doesn't change the ratings. The
     group split uses the configured gate.
@@ -140,8 +146,13 @@ python -m scripts.clustering.ablation --best agglomerative --no-window
   - **Reading the verdict:** the 15 activity folds overlap, since each activity is tested in 5 of
     them. So their spread understates the uncertainty: treat the activity verdict as indicative,
     and the group verdict (independent folds) as the stricter one.
-- **Expert model:** the scripts use the config's expert (logistic regression in experiment 09). To
-  try another, add the same `--set` you would give `train_models`. The activity split needs one
+- **Expert model and inputs:** the scripts follow the config exactly as `train_models` does: the
+  expert (logistic regression in experiment 09); the base inputs (`engagement.columns`,
+  `engagement.class_relative`, `engagement.use_class_context`); the training rebalancing
+  (`labels.train_keep`); and the rating scale (`labels.collapse`). To rerun any experiment 09 arm
+  with the clustering features added, give the same `--set`. For example, 08's inputs without
+  head pose:
+  `--set 'engagement.columns={"exclude": ["trk.hp.", "vec.hp.", "rel."]}'`. The activity split needs one
   expert shared by all activities (`mixture.expert_scope=shared`, as in experiment 09); the scripts
   stop with a message otherwise.
 

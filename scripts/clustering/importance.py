@@ -39,7 +39,7 @@ import pandas as pd
 from scripts.clustering.common import (PER_STUDENT, PER_WINDOW, base_columns, base_parser, candidate_columns,
                                        fit_model, fold_context, folds, label_table, latest_candidates, load,
                                        load_candidates, own_ratings, plot_ready, score, splits, split_parser_arg,
-                                       check_split, with_fold_prototypes, write_table)
+                                       check_split, levels_of, with_fold_prototypes, write_table)
 
 ARM_KEYS = {"sync": ".sync.", "agg": ".agg.", "hdb": ".hdb.", "proto": ".proto."}
 
@@ -59,9 +59,9 @@ def arm_columns(cols: list[str], arms: list[str]) -> list[str]:
 
 
 def permutation_drop(model, X: np.ndarray, G, rows_te: pd.DataFrame, groups: dict[str, list[int]], repeats: int,
-                     tau: float, rng) -> list[dict]:
+                     tau: float, rng, levels=None) -> list[dict]:
     lab = rows_te["labeler"].to_numpy()
-    base = score(rows_te, own_ratings(model, X, G, lab), tau)
+    base = score(rows_te, own_ratings(model, X, G, lab), tau, levels)
     recs = []
     for name, idx in groups.items():
         agg: dict[str, list] = {}
@@ -69,7 +69,7 @@ def permutation_drop(model, X: np.ndarray, G, rows_te: pd.DataFrame, groups: dic
             Xp = X.copy()
             perm = rng.permutation(len(X))
             Xp[:, idx] = X[perm][:, idx]
-            for track, m in score(rows_te, own_ratings(model, Xp, G, lab), tau).items():
+            for track, m in score(rows_te, own_ratings(model, Xp, G, lab), tau, levels).items():
                 agg.setdefault(track, []).append(m)
         for track, ms in agg.items():
             b = base.get(track, {})
@@ -171,7 +171,7 @@ def main() -> None:
             rte = r[te].reset_index(drop=True)
             X = rte.reindex(columns=cols).to_numpy(float)
             recs += [{"split": split, "context": context, "fold": g, **x}
-                     for x in permutation_drop(model, X, G[te], rte, groups, args.repeats, tau, rng)]
+                     for x in permutation_drop(model, X, G[te], rte, groups, args.repeats, tau, rng, levels_of(cfg))]
             print(f"  {split} fold {g}: {len(base)} base + {len(extra)} candidate columns, "
                   f"{len(groups)} features scored", flush=True)
     df = pd.DataFrame(recs)

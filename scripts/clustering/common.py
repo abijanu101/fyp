@@ -245,13 +245,30 @@ def latest_candidates(out: Path, given: str | None) -> Path:
 
 
 def base_columns(cfg: dict, rows: pd.DataFrame) -> list[str]:
-    """The model inputs of the configured run, without any candidate: the trk.* per-student
-    columns, plus the class context when engagement.use_class_context (off from experiment 08)."""
-    from src.core.config import use_class_context
+    """The model inputs of the configured run, without any candidate: exactly what train_models
+    gives the per-labeler model (src/experts/columns.model_columns, experiment 09): the trk.*
+    per-student columns, the rel.hp.* class-relative head direction when engagement.class_relative,
+    the class context when engagement.use_class_context, filtered by engagement.columns. The
+    candidates (trk.cluster.*, cluster.*) are kept out here and added per arm."""
+    from src.experts.columns import model_columns
 
-    trk = sorted(c for c in rows if c.startswith("trk.") and not c.startswith(PER_STUDENT))
-    vec = sorted(c for c in rows if c.startswith("vec."))
-    return trk + (vec if use_class_context(cfg) else [])
+    available = [c for c in rows if not c.startswith((PER_STUDENT, PER_WINDOW))]
+    return model_columns(cfg, available, sorted(c for c in rows if c.startswith("vec.")))
+
+
+def train_mask(cfg: dict, rows: pd.DataFrame, train: np.ndarray) -> np.ndarray:
+    """The training rows a model may fit on: `train` and labels.train_keep (experiment 09's
+    rebalancing, drawn per entry and seeded). Held-out rows are always scored in full."""
+    from src.experts import train_keep_mask
+
+    return train & train_keep_mask(rows, cfg["labels"].get("train_keep"), cfg["seed"])
+
+
+def levels_of(cfg: dict) -> np.ndarray:
+    """The rating levels the metrics round to: 1-5, or labels.collapse's levels (e.g. 1, 3, 5)."""
+    from src.labels.interp import rating_levels
+
+    return rating_levels(cfg["labels"].get("collapse"))
 
 
 # ------------------------------------------------------------------ folds (train_models' protocol)
@@ -337,6 +354,7 @@ def fit_model(cfg: dict, rows: pd.DataFrame, cols: list[str], train: np.ndarray)
     from src.experts import PerLabelerModel
 
     X = rows.reindex(columns=cols).to_numpy(float)
+    train = train_mask(cfg, rows, train)                  # labels.train_keep, as train_models
     return PerLabelerModel.fit(per_labeler_factory(cfg, cols, cfg["mixture"]["expert_scope"]), X[train],
                                rows["target"].to_numpy(float)[train], rows["exp"].to_numpy()[train],
                                rows["labeler"].to_numpy()[train], pooled=is_pooled(cfg))
@@ -350,8 +368,9 @@ def own_ratings(model, X: np.ndarray, G: np.ndarray, labeler: np.ndarray) -> np.
     return np.array([to_rating(preds[l][i]) if l in preds else np.nan for i, l in enumerate(labeler)])
 
 
-def score(rows: pd.DataFrame, pred: np.ndarray, tau_att: float) -> dict[str, dict]:
-    """rating_metrics per track (experts, self), each entry counted once (train_models.per_entry)."""
+def score(rows: pd.DataFrame, pred: np.ndarray, tau_att: float, levels: np.ndarray | None = None) -> dict[str, dict]:
+    """rating_metrics per track (experts, self), each entry counted once (train_models.per_entry);
+    levels: levels_of(cfg), so collapsed labels (labels.collapse) are scored as train_models scores them."""
     from scripts.train_models import per_entry
     from src.evaluation import rating_metrics
 
@@ -359,7 +378,24 @@ def score(rows: pd.DataFrame, pred: np.ndarray, tau_att: float) -> dict[str, dic
     out = {}
     for track, sel in (("experts", ~is_self), ("self", is_self)):
         if sel.any():
-            out[track] = rating_metrics(*per_entry(rows[sel], pred[sel]), tau_att)
+            out[track] = rating_metrics(*per_entry(rows[sel], pred[sel]), tau_att, levels)
+    return out
+
+
+def per_track_normalised(cfg: dict, rows: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
+    """rows with every trk.* column of `cols` standardised per student-track over its own session
+    (TrackStandardiser, fitted on the session's regular-grid rows in <stem>.tracks.csv). Uses no
+    labels and only each session's own features, so it is the same transform at inference; what is
+    left is how a student's window differs from their own usual, not their seat or distance."""
+    out = rows.copy()
+    trk = [c for c in cols if c.startswith("trk.") and c in out]
+    if not trk:
+        return out
+    pos = [out.columns.get_loc(c) for c in trk]
+    for stem, idx in rows.groupby("stem").indices.items():
+        tp = features_dir(cfg) / f"{stem}.tracks.csv"
+        grid = pd.read_csv(tp) if tp.exists() else rows.iloc[idx]
+        out.iloc[idx, pos] = TrackStandardiser(grid, trk).transform(rows.iloc[idx])
     return out
 
 

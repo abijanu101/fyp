@@ -2,13 +2,19 @@
 test of §15.6).
 
   python -m scripts.clustering.ablation [--config docs/experiments/09_vfoa.json] [--set k=v ...]
-         [--candidates <dir>] [--arms null sync agglomerative hdbscan prototype sync+best]
+         [--candidates <dir>] [--arms null normalised sync agglomerative hdbscan prototype sync+best]
          [--best agglomerative] [--prototypes 8] [--proto-set subset] [--no-window]
          [--context classified] [--split both] [--out outputs/experiments/10_clustering]
 
 Arms (each = the configured inputs, trk.* plus the class context only if
 engagement.use_class_context, plus the candidate columns named):
   null           no class-relative features (the baseline)
+  normalised     null's inputs, each trk.* column standardised per student-track over its own
+                 session (common.per_track_normalised): how a student's window differs from their
+                 own usual, not their seat or distance. No labels, and only each session's own
+                 features, so the same transform works at inference. Tests whether the base
+                 inputs carry more signal once the seat is removed (the per-track standardisation
+                 the clustering features already get, guide 15 R6)
   sync           option 0: deviation, synchrony and lag with the class (sync.*)
   agglomerative  option 1 in both spaces, with the window's chaos and fragmentation (agg.*)
   hdbscan        option 2, the variant of option 1 (hdb.*)
@@ -54,8 +60,9 @@ import pandas as pd
 
 from scripts.clustering.common import (PER_WINDOW, base_columns, base_parser, candidate_columns, check_split,
                                        fit_model, fold_context, folds, label_table, latest_candidates, load,
-                                       load_candidates, own_ratings, params_hash, score, split_parser_arg, splits,
-                                       with_fold_prototypes, write_table)
+                                       levels_of, load_candidates, own_ratings, params_hash, per_track_normalised,
+                                       score, split_parser_arg, splits, train_mask, with_fold_prototypes,
+                                       write_table)
 from src.core.config import config_hash
 from src.labels.interp import to_rating
 
@@ -74,23 +81,27 @@ def run_arm(cfg, r, cols, tr, te, G, tau) -> dict:
     model = fit_model(cfg, r, cols, tr)
     X = r.reindex(columns=cols).to_numpy(float)
     lab = r["labeler"].to_numpy()
-    fit_rows = tr & ~r["aug"].to_numpy(bool)
-    out = {f"{t}/heldout": m for t, m in score(r[te], own_ratings(model, X[te], G[te], lab[te]), tau).items()}
-    out |= {f"{t}/train": m for t, m in score(r[fit_rows], own_ratings(model, X[fit_rows], G[fit_rows], lab[fit_rows]), tau).items()}
+    lv = levels_of(cfg)
+    fit_rows = train_mask(cfg, r, tr) & ~r["aug"].to_numpy(bool)       # what it trained on, originals only
+    out = {f"{t}/heldout": m for t, m in score(r[te], own_ratings(model, X[te], G[te], lab[te]), tau, lv).items()}
+    out |= {f"{t}/train": m for t, m in
+            score(r[fit_rows], own_ratings(model, X[fit_rows], G[fit_rows], lab[fit_rows]), tau, lv).items()}
     return out
 
 
-def baselines(r, tr, te, tau) -> dict:
+def baselines(cfg, r, tr, te, tau) -> dict:
     from scripts.clustering.common import SELF
     out = {}
+    lv = levels_of(cfg)
+    mid = float(np.median(lv))                             # 3 on 1-5 and on LOW / MID / HIGH (1, 3, 5)
     is_self = r["labeler"].to_numpy() == SELF
     for track, in_track in (("experts", ~is_self), ("self", is_self)):
         sel = te & in_track
         if not sel.any():
             continue
         mean = float(to_rating(r["target"].to_numpy(float)[tr & in_track].mean()))
-        for name, v in (("constant_3", 3.0), ("train_mean", mean)):
-            out[f"{track}/heldout/{name}"] = score(r[sel], np.full(int(sel.sum()), v), tau)[track]
+        for name, v in (("constant_3", mid), ("train_mean", mean)):
+            out[f"{track}/heldout/{name}"] = score(r[sel], np.full(int(sel.sum()), v), tau, lv)[track]
     return out
 
 
@@ -142,12 +153,18 @@ def run_split(cfg, rows, windows, split, args, proto_set, out, tau):
     base_res: dict[str, dict] = {}
     columns: dict[str, list[str]] = {}
     fold_list = list(folds(rows, split))
+    # label-free and per session, so computed once for every fold (same row order as `rows`)
+    normed = per_track_normalised(cfg, rows, base_columns(cfg, rows)) if "normalised" in arms else None
     for g, tr, te in fold_list:
         r = with_fold_prototypes(cfg, rows, tr, proto_set, args.prototypes, out) if need_proto else rows
         G = fold_context(cfg, r, windows, tr, context, split)
         base, cands = base_columns(cfg, r), candidate_columns(r)
-        base_res[g] = baselines(r, tr, te, tau)
+        base_res[g] = baselines(cfg, r, tr, te, tau)
         for arm in arms:
+            if arm == "normalised":
+                columns[arm] = base
+                results[arm][g] = run_arm(cfg, normed, base, tr, te, G, tau)
+                continue
             cols = base + (arm_cols(arm, cands, not args.no_window) if arm != "null" else [])
             columns[arm] = cols
             results[arm][g] = run_arm(cfg, r, cols, tr, te, G, tau)
@@ -178,7 +195,8 @@ def run_split(cfg, rows, windows, split, args, proto_set, out, tau):
 def main() -> None:
     ap = base_parser(__doc__)
     ap.add_argument("--candidates", default=None)
-    ap.add_argument("--arms", nargs="*", default=["null", "sync", "agglomerative", "hdbscan", "prototype", "sync+best"])
+    ap.add_argument("--arms", nargs="*",
+                    default=["null", "normalised", "sync", "agglomerative", "hdbscan", "prototype", "sync+best"])
     ap.add_argument("--best", choices=CLUSTER_ARMS, default=None)
     ap.add_argument("--prototypes", type=int, default=8)
     ap.add_argument("--proto-set", default="subset")
