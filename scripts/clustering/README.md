@@ -70,8 +70,6 @@ step 6 about 5–8 h; step 7 under a minute. Steps 4–7 run on the CPU and can 
 - **The GPU check** must print `True`. `python -m scripts.setup --check` lists any missing model.
 - **`.env`:** create it at the repository root with the DIPSER FTP credentials (`FTP_USER=...`,
   `FTP_PASSWORD=...`). It is git-ignored; never commit it. It's only needed for step 2.
-- **Disk space:** step 3's caches take about 10–15 GB, the candidates about 1–3 GB. Check free space
-  first (PowerShell: `Get-PSDrive`).
 
 ## 2. Download the data
 
@@ -227,4 +225,3 @@ The caches in `outputs/cache/` stay on the GPU machine.
 | `--split activity needs mixture.expert_scope=shared` | the config uses per-activity experts | `--set mixture.expert_scope=shared`, or `--split group` |
 | `no candidate tables` | step 5 not run | run step 5 |
 | CUDA out of memory in step 3 | too many workers for the GPU | `--workers 2` or `1` |
-| `Out of diskspace` or a write error | the drive is full | free space, or put the outputs on another drive with `--set output_dir=<folder>` on every command |
