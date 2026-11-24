@@ -110,7 +110,7 @@ two ways, both in the code:
 **Why the first, and what it costs.** It saves a network per frame (about 31 ms, about 15% of the
 frame pass) and removes the matching step. But the detector feeds everything after it: detection
 threshold and tracker were tuned for YOLO11n (D2 in experiment 02, T2 in experiment 03). So the switch is validated
-the same way, from data, before any extraction (experiment 09 §1):
+the same way, from data, before any extraction (experiments 02, D3, and 03, T3):
 - **D3**, the augmented detector scan for the pose model, with a stricter criterion than D2: here a
   missed student is worse than a spurious box, so no student may lose more than 1 point of recall
   against the confidence floor. Its result sets `detector.conf`: `09_vfoa.json` names it under `derived`, and `configs/derived.py` reads it.
@@ -123,7 +123,7 @@ the same way, from data, before any extraction (experiment 09 §1):
 
 The pose model normally sees the frame at 640 px, which halves the 1280×720 frame: a 40 px head
 becomes 20 px. Three inputs were compared on 120 frames from three sessions, on the tracks
-experiment 06 cached (`scripts/analysis/head_pose_pilot.py`; table in experiment 09 §3):
+experiment 06 cached (`scripts/analysis/head_pose_pilot.py`; table in experiment 09, Appendix B):
 - the full frame at 640 (the default);
 - the full frame at 1280 (no downscaling);
 - upper-body crops of each tracked student, upscaled to 256.

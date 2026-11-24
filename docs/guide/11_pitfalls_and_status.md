@@ -246,7 +246,7 @@ Both are in the tracking hash, so changing them forces a needless frame pass whi
 StrongSORT reads it. Removed from the config and from `tune_tracker`; the detector's own threshold
 (`detector.conf`) is the only *detector-side* filter, and it was verified not to drop any student
 (`docs/experiments/02_detection.md`, §3). BoT-SORT's own `track_low_thresh` still drops boxes at or
-below it, so the effective floor is the higher of the two (experiment 09 §1).
+below it, so the effective floor is the higher of the two (experiment 03, T3).
 
 **☑ 7. On-the-fly augmentation.** Augmented copies are no longer written to disk at all (the
 materialised datasets and `scripts/augment_dataset.py` were removed on 15 November 2026): frames are

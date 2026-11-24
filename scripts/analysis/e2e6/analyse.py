@@ -52,7 +52,8 @@ for session, sdf in df.groupby("session", sort=False):
     stem = tm.session_stem(key)
     t = pd.read_csv(tm.features_dir(cfg) / f"{stem}.tracks.csv")
     m = associate_sids(load_track(tm.tracks_dir(cfg) / f"{stem}.npz").tracklets, index.annotations(key),
-                       cfg["association"]["min_iou"], cfg["association"]["min_match_share"])
+                       cfg["association"]["min_iou"], cfg["association"]["min_match_share"],
+                       cfg["association"].get("method", "per_frame"))
     sids += [f"{session}/{m.get(int(tid))}" for tid in t["tid"]]
 r["student"] = sids
 lab = r.dropna(subset=["y"])

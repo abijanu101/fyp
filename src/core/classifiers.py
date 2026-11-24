@@ -12,7 +12,7 @@ from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
@@ -23,6 +23,8 @@ CLASSIFIERS = {
     "svm": lambda seed, **p: SVC(**{"probability": True, "random_state": seed, **p}),
     "logreg": lambda seed, **p: LogisticRegression(**{"max_iter": 2000, "random_state": seed, **p}),
     "knn": lambda seed, **p: KNeighborsClassifier(**p),
+    # a regressor: predicts the neighbours' mean target (engagement expert "knn_regression")
+    "knn_regression": lambda seed, **p: KNeighborsRegressor(**p),
 }
 
 

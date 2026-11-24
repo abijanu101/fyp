@@ -71,6 +71,30 @@ class TestAssociation(unittest.TestCase):
         self.assertEqual(associate_sids([student, walker], subjects, 0.3, 0.5), {1: "subject_01"})
         self.assertIn(9, associate_sids([walker], subjects, 0.3, 0.0))   # the old behaviour
 
+    def test_mean_box_matches_the_per_frame_result(self):
+        subjects = {"subject_01": np.array([100, 100, 150, 200.0]), "subject_02": np.array([400, 100, 450, 200.0])}
+        tracks = [moving_tracklet(1, vx=0.0, x0=100), moving_tracklet(2, vx=0.0, x0=400),
+                  moving_tracklet(3, vx=0.0, x0=900)]
+        self.assertEqual(associate_sids(tracks, subjects, 0.3, 0.5, "mean_box"), {1: "subject_01", 2: "subject_02"})
+        walker = moving_tracklet(9, n=40, vx=50.0, x0=0)
+        self.assertEqual(associate_sids([moving_tracklet(1, vx=0.0, x0=100), walker],
+                                        {"subject_01": subjects["subject_01"]}, 0.3, 0.5, "mean_box"),
+                         {1: "subject_01"})
+
+    def test_mean_box_fragments_share_a_subject_but_simultaneous_tracks_do_not(self):
+        subjects = {"subject_01": np.array([100, 100, 150, 200.0])}
+        first = moving_tracklet(1, vx=0.0, x0=100)
+        later = moving_tracklet(2, vx=0.0, x0=102)
+        later.t = later.t + first.t[-1] + 1.0                     # the same student, re-tracked afterwards
+        self.assertEqual(associate_sids([first, later], subjects, 0.3, 0.5, "mean_box"),
+                         {1: "subject_01", 2: "subject_01"})
+        overlapping = moving_tracklet(3, vx=0.0, x0=110)          # a second box at the same time
+        self.assertEqual(associate_sids([first, overlapping], subjects, 0.3, 0.5, "mean_box"), {1: "subject_01"})
+
+    def test_unknown_method_fails(self):
+        with self.assertRaises(ValueError):
+            associate_sids([], {}, 0.3, 0.5, "mean")
+
 
 class TestKalmanGeometry(unittest.TestCase):
     def test_finite_difference_speed(self):

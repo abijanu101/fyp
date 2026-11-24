@@ -193,7 +193,7 @@ check, the second silently replaces the first, and the pipeline runs the wrong c
 | `CLUSTER_EXTRACTORS` | `src/cfmu/extractor.py` | `null` | `ClusterFeatureExtractor` |
 | `SCENE_EXTRACTORS` | `src/spu/scene.py` | `global_stats` | `SceneFeatureExtractor` |
 | `GATES` | `src/spu/gate.py` | `random_forest`, `svm`, `logreg`, `knn` | (ContextGate) |
-| `EXPERTS` | `src/experts/expert.py` | `logreg`, `random_forest`, `hand_weighted` | `EngagementExpert` |
+| `EXPERTS` | `src/experts/expert.py` | `logreg`, `random_forest`, `svm`, `knn`, `knn_regression`, `hand_weighted` | `EngagementExpert` |
 
 ## 3.8 The trap: registration happens at import time
 

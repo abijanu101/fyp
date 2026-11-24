@@ -2,7 +2,8 @@
 
 DIPSER's manual annotations (abi_labels) are one static box per subject per camera, so the
 per-frame Hungarian assignment matches every frame's track boxes against the same subject
-boxes; a majority vote over frames then gives each track its SID.
+boxes; a majority vote over frames then gives each track its SID. `association.method`
+"mean_box" instead matches each track's mean box once (associate_sids).
 """
 
 from __future__ import annotations
@@ -63,15 +64,68 @@ def frame_matches(tracklets: list[Tracklet], subjects: dict[str, np.ndarray],
         yield t, len(tids), pairs
 
 
-def associate_sids(tracklets: list[Tracklet], subjects: dict[str, np.ndarray],
+METHODS = ("per_frame", "mean_box")
+
+
+def _share_on(tr: Tracklet, box: np.ndarray, min_iou: float) -> float:
+    """Share of the track's frames whose box overlaps `box` with IoU >= min_iou."""
+    return float((iou_matrix(tr.xyxy, box[None])[:, 0] >= min_iou).mean()) if len(tr.t) else 0.0
+
+
+def _mean_box_sids(tracklets: list[Tracklet], subjects: dict[str, np.ndarray],
                    min_iou: float, min_match_share: float) -> dict[int, str]:
-    """Return {tid: sid} by per-frame assignment plus majority vote; vote ties go to the
-    lexicographically first SID.
+    """Hungarian assignment of each track's mean box to the subject boxes, in rounds.
+
+    One round is one-to-one, but a student whose track was fragmented has several tracks, so the
+    tracks left over go into further rounds: a track may join a subject that already has tracks
+    only if it shares no frame with them (two boxes seen at the same time are two people). Rounds
+    stop when nothing new matches with IoU >= min_iou."""
+    sids = sorted(subjects)
+    tracks = [tr for tr in tracklets if len(tr.t)]
+    if not sids or not tracks:
+        return {}
+    sub_boxes = np.stack([subjects[s] for s in sids])
+    iou = iou_matrix(np.stack([tr.xyxy.mean(axis=0) for tr in tracks]), sub_boxes)
+    holders: dict[int, list[int]] = {j: [] for j in range(len(sids))}
+    left = {i for i in range(len(tracks)) if iou[i].max() >= min_iou}
+    out: dict[int, str] = {}
+    while left:
+        cost = np.zeros_like(iou)
+        for i in left:
+            for j in range(len(sids)):
+                if not any(np.intersect1d(tracks[i].t, tracks[k].t).size for k in holders[j]):
+                    cost[i, j] = iou[i, j]
+        rows, cols = linear_sum_assignment(-cost)
+        new = [(r, c) for r, c in zip(rows, cols) if r in left and cost[r, c] >= min_iou]
+        if not new:
+            break
+        for r, c in new:
+            holders[c].append(r)
+            left.discard(r)
+            # the same guard as per_frame: the track must sit on the box for most of its frames,
+            # not just average out near it (a TA walking across the row)
+            if _share_on(tracks[r], sub_boxes[c], min_iou) >= min_match_share:
+                out[tracks[r].tid] = sids[c]
+    return out
+
+
+def associate_sids(tracklets: list[Tracklet], subjects: dict[str, np.ndarray],
+                   min_iou: float, min_match_share: float, method: str = "per_frame") -> dict[int, str]:
+    """Return {tid: sid}. `method` (config `association.method`, "per_frame" when absent):
+
+    per_frame: Hungarian assignment of every frame's track boxes to the subject boxes, then a
+      majority vote over frames; vote ties go to the lexicographically first SID.
+    mean_box: one assignment per track, of its mean box over all its frames (_mean_box_sids).
 
     Two guards keep unannotated people (TAs, the teacher walking around) unassociated:
     a frame only votes if its IoU >= min_iou, and a track only gets the winning SID if that SID
     matched at least `min_match_share` of ALL the track's frames (a TA passing a seated student
-    overlaps that student's box for a few frames, not most of the track)."""
+    overlaps that student's box for a few frames, not most of the track). mean_box applies both
+    too: its mean box needs IoU >= min_iou, and the same frame share is checked afterwards."""
+    if method == "mean_box":
+        return _mean_box_sids(tracklets, subjects, min_iou, min_match_share)
+    if method != "per_frame":
+        raise ValueError(f"association.method must be one of {METHODS}, not {method!r}")
     n_frames = {tr.tid: 0 for tr in tracklets}
     for tr in tracklets:
         n_frames[tr.tid] += len(tr.t)

@@ -135,7 +135,8 @@ class OutputViewer:
         # labels and identities (development only)
         windows = [Window(a, b) for a, b in zip(self.t0w, self.t1w)]
         self.sid = associate_sids(st.tracklets, index.annotations(self.key), cfg["association"]["min_iou"],
-                                  cfg["association"]["min_match_share"])
+                                  cfg["association"]["min_match_share"],
+                                  cfg["association"].get("method", "per_frame"))
         if self.rated:                                  # labelled class rating, on the same 0-1 axis
             self.slabel, self.share = self.labelled_ratings(index, windows, cfg["labels"])
             self.wlabel = [None if not np.isfinite(v) else bool(v >= self.tau) for v in self.share]

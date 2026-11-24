@@ -142,7 +142,8 @@ An entry seen by several cameras or tracks is scored once, on the mean of its ro
 |---|---|---|
 | `mae`, `rmse` | mean absolute and root mean squared error on the 1–5 scale | flatter constants: compare with `constant_3` |
 | `spearman` | rank correlation of prediction and entered rating | 0 |
-| `accuracy`, `within_1` | the prediction rounded to a whole rating (halves toward 3) equals the entry, or is within ±1 | flatter constants |
+| `accuracy`, `within_1` | the prediction rounded to a whole rating (halves toward 3) equals the entry, or is within ±1 (with `labels.collapse`: rounded to the nearest level, within one level) | flatter constants |
+| `mae_levels` | with `labels.collapse` only: the MAE in level steps (three levels at 1, 3, 5: half of `mae`) | |
 | `macro_f1` | F1 over the five ratings, averaged with equal weight | |
 | `auc`, `balanced_acc` | for "rating ≥ `labels.tau_att`"; AUC ranks the raw prediction | 0.5 |
 | `n`, `engaged_rate` | entries scored, and the share of them at or above `tau_att` | |
@@ -301,7 +302,7 @@ Values are the current ones. "Re-run" uses the marks of §9.5.
 | `ingestion.stride` | 1 | keep every n-th frame. Faster, but lowers the measured fps, and frame-counted tracker settings (`max_lost_frames`) then span more seconds | F |
 | `ingestion.max_frames` | null | stop after n frames (smoke tests); null = all | F |
 | `detector.weights` | `models/yolo11n.pt` | YOLO checkpoint; only the person class is kept | F |
-| `detector.conf` | 0.22 | confidence a person box needs to reach the tracker. Not the last filter: BoT-SORT then ignores boxes at or below its own `track_low_thresh` and starts tracks only above `new_track_thresh` (experiment 09 §1). Lower = more people found, more false boxes. Verified not to drop any student (`docs/experiments/02_detection.md`, §3; `scripts/tuning/scan_detector.py`) | F |
+| `detector.conf` | 0.22 | confidence a person box needs to reach the tracker. Not the last filter: BoT-SORT then ignores boxes at or below its own `track_low_thresh` and starts tracks only above `new_track_thresh` (experiment 03, T3). Lower = more people found, more false boxes. Verified not to drop any student (`docs/experiments/02_detection.md`, §3; `scripts/tuning/scan_detector.py`) | F |
 | `detector.imgsz` | 640 | YOLO input size in pixels. Higher = far students found better, slower | F |
 | `detector.half` | true | half precision on the GPU (ignored on CPU) | F |
 | `scene.size` | [64, 36] | the frame is shrunk to this many pixels before the gate's scene features are computed | F |
@@ -410,7 +411,7 @@ columns change.
 |---|---|---|---|
 | `gate.name`, `gate.params` | `random_forest`, 300 trees, `min_samples_leaf` 5 | the context gate. Names: `random_forest`, `svm`, `logreg`, `knn`; params go to the scikit-learn constructor | T |
 | `gate_uses_vec` | false | also give the gate Vec, not only scene features | T |
-| `expert.name`, `expert.params` | `logreg`, `C` 0.1 | the engagement expert. Names: `logreg`, `random_forest`, `hand_weighted`. `C` is inverse regularisation: lower = simpler model | T |
+| `expert.name`, `expert.params` | `logreg`, `C` 0.1 | the engagement expert. Names: `logreg`, `random_forest`, `svm`, `knn` (classifier: soft labels thresholded at the engaged split, classes balanced by undersampling), `knn_regression` (the mean normalised rating of the k nearest training rows: no threshold, no balancing), `hand_weighted`. `C` is inverse regularisation: lower = simpler model | T |
 | `hand_weighted.weights` | stillness 1.0, write 1.0, read 0.5, hand raising 0.5 | the label-free baseline: a weighted sum of standardised features, reported as `hand_weighted` in every window-grid run (not used in per-labeler mode) | T |
 | `hand_weighted.phone_key`, `.phone_sign` | `vec.scb.using_phone.mean`, signs per activity | flip the phone feature's sign per activity. **No effect now**: the SCB model has no phone class | T |
 | `mixture.mode` | `soft` | `soft` weights all experts by the gate; `hard` uses the top activity's expert | T |
@@ -461,6 +462,8 @@ All **T**, so label experiments are cheap.
 | `labels.offset_s` | 0.0 | seconds added to every label timestamp, to align labels with the camera clock |
 | `labels.students` | `camera` | `camera`: only students annotated as visible in this camera; any other value (e.g. `all`): every student of the session |
 | `labels.train_target` | `train_vanilla` | per-labeler training value of a window centred on a rating entry: `train_vanilla` = the entry's own rating (the default since 18 Nov 2026: interpolation in training made no difference in experiment 06 §2.4); `train_with_interp` = that labeler's interpolated curve averaged over the window. Either way normalised to (rating − 1) / 4 |
+| `labels.collapse` | absent | per-labeler: merge ratings into fewer levels when the labels are read, e.g. `[[1, 2], [3], [4, 5]]` = LOW / MID / HIGH. The groups split 1–5 in order; level k of K sits at the k-th of K evenly spaced points on 1–5 (three levels: 1, 3, 5), so targets and `tau_att` keep their meaning. Metrics then round to the levels and add `mae_levels`. Used from experiment 09 (§5.1); absent = the 1–5 scale |
+| `labels.train_keep` | absent | per-labeler: probability that a training entry with this label value is kept, e.g. `{"3": 0.5}` (with `collapse`, the keys are the level values 1, 3, 5). Values not named keep 1.0. Drawn per entry, seeded by `seed`; held-out entries are always scored in full. For rebalancing the training labels against median hugging |
 | `labels.interp.mode` | `step` | how a labeler's entries become a value between entries: `step`, `ramp`, `linear`, `pchip`, `cubic`, `gauss` (Chapter 13, O25; the label viewer shows each) |
 | `labels.interp.ramp_s`, `.sigma_s` | 3.0, 2.0 | `ramp`: seconds of the ramp before each change; `gauss`: width of the Gaussian, in seconds |
 

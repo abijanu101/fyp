@@ -117,7 +117,7 @@ def student_curves(cfg: dict, res: dict, session: str, idx: np.ndarray, entries)
     st = load_track(tracks_dir(cfg) / f"{res['stems'][idx[0]]}.npz")
     assoc = cfg["association"]
     tid_to_sid = associate_sids(st.tracklets, DipserIndex.from_config(cfg).annotations(key),
-                                assoc["min_iou"], assoc["min_match_share"])
+                                assoc["min_iou"], assoc["min_match_share"], assoc.get("method", "per_frame"))
     own = entries[(entries["labeler"] == "self_labeling") & entries["sid"].isin(set(tid_to_sid.values()))]
     if own.empty:
         return None, {}

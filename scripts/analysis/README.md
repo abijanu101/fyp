@@ -19,6 +19,7 @@ write scratch output to `tmp/`.
 | `e2e6/run.sh` | the six-session end-to-end run (extract, train, infer on an unseen session) | experiment 04 §1 |
 | `e2e6/benchmark_metrics.py` | the six-session run scored with the benchmark papers' metrics | experiment 04 |
 | `e2e6/analyse.py` | feature-level analysis of the six-session run | experiment 04 |
+| `recording_runtime.py` | duration, frame count, frame rate and gaps of the 52 in-scope recordings (`outputs/dataset/recordings.json`), or with `--all` of all 135 recordings (`recordings_all.json`) | experiment 01 §1.1 |
 
 Analyses that are part of the current pipeline live in `scripts/` itself, for example
 `scripts/labels/label_agreement.py` (label agreement and the human ceiling, experiment 06 Part B) and

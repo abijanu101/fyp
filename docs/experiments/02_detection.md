@@ -18,7 +18,7 @@ pose model:
 |---|---|---|---|
 | D1 | Grid scan, then binary search for the optimal threshold, clean data (§3) | done | 0.166 keeps every student within 10 points of the floor; 0.22 drops none but loses 30 points of one |
 | D2 | Binary search under on-the-fly augmentation (§3) | done | **0.110** keeps every student within 10 points of the floor; 0.22 fails under augmentation |
-| D3 | The same augmented scan for the YOLO pose model as the detector, stricter criterion (1 point; experiment 09 §1) | done | **0.0535**, at the floor: mean recall barely moves above it, but the hardest student loses 7.5 points by 0.11; the price is 41% non-student boxes |
+| D3 | The same augmented scan for the YOLO pose model as the detector, stricter criterion (1 point; for experiment 09) | done | **0.0535**, at the floor: mean recall barely moves above it, but the hardest student loses 7.5 points by 0.11; the price is 41% non-student boxes |
 
 ## 2. The detector
 
@@ -28,7 +28,7 @@ directly rather than BoxMOT's detector wrapper keeps the detector independent of
 library, so both trackers see identical detections.
 
 Experiment 09 replaces it with the YOLO11s pose model at 1280 px (`models/yolo11s-pose.pt`), which
-returns each person's keypoints with the box; its threshold is D3's (09 §1).
+returns each person's keypoints with the box; its threshold is D3's (for experiment 09).
 
 ## 3. Is the confidence threshold dropping students? D1–D3
 
@@ -150,7 +150,7 @@ on clean footage.
 BoT-SORT ignores every box at or below its `track_low_thresh` (BoxMOT 26, `split_by_confidence`),
 and T2's winner sets it to 0.1745, so in the tracked pipeline the effective floor is 0.1745, not
 0.1098. D2's guarantee holds for the detector's output, not for what reaches a track. T2 chose that
-value on IDF1, which weighs missed students against false ones; experiment 09 §1 (T3) re-tuned it
+value on IDF1, which weighs missed students against false ones; experiment 03, T3, re-tuned it
 for the pose detector, and IDF1 pushed it up to 0.2373.
 
 ### D3. The pose model as the detector, augmented, 1-point criterion (done, 19 November 2026)
@@ -188,7 +188,7 @@ probe, plus D2's threshold for comparison:
 - **The floor bounds the search.** The criterion is measured against the 0.05 floor, so the search
   cannot ask for less; the hardest student is missed in 15% of frames even at the floor.
 - **The tracker comes after, and overrides it.** BoT-SORT drops boxes at or below its own
-  `track_low_thresh` (the note under D2). T3 (experiment 03; experiment 09 §1) re-tuned the tracker
+  `track_low_thresh` (the note under D2). T3 (experiment 03) re-tuned the tracker
   for this detector with the thresholds free down to 0.05, and IDF1 chose 0.2373: every box D3 keeps
   below that is dropped before tracking, so for the tracked pipeline D3's threshold makes no
   difference. Its value stands for the detector's own output.

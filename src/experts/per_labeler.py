@@ -129,3 +129,27 @@ def window_curves(model: PerLabelerModel, X: np.ndarray, g_rows: np.ndarray, row
         fallback = majority_rating(np.array([[to_rating(f) for f in model.fills.values()]]), resolution)[0]
         final = np.where(count > 0, total / np.maximum(count, 1), fallback)
     return final, curves
+
+
+def train_keep_mask(rows: pd.DataFrame, keep: dict | None, seed: int = 0) -> np.ndarray:
+    """Config `labels.train_keep`: which label rows the models may train on, to rebalance the ratings.
+
+    `keep` maps a label value (as a string: "1".."5", or the levels of labels.collapse, e.g. "1", "3",
+    "5") to the probability an entry with that rating is kept; values not named keep 1.0. Lowering
+    the common middle rating discourages median hugging. The draw is per entry_id, so every row of
+    one entry (its tracks, cameras, augmented copies) is kept or dropped together, and is fixed by
+    `seed`. Only training uses the mask: held-out entries are always scored in full."""
+    if not keep:
+        return np.ones(len(rows), bool)
+    probs = {float(k): float(v) for k, v in keep.items()}
+    if any(not 0.0 <= p <= 1.0 for p in probs.values()):
+        raise ValueError(f"labels.train_keep probabilities must be in [0, 1], got {keep!r}")
+    ratings = rows["rating"].to_numpy(float)
+    unknown = set(probs) - set(np.unique(ratings).tolist())
+    if unknown:
+        raise ValueError(f"labels.train_keep names {sorted(unknown)}, which no entry has "
+                         f"(ratings present: {sorted(np.unique(ratings).tolist())})")
+    ids = rows["entry_id"].to_numpy()
+    uniq = np.unique(ids)
+    u = dict(zip(uniq, np.random.default_rng(seed).random(len(uniq))))
+    return np.array([u[e] < probs.get(r, 1.0) for e, r in zip(ids, ratings)], bool)

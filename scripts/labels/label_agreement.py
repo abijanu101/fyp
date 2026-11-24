@@ -50,13 +50,14 @@ from src.core.config import load_config
 from src.datasets import DipserIndex
 from src.evaluation import rating_metrics
 from src.ingestion import ZipFrameSource, timing_audit
-from src.labels.interp import interpolate, round_rating
-from src.labels.session import _load
+from src.labels.interp import interpolate, rating_levels, round_to_levels
+from src.labels.session import _load, collapse_key
 
 EXPERTS = ("labeler_01", "labeler_02", "labeler_03", "labeler_04", "labeler_05")
 SELF = "self_labeling"
 LABELERS = EXPERTS + (SELF,)
 TAU = 3.0
+LEVELS = None      # the values a label can take: 1-5, or labels.collapse's levels (set in main)
 # interpolation settings: name -> (mode, ramp_s, sigma_s). ramp width w matches gauss sigma w / sqrt(12).
 MODES = {"step": ("step", 3.0, 2.0), "ramp3": ("ramp", 3.0, 2.0), "ramp7": ("ramp", 7.0, 2.0),
          "gauss1": ("gauss", 3.0, 1.0), "gauss2": ("gauss", 3.0, 2.0), "gauss4": ("gauss", 3.0, 4.0)}
@@ -109,7 +110,7 @@ def load_students(cfg: dict) -> tuple[list[Student], dict]:
         frames[(key.group, key.experiment)] = (float(a["t_first"]), float(a["t_last"]))
         for sid, path in sorted(index.subject_zips(key).items()):
             tracks = {n: (np.asarray(tr.t, float), np.clip(np.asarray(tr.value, float), 1, 5))
-                      for n, tr in _load(path, offset).items() if len(tr.t)}
+                      for n, tr in _load(path, offset, collapse_key(cfg["labels"])).items() if len(tr.t)}
             if not tracks:
                 continue
             s = Student(key.group, key.exp_id, key.experiment, sid, a["t_first"], a["t_last"], tracks)
@@ -128,8 +129,8 @@ def score(y, p, groups) -> dict:
     y, p, groups = y[ok], p[ok], groups[ok]
     if not len(y):
         return {"n": 0}
-    pooled = rating_metrics(y, p, TAU)
-    per = [rating_metrics(y[groups == g], p[groups == g], TAU) for g in sorted(set(groups.tolist()))]
+    pooled = rating_metrics(y, p, TAU, LEVELS)
+    per = [rating_metrics(y[groups == g], p[groups == g], TAU, LEVELS) for g in sorted(set(groups.tolist()))]
     head = {k: float(np.nanmean([m[k] for m in per if m.get("n")])) for k in SUMMARY if k != "n"}
     return {"n": int(len(y)), **head,
             "pooled": {k: pooled[k] for k in SUMMARY},
@@ -307,7 +308,8 @@ def alpha(students: list[Student], length_s: float, overlap: float) -> dict:
                         if not rows:
                             continue
                         v = np.vstack(rows)
-                        v = round_rating(v) if scale == "raw" else np.where(np.isfinite(v), (round_rating(v) >= TAU) * 1.0, np.nan)
+                        v = round_to_levels(v, LEVELS) if scale == "raw" else \
+                            np.where(np.isfinite(v), (round_to_levels(v, LEVELS) >= TAU) * 1.0, np.nan)
                         v = np.where(np.isfinite(np.vstack(rows)), v, np.nan)
                         a, n_items, n_vals = fast_alpha(v)
                         cell[scope] = {"alpha": a, "items": n_items, "values": n_vals}
@@ -418,7 +420,7 @@ def learned(df: pd.DataFrame, suffix: str = "step|0") -> tuple[np.ndarray, list[
         tr, te = g != grp, g == grp
         m = Ridge(alpha=1.0).fit(X[tr], y[tr])
         pred[te] = np.clip(m.predict(X[te]), 1, 5)
-        train_scores.append(rating_metrics(y[tr], np.clip(m.predict(X[tr]), 1, 5), TAU))
+        train_scores.append(rating_metrics(y[tr], np.clip(m.predict(X[tr]), 1, 5), TAU, LEVELS))
     return pred, train_scores
 
 
@@ -528,8 +530,8 @@ def ceiling(students: list[Student], cfg: dict, model_entries: bool) -> dict:
                 continue
             m = (ent["target"] == a) & ent[c].notna()
             if m.sum() >= 50:
-                r = rating_metrics(ent.loc[m, "y"].to_numpy(float), ent.loc[m, c].to_numpy(float), TAU)
-                c3 = rating_metrics(ent.loc[m, "y"].to_numpy(float), np.full(int(m.sum()), 3.0), TAU)
+                r = rating_metrics(ent.loc[m, "y"].to_numpy(float), ent.loc[m, c].to_numpy(float), TAU, LEVELS)
+                c3 = rating_metrics(ent.loc[m, "y"].to_numpy(float), np.full(int(m.sum()), 3.0), TAU, LEVELS)
                 pairs[f"{a} <- {b}"] = {k: r[k] for k in SUMMARY} | {"mae_constant_3": c3["mae"]}
     out["pairs_step_entries_pooled"] = pairs
     # per activity, headline predictors, expert entries, pooled within the activity
@@ -538,7 +540,7 @@ def ceiling(students: list[Student], cfg: dict, model_entries: bool) -> dict:
         s = ent[(ent["exp"] == x) & (ent["target"] != SELF)]
         rows = predictor_rows(s)
         acts[x] = {name: {k: v for k, v in rating_metrics(*[np.asarray(a)[np.isfinite(rows[name][1])]
-                                                              for a in rows[name][:2]], TAU).items()
+                                                              for a in rows[name][:2]], TAU, LEVELS).items()
                           if k in SUMMARY}
                    for name in ("constant 3", "one other expert, step", "mean of other experts, step",
                                 "mean of other experts, gauss2", "self-consistency: A's mean over its other runs")}
@@ -579,8 +581,9 @@ def coarse(students: list[Student]) -> dict:
             res[scope] = {
                 "units": int(len(M)),
                 "experts_pairwise": pairwise(E),
-                "alpha_rounded_means_experts": fast_alpha(np.where(np.isfinite(E), round_rating(E), np.nan))[0],
-                "alpha_rounded_means_experts_self": fast_alpha(np.where(np.isfinite(M), round_rating(M), np.nan))[0],
+                "alpha_rounded_means_experts": fast_alpha(np.where(np.isfinite(E), round_to_levels(E, LEVELS), np.nan))[0],
+                "alpha_rounded_means_experts_self": fast_alpha(np.where(np.isfinite(M), round_to_levels(M, LEVELS),
+                                                                        np.nan))[0],
                 "self_vs_expert_median_spearman": float(spearmanr(M[okm, -1], med[okm]).statistic) if okm.sum() > 10 else np.nan,
                 "self_vs_expert_median_mae": float(np.mean(np.abs(M[okm, -1] - med[okm]))) if okm.sum() else np.nan,
                 "sd_of_expert_means": float(np.nanstd(E)),
@@ -695,6 +698,10 @@ def main() -> None:
     ap.add_argument("--out", default="outputs/labels/agreement.json")
     args = ap.parse_args()
     cfg = load_config(args.config, {**parse_sets(args.set), "labels.students": "all"})
+    global LEVELS
+    LEVELS = rating_levels(cfg["labels"].get("collapse"))
+    if cfg["labels"].get("collapse") and args.out == ap.get_default("out"):
+        raise SystemExit("labels.collapse is set: pass --out, so the 1-5 tables in agreement.json are not overwritten")
     t0 = time.monotonic()
     students, _ = load_students(cfg)
     print(f"{len(students)} student-sessions ({time.monotonic() - t0:.0f} s)", flush=True)
@@ -711,7 +718,8 @@ def main() -> None:
                                              dict(m.split("=", 1) for m in args.models))
     if args.what in ("coarse", "all"):
         res["coarse"] = coarse(students)
-    res["meta"] = {"student_sessions": len(students), "tau": TAU, "modes": {k: list(v) for k, v in MODES.items()},
+    res["meta"] = {"student_sessions": len(students), "tau": TAU, "levels": LEVELS.tolist(),
+                   "collapse": cfg["labels"].get("collapse"), "modes": {k: list(v) for k, v in MODES.items()},
                    "window_length_s": cfg["window"]["length_s"], "written": time.strftime("%Y-%m-%d %H:%M")}
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(res, indent=1, default=float), encoding="utf-8")
