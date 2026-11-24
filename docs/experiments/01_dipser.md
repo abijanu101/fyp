@@ -27,6 +27,109 @@ Scope for Deliverable III: groups 01–03, experiments 01–06 (grid layout), co
 (the front-facing views). That is 54 possible session-cameras, of which **52 exist**:
 `group_02/experiment_05` only has `context_cam_01` among the front cameras.
 
+### 1.1 Recording runtime
+
+Measured from the frame timestamps (zero-byte PNGs dropped, as in the pipeline):
+`python -m scripts.analysis.recording_runtime --all` for the whole dataset, without `--all` for our
+scope; per recording in `outputs/dataset/recordings_all.json` and `recordings.json`. A gap is a frame
+interval longer than 3 × the median.
+
+| | Whole dataset | Our scope |
+|---|---|---|
+| Scope | 3 groups × experiments 01–09 × cameras 01–06 | 3 groups × experiments 01–06 × cameras 01–03 |
+| Recordings (of possible) | **135** (of 162) | **52** (of 54) |
+| Total duration | **11.15 h** (40,126 s) | **4.32 h** (15,560 s) |
+| Duration per recording: median (min–max) | 299.7 s (32.8–300.0) | 299.7 s (290.5–300.0) |
+| Frames | 199,953 | 68,627 |
+| Frames per recording: mean (min–max) | 1,481 (165–2,704) | 1,320 (804–1,482) |
+| Frame rate, median interval (min–max) | 5.0 fps (5.0–12.5) | 5.0 fps (5.0–5.45) |
+| Frames per second of recording: mean (min–max) | 4.98 (2.69–9.02) | 4.41 (2.69–4.95) |
+| Gaps per recording: median (min–max) | 21 (0–84) | 23 (9–45) |
+| Time in gaps | 5,549 s (13.8%) | 2,621 s (16.8%) |
+
+Experiment × camera, per group and for all three groups: minutes of footage per cell (each
+recording is about 5 minutes, so in the all-groups table 10.0 is two recordings), with each
+experiment's and camera's total and its number of recordings; "–" = no recording.
+
+**Group 01** (minutes; recordings in brackets)
+
+| Experiment | cam 01 | cam 02 | cam 03 | cam 04 | cam 05 | cam 06 | **Total** |
+|---|---|---|---|---|---|---|---|
+| 01 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **25.0** (5) |
+| 02 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **25.0** (5) |
+| 03 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **24.9** (5) |
+| 04 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **24.9** (5) |
+| 05 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **25.0** (5) |
+| 06 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **24.9** (5) |
+| 07 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **25.0** (5) |
+| 08 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **25.0** (5) |
+| 09 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **24.9** (5) |
+| **Total** | **45.0** (9) | **44.9** (9) | **44.9** (9) | **44.9** (9) | **44.9** (9) | **0.0** (0) | **224.6** (45) |
+
+**Group 02** (minutes; recordings in brackets)
+
+| Experiment | cam 01 | cam 02 | cam 03 | cam 04 | cam 05 | cam 06 | **Total** |
+|---|---|---|---|---|---|---|---|
+| 01 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **25.0** (5) |
+| 02 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **25.0** (5) |
+| 03 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **25.0** (5) |
+| 04 | 5.0 | 4.8 | 4.8 | 5.0 | 5.0 | – | **24.7** (5) |
+| 05 | 5.0 | – | – | 5.0 | 5.0 | – | **15.0** (3) |
+| 06 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | 0.5 | **25.5** (6) |
+| 07 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | 4.7 | **29.7** (6) |
+| 08 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | **30.0** (6) |
+| 09 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | **29.9** (6) |
+| **Total** | **45.0** (9) | **39.7** (8) | **39.7** (8) | **44.9** (9) | **45.0** (9) | **15.3** (4) | **229.6** (47) |
+
+**Group 03** (minutes; recordings in brackets)
+
+| Experiment | cam 01 | cam 02 | cam 03 | cam 04 | cam 05 | cam 06 | **Total** |
+|---|---|---|---|---|---|---|---|
+| 01 | 5.0 | 5.0 | 5.0 | – | 5.0 | – | **20.0** (4) |
+| 02 | 5.0 | 5.0 | 5.0 | – | 5.0 | – | **20.0** (4) |
+| 03 | 5.0 | 5.0 | 5.0 | – | 5.0 | – | **20.0** (4) |
+| 04 | 5.0 | 5.0 | 5.0 | – | 5.0 | – | **20.0** (4) |
+| 05 | 5.0 | 5.0 | 5.0 | – | 5.0 | – | **20.0** (4) |
+| 06 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | – | **25.0** (5) |
+| 07 | 5.0 | 4.9 | 5.0 | 5.0 | 5.0 | 5.0 | **29.9** (6) |
+| 08 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 | **30.0** (6) |
+| 09 | 5.0 | 4.9 | 4.9 | 5.0 | 5.0 | 5.0 | **29.9** (6) |
+| **Total** | **45.0** (9) | **44.8** (9) | **44.8** (9) | **20.0** (4) | **45.0** (9) | **15.0** (3) | **214.6** (43) |
+
+**All groups** (minutes; recordings in brackets)
+
+| Experiment | cam 01 | cam 02 | cam 03 | cam 04 | cam 05 | cam 06 | **Total** |
+|---|---|---|---|---|---|---|---|
+| 01 | 15.0 | 15.0 | 15.0 | 10.0 | 15.0 | – | **69.9** (14) |
+| 02 | 15.0 | 15.0 | 15.0 | 10.0 | 15.0 | – | **69.9** (14) |
+| 03 | 15.0 | 15.0 | 15.0 | 10.0 | 15.0 | – | **69.9** (14) |
+| 04 | 15.0 | 14.8 | 14.8 | 10.0 | 15.0 | – | **69.5** (14) |
+| 05 | 15.0 | 10.0 | 10.0 | 10.0 | 15.0 | – | **60.0** (12) |
+| 06 | 15.0 | 14.9 | 14.9 | 15.0 | 15.0 | 0.5 | **75.4** (16) |
+| 07 | 15.0 | 14.9 | 14.9 | 15.0 | 15.0 | 9.7 | **84.5** (17) |
+| 08 | 15.0 | 15.0 | 15.0 | 15.0 | 15.0 | 10.0 | **84.9** (17) |
+| 09 | 15.0 | 14.9 | 14.9 | 15.0 | 15.0 | 10.0 | **84.7** (17) |
+| **Total** | **134.9** (27) | **129.5** (26) | **129.5** (26) | **109.9** (22) | **134.9** (27) | **30.3** (7) | **668.8** (135) |
+
+Frame rate (median interval) by camera: 01–03 at 5.0–5.45 fps; 04–06 at 5.0 fps in most
+recordings, 10–12.5 fps in 15.
+
+- **Every recording is about five minutes**, except `group_02/experiment_06/context_cam_06` (33 s,
+  §6). In our scope the shortest are 290.5 s (`group_02/experiment_04`, cameras 02 and 03).
+- **Five cameras per session as a rule, not six.** Camera 06 exists only in 7 recordings (group 02
+  from experiment 06 on, group 03 from experiment 07 on); group 03 has no camera 04 in experiments
+  01–05, and `group_02/experiment_05` has only 3 cameras. The three front cameras account for 79 of
+  the 135 recordings.
+- **Nominally 5 fps; effectively 4.4–4.6.** 120 recordings run at a median interval of 0.2 s, but
+  frames go missing in gaps, so they hold 4.57 frames per second of recording on average (4.41 in
+  our scope: about 1,320 frames instead of 1,500). The other 15, all on cameras 04–06, run at
+  10–12.5 fps (7.2–9.0 frames per second of recording).
+- **Gaps are frequent and short.** The longest is 6.1 s, except `group_03/experiment_03/context_cam_03`,
+  where 314 empty PNGs leave an 80 s hole (804 frames; §6). Four camera-06 recordings have no gaps
+  at all.
+- **In our scope:** 45 minutes of footage per activity (9 recordings), except experiment 05 with
+  35 (7 recordings); per group 89.8, 79.6 and 89.9 minutes (18, 16 and 18 recordings).
+
 ## 2. Why we annotated the context cameras ourselves
 
 ### The mismatch

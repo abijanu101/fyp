@@ -337,24 +337,97 @@ trials = beam_bisection_search(space, objective, n_trials, baseline, beam=2, ina
 ```
 
 Random search spends trials evenly over the whole space and does not learn from them. Once a good
-region is known, a directed search is cheaper. `beam_bisection_search` is a binary search per
-parameter, organised as branch and bound:
+region is known, a directed search is cheaper. `beam_bisection_search` starts from a good point
+(usually the best trial of an earlier search) and improves it one parameter at a time.
 
-- A **node** is a point plus, for each numeric parameter, an interval around it (in [0, 1] units,
-  log scale where the space says `log`). The root is the starting point with full intervals.
-- **Branching.** For each of the k numeric parameters, probe the midpoints of the lower and upper
-  halves of its interval, keep the best of the three points, and halve the interval around it:
-  one bisection step per parameter, k branches per node. One more branch applies every branch's
-  winning move at once.
-- **Bound.** Only the `beam` best nodes of each level are expanded further. The search stops when
-  the trial budget is spent or every interval is narrower than 1/64 of its range.
-- Categorical parameters, and numeric parameters with no effect under the profile's fixed settings
-  (`inactive`, e.g. BoT-SORT's appearance thresholds when ReID is off), keep their starting values.
-- Deterministic: re-running proposes the same trials, so resuming works as for random search.
+**It never has to guess which way to go.** For every parameter it tries both a lower and a higher
+value, and keeps whichever of the three (lower, current, higher) scores best. The only thing that
+changes from step to step is *how far* it looks: each step halves the distance.
 
-Each level costs up to (2k + 1) × beam trials: 13 × 2 = 26 for BoT-SORT without ReID (6 numeric
-parameters). On a smooth test function it reaches the optimum within about 60 trials where random
-search is still far off (`tests/test_tuning.py`); real tracking scores are noisier.
+#### One parameter, one step
+
+Each parameter has a current value `u` and an interval `[lo, hi]` it is searched in. At the start
+the interval is the parameter's **whole range from the config's search space** (for example
+`track_high_thresh` 0.05–0.70), wherever the starting value sits in it. One step:
+
+```
+        lo ─────────── u ─────────────────── hi        current value u, interval [lo, hi]
+              ▲                  ▲
+          (lo + u)/2         (u + hi)/2                 two probes: halfway to each end
+
+  lower probe wins   ->  new u = lower probe,  new interval [lo, u]      (the old u is the new top)
+  upper probe wins   ->  new u = upper probe,  new interval [u, hi]      (the old u is the new bottom)
+  u itself wins      ->  u stays,              new interval u ± (hi − lo)/4, cut at lo and hi
+```
+
+Whichever wins, the interval is at most half as wide afterwards, so the next step's probes land closer to
+the current best: big moves first, then finer and finer adjustments. A "stay" is not wasted; it
+means the best value is near `u`, and the next probes look closer to it. Parameters marked
+`"log": true` (`max_lost_frames`) do the same arithmetic on a log scale, so the halfway points are
+geometric means (√(10 × 96) ≈ 31).
+
+Two trials per parameter per step, and each probe changes **only that one parameter**; every other
+parameter stays at the node's current value.
+
+#### All parameters: one level
+
+A **level** does that step for every numeric parameter of a node (2 probes each), then adds one
+more trial, the **combined move**: every parameter set to its own winner at once. Parameters are
+judged one at a time, so their winning moves may or may not add up; the combined trial checks
+whether they do.
+
+Each parameter's winner (the node with just that one move, and that parameter's halved interval)
+and the combined move become candidates for the next level (a **node** is a point plus its
+intervals). Only the best `beam` of them (2) are expanded at the next level; the rest are dropped.
+That keeps the cost of a level at most (2k + 1) × beam trials for k numeric parameters, instead of
+growing with every level.
+
+The search stops when the trial budget is spent, or when every interval is narrower than 1/64 of its
+range. Categorical parameters (ReID on/off) and parameters with no effect under the profile's fixed
+settings (`inactive`: BoT-SORT's appearance thresholds when ReID is off) are never searched; they
+keep their starting values.
+
+#### Worked example: T3 (experiment 03)
+
+BoT-SORT + ReID + CMC re-tuned for the pose detector, starting from T2's winner, 20 trials, 7
+numeric parameters (`outputs/tuning/tracker_botsort_full_reid_cmc_aug1-4f270e71_pose_bisect.csv`).
+Trial 0 is the start: IDF1 **0.8734**. Level 1 probes each parameter both ways (trials 1–14, in
+alphabetical order):
+
+| Parameter | Range | Start `u` | Lower probe (IDF1) | Upper probe (IDF1) | Winner | Interval after |
+|---|---|---|---|---|---|---|
+| `appearance_thresh` | 0.20–0.80 | 0.286 | 0.243 (**0.8752**) | 0.543 (0.8651) | lower | 0.20–0.286 |
+| `match_thresh` | 0.50–0.95 | 0.711 | 0.606 (**0.8740**) | 0.831 (0.8675) | lower | 0.50–0.711 |
+| `max_lost_frames` (log) | 10–150 | 96 | 31 (**0.8739**) | 120 (0.8732) | lower | 10–96 |
+| `new_track_thresh` | 0.05–0.70 | 0.548 | 0.299 (0.8591) | 0.624 (**0.8840**) | upper | 0.548–0.70 |
+| `proximity_thresh` | 0.30–0.80 | 0.773 | 0.536 (0.8623) | 0.786 (0.8725) | stay (0.8734) | 0.648–0.80 (± 0.125, cut at the range end) |
+| `track_high_thresh` | 0.05–0.70 | 0.285 | 0.168 (0.8603) | 0.493 (**0.8932**) | upper | 0.285–0.70 |
+| `track_low_thresh` | 0.05–0.30 | 0.175 | 0.112 (0.8702) | 0.237 (**0.8767**) | upper | 0.175–0.30 |
+
+The combined move (trial 15) takes all six winning moves at once: IDF1 **0.8999**, better than any
+single move (the best, `track_high_thresh` alone, gave 0.8932), so here the moves did add up. The two
+best nodes are trial 15 and trial 12, and level 2 expands trial 15 first: `appearance_thresh` probes
+0.221 and 0.264 inside 0.20–0.286 (trials 16, 17), `match_thresh` probes 0.553 and 0.658 inside
+0.50–0.711 (trials 18, 19). Trial 19 (`match_thresh` 0.658, IDF1 **0.9007**) is the winner. The
+20-trial budget ran out there, partway through level 2; trial 12's node was never expanded.
+
+Several level-1 winners beat the start by less than 0.001 (`match_thresh`, `max_lost_frames`), well
+inside the noise between runs. The search takes them anyway, because it compares scores, not
+significance; read small wins as ties.
+
+#### What it is and is not
+
+- A **local** search: it improves the starting point, one parameter at a time, from the start's
+  neighbourhood outwards. It can step across the whole range early (the first probes are halfway
+  to each end), but it does not explore the space the way random search does. Start it from a good
+  point.
+- **Greedy per parameter:** each parameter is judged with the others held fixed, so interactions are
+  only seen through the combined move.
+- **Deterministic:** the same start and space give the same trials, so a run can be resumed and
+  no trial is computed twice (it shares the random search's per-session result log).
+
+On a smooth test function it reaches the optimum within about 60 trials where random search is
+still far off (`tests/test_tuning.py`); real tracking scores are noisier.
 
 ### Nested leave-one-group-out (for the gate and experts)
 

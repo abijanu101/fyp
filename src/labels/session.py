@@ -10,12 +10,25 @@ import numpy as np
 from ..core.types import SessionKey, Window
 from ..datasets import DipserIndex
 from .attention import AttentionTrack, load_subject_labels
+from .interp import collapse_map
 from .window_labels import WindowLabel, WindowLabeler
 
 
 @lru_cache(maxsize=32)
-def _load(path: Path, offset_s: float) -> dict[str, AttentionTrack]:
-    return load_subject_labels(path, offset_s)
+def _load(path: Path, offset_s: float, collapse: tuple | None = None) -> dict[str, AttentionTrack]:
+    """A subject's labels; with `collapse` (labels.collapse as a tuple of tuples) every rating is
+    mapped to its level first (interp.collapse_map), so every consumer sees the collapsed scale."""
+    tracks = load_subject_labels(path, offset_s)
+    m = collapse_map(collapse)
+    if m is None:
+        return tracks
+    return {n: AttentionTrack(tr.t, np.array([m[int(v)] for v in tr.value], float)) for n, tr in tracks.items()}
+
+
+def collapse_key(cfg: dict) -> tuple | None:
+    """labels.collapse (cfg = the `labels` block) as a hashable key for _load; None when absent."""
+    groups = cfg.get("collapse")
+    return tuple(tuple(int(r) for r in g) for g in groups) if groups else None
 
 
 def _students_and_labeler(index: DipserIndex, key: SessionKey, cfg: dict):
@@ -25,7 +38,7 @@ def _students_and_labeler(index: DipserIndex, key: SessionKey, cfg: dict):
     if cfg["students"] == "camera":
         visible = set(index.annotations(key))
         zips = {sid: p for sid, p in zips.items() if sid in visible}
-    students = {sid: _load(p, float(cfg["offset_s"])) for sid, p in zips.items()}
+    students = {sid: _load(p, float(cfg["offset_s"]), collapse_key(cfg)) for sid, p in zips.items()}
     labeler = WindowLabeler(cfg["tau_att"], cfg["tau_share"], cfg["min_labeled_students"], cfg["exclude_self"])
     return students, labeler
 
@@ -63,7 +76,8 @@ TRAIN_TARGETS = ("train_with_interp", "train_vanilla")
 
 def label_entries(index: DipserIndex, key: SessionKey, cfg: dict) -> "pd.DataFrame":
     """Every rating entry of every labeler for the students of this session-camera's label pool, one
-    row each: sid, labeler, t (seconds, camera clock), rating (as entered, clipped to 1-5), target.
+    row each: sid, labeler, t (seconds, camera clock), rating (as entered, clipped to 1-5; with
+labels.collapse, the entry's level: 1, 3, 5 for LOW / MID / HIGH), target.
 
     The shared session-start entry (every labeler's first rating, at the same instant) is excluded:
     it is a judgement, but not a moment the labeler chose (docs/misc/targets.md §7.1 item 3).

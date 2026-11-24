@@ -223,7 +223,7 @@ mean ≥ `tau_att`, no median.
 
 ## 13.6 Linking tracks to students (training only)
 
-**Code:** `src/tracking/association.py`, `associate_sids` (line 66), `frame_matches`.
+**Code:** `src/tracking/association.py`, `associate_sids` (line 112), `frame_matches`, `_mean_box_sids`.
 
 Late aggregation trains each track's row on *its student's* label, so each track id (TID) must be
 linked to a subject id (SID). Because the manual annotation is one **static box per subject per
@@ -241,6 +241,17 @@ The static boxes are not right in every frame (experiment 01 §2): students lean
 and TAs walk through the room, often behind seated students, with no box of their own. A TA crossing
 a student's box can match it for a few frames; the 50% rule above is what keeps such a track from
 being linked to the student.
+
+**Alternative: `association.method` = `"mean_box"`** (the default, `"per_frame"`, is the procedure
+above and is what every experiment so far used; a config without the key gets it, so older hashes
+are unchanged). Each track is reduced to its **mean box** over all its frames, and the mean boxes are
+matched to the subject boxes by the Hungarian algorithm on IoU, once per track instead of once per
+frame. A fragmented student has several tracks, so the matching runs in rounds: tracks left over
+may join a subject that already has tracks, but only if they share no frame with those tracks (two
+boxes at the same time are two people). Both guards still apply: the mean box needs IoU ≥
+`min_iou`, and the track must overlap its subject's box in at least `min_match_share` of its frames.
+On the 52 original recordings (base config) it gives the same links as `per_frame` in 33; in the
+rest it mostly links one to three fewer tracks, and swaps a track in three.
 
 Unlinked tracks (people not annotated, such as teachers and TAs, or students who moved away from
 their box) get a NaN label and are left out of training.

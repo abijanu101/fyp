@@ -315,11 +315,21 @@ def extract(args) -> None:
     threads = max(1, (os.cpu_count() or 1) // args.workers)
     start = time.monotonic()
     with ProcessPoolExecutor(args.workers, initializer=_extract_init, initargs=(cfg, threads)) as ex:
-        futs = [ex.submit(extract_job, cfg, str(k), c) for k, c in todo]
+        futs = {ex.submit(extract_job, cfg, str(k), c): (k, c) for k, c in todo}
+        failed = []
         for n, f in enumerate(as_completed(futs), 1):
             el = time.monotonic() - start
-            print(f"[{n}/{len(todo)}] {f.result()}  ({el / 3600:.2f} h, ~{el / n * (len(todo) - n) / 3600:.1f} h left)",
+            try:                        # one failed recording must not stop an unattended run
+                what = f.result()
+            except Exception as e:
+                k, c = futs[f]
+                failed.append(f"{k}" + ("" if c is None else f" copy {c}"))
+                what = f"FAILED {failed[-1]}: {type(e).__name__}: {e}"
+            print(f"[{n}/{len(todo)}] {what}  ({el / 3600:.2f} h, ~{el / n * (len(todo) - n) / 3600:.1f} h left)",
                   flush=True)
+    if failed:
+        raise SystemExit(f"{len(failed)} recording(s) failed (rerun the same command to retry them): "
+                         + ", ".join(failed))
 
 
 def main() -> None:

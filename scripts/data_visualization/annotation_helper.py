@@ -10,9 +10,9 @@ import random
 
 DIPSER_PATH = Path(__file__).resolve().parents[2] / "data" / "DIPSER"   # <repo>/data/DIPSER
 
-GROUP = "group_01"
-EXPERIMENT = "experiment_08"
-CAMERA = "context_cam_02"
+GROUP = "group_02"
+EXPERIMENT = "experiment_03"
+CAMERA = "context_cam_01"
 
 zip_path = DIPSER_PATH / 'DIPSEER' / GROUP / EXPERIMENT / f"{CAMERA}.zip"
 annotations_path = DIPSER_PATH / 'abi_labels' / GROUP / f'{EXPERIMENT}.json'

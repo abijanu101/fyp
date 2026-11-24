@@ -22,6 +22,8 @@ lib/yolov7/
 outputs/cache/
 # per-entry predictions of every training run (train_models), a few MB each; regenerable by retraining
 outputs/predictions/
+# trained models of every training run (train_models), up to ~320 MB each (k-NN stores its training rows); regenerable by retraining from the config hash
+outputs/models/
 
 # scratch space for working files that need to live for a while (tests, intermediate runs)
 tmp/

@@ -36,6 +36,9 @@ class SklearnExpert(EngagementExpert):
     # same X as both classes) invert it (correlation -0.45 with the truth in a check); SVM and k-NN
     # threshold soft labels at 0.5 instead.
     SOFT = ("logreg", "random_forest")
+    # Regressors fit the soft label (the normalised rating) directly, with no threshold and no class
+    # balancing: k-NN regression predicts the mean normalised rating of the k nearest training rows.
+    REGRESSORS = ("knn_regression",)
 
     def __init__(self, model: str, seed: int = 0, max_train_rows: int | None = None,
                  pca: int | float | None = None, **params):
@@ -46,6 +49,8 @@ class SklearnExpert(EngagementExpert):
 
     def fit(self, X, y):
         y = np.clip(np.asarray(y, float), 0.0, 1.0)
+        if self.name in self.REGRESSORS:
+            return self._fit_regression(np.asarray(X), y)
         soft = not np.all((y == 0) | (y == 1))
         if soft and self.name in self.SOFT:
             return self._fit_soft(np.asarray(X), y)
@@ -86,9 +91,26 @@ class SklearnExpert(EngagementExpert):
         self.model.fit(X2[nz], y2[nz], clf__sample_weight=w[nz])
         return self
 
+    def _fit_regression(self, X: np.ndarray, y: np.ndarray) -> "SklearnExpert":
+        if len(y) == 0 or np.ptp(y) == 0:
+            self._constant = float(y.mean()) if len(y) else 0.5
+            return self
+        self._constant = None
+        keep = np.arange(len(y))
+        if self.max_train_rows and len(keep) > self.max_train_rows:
+            keep = np.random.default_rng(self.seed).choice(keep, self.max_train_rows, replace=False)
+        k = self.model.get_params()["clf__n_neighbors"]          # k cannot exceed the training rows
+        self.model.set_params(clf__n_neighbors=min(k, len(keep)))
+        self.model.fit(X[keep], y[keep])
+        return self
+
     def predict_proba(self, X):
+        """(n,) in [0, 1]: P(engaged) for classifiers; the predicted normalised rating for regressors
+        (both are read back as a rating with labels.interp.to_rating)."""
         if self._constant is not None:
             return np.full(len(X), self._constant)
+        if self.name in self.REGRESSORS:
+            return np.clip(self.model.predict(X), 0.0, 1.0)
         return self.model.predict_proba(X)[:, list(self.model.classes_).index(1)]
 
 
@@ -122,3 +144,4 @@ EXPERTS.register("logreg")(partial(SklearnExpert, "logreg"))
 EXPERTS.register("random_forest")(partial(SklearnExpert, "random_forest"))
 EXPERTS.register("svm")(partial(SklearnExpert, "svm"))
 EXPERTS.register("knn")(partial(SklearnExpert, "knn"))
+EXPERTS.register("knn_regression")(partial(SklearnExpert, "knn_regression"))

@@ -113,8 +113,8 @@ def main() -> None:
         if per_labeler:
             from scripts.train_models import label_rows
             rows = label_rows(cfg, df)
-            row_cols = sorted(c for c in rows if c.startswith("trk.")) + \
-                (vec_cols if use_class_context(cfg) else [])
+            from src.experts.columns import model_columns
+            row_cols = model_columns(cfg, list(rows.columns), vec_cols)
             jobs.append(("expert", cfg["expert"], per_labeler_expert_scorer(cfg, rows, row_cols),
                          rows["group"].to_numpy()))
         else:

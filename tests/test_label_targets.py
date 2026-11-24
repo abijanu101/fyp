@@ -133,6 +133,14 @@ class TestSoftLabels(unittest.TestCase):
             p = SklearnExpert(name, max_train_rows=600).fit(self.X, self.y).predict_proba(self.X)
             self.assertGreater(np.corrcoef(p, self.truth)[0, 1], 0.5, name)
 
+    def test_knn_regression_predicts_the_neighbours_mean_target(self):
+        m = SklearnExpert("knn_regression", n_neighbors=25).fit(self.X, self.y)
+        p = m.predict_proba(self.X)
+        self.assertGreater(np.corrcoef(p, self.truth)[0, 1], 0.95)
+        self.assertAlmostEqual(p.mean(), self.y.mean(), places=1)          # no class balancing: calibrated
+        one = SklearnExpert("knn_regression", n_neighbors=3).fit(self.X[:3], self.y[:3]).predict_proba(self.X[:1])
+        self.assertAlmostEqual(one[0], self.y[:3].mean())                  # k clipped to 3 rows: their mean
+
     def test_a_constant_soft_target_is_predicted_as_is(self):
         self.assertEqual(SklearnExpert("logreg").fit(self.X[:5], np.full(5, 0.4)).predict_proba(self.X[:2])[0], 0.4)
 

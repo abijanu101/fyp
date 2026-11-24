@@ -110,3 +110,40 @@ def majority_rating(ratings: np.ndarray, step: float = 1.0) -> np.ndarray:
         best = levels[np.flatnonzero(counts == counts.max())]
         out[i] = best[np.argmin(np.abs(best - 3) * 10 + best)]
     return out
+
+
+def collapse_map(groups) -> dict[int, float] | None:
+    """Config `labels.collapse` -> {rating: value}, or None when absent (the 1-5 scale as entered).
+
+    `groups` partitions 1-5 into K >= 2 consecutive groups, lowest first: [[1, 2], [3], [4, 5]] is
+    LOW / MID / HIGH. Group k is placed at the k-th of K evenly spaced points on 1-5 (K = 3: 1, 3, 5),
+    so the soft targets (0, 0.5, 1), to_rating and tau_att keep their meaning: with tau_att 3,
+    "engaged" is MID or HIGH, the same split as rating >= 3."""
+    if not groups:
+        return None
+    flat = [int(r) for g in groups for r in g]
+    if flat != list(range(1, 6)) or any(not g for g in groups) or len(groups) < 2:
+        raise ValueError(f"labels.collapse must split 1-5 into consecutive groups in order, got {groups!r}")
+    step = (RATING_MAX - RATING_MIN) / (len(groups) - 1)
+    return {int(r): RATING_MIN + k * step for k, g in enumerate(groups) for r in g}
+
+
+def rating_levels(groups=None) -> np.ndarray:
+    """The values a label can take: 1, 2, 3, 4, 5, or the collapsed levels (e.g. 1, 3, 5)."""
+    m = collapse_map(groups)
+    return np.arange(RATING_MIN, RATING_MAX + 1) if m is None else np.array(sorted(set(m.values())))
+
+
+def round_to_levels(r: np.ndarray | float, levels: np.ndarray | None = None) -> np.ndarray:
+    """Nearest of `levels` (default: whole ratings 1-5); exact halfway ties go toward 3, as in
+    round_rating. Any shape; NaN stays NaN."""
+    if levels is None:
+        return round_rating(r)
+    levels = np.asarray(levels, float)
+    a = np.asarray(r, float)
+    flat = np.clip(a.ravel(), RATING_MIN, RATING_MAX)
+    d = np.abs(flat[:, None] - levels[None, :])
+    best = np.isclose(d, np.nanmin(np.where(np.isnan(d), np.inf, d), axis=1, keepdims=True))
+    tie = np.where(best, np.abs(levels - 3)[None, :], np.inf)      # among the nearest: closest to 3
+    out = np.where(np.isnan(flat), np.nan, levels[tie.argmin(axis=1)]).reshape(a.shape)
+    return out[()] if out.ndim == 0 else out
