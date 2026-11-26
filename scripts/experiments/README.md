@@ -25,4 +25,4 @@ repository root: `bash scripts/experiments/<NN_name>/<script>.sh`, or
 | `07_knn/` | `knn.sh` (the k scan) and `pca.sh` (the first PCA arms) |
 | `08_pca/` | `rf.sh`, `knn.sh` (k = 500), `knn5.sh`, `extra.sh`, and `build_head.py`, which builds one model's tables |
 | `09_vfoa/` | `arms.sh` (every arm), `collect.py` (`all_arms.csv`), `tables.py` (the write-up's tables), `wallclock.py` (runtimes) |
-| `10_clustering/` | `run.sh`, steps 4–7 of `scripts/clustering/README.md` with the choices between steps made by `pick.py`; run report: `docs/run_reports/10_clustering.md` |
+| `10_clustering/` | `run.sh`, steps 4–7 of `scripts/clustering/README.md` with the choices between steps made by `pick.py`: the record of the **first** full run (25–26 November 2026; run report `docs/run_reports/10_clustering.md`). It uses `ablation` options removed since (`--best`, `--no-window`), so it no longer runs as is. The rerun, with the fixed design, is one cross-platform command: `python -m scripts.clustering.run_all` (resumable; `scripts/clustering/README.md`) |

@@ -18,7 +18,8 @@ script's docstring gives its full usage.
 | | `plot_results` | held-out engagement curves per session |
 | `labels/` | `label_agreement` | labeler agreement (Krippendorff's α) and the human ceiling (experiment 06 Part 1) |
 | | `label_baselines` | constant-prediction baselines on every published target (`docs/misc/benchmarks.md`) |
-| `clustering/` | `signal_screen` | which per-frame channels and descriptors clear the noise floor, vary within a track, and are synchronous beyond chance (guide 15 §15.9, A1–A3) |
+| `clustering/` | `run_all` | **all of experiment 10 in one resumable command** (steps 4–7 of `clustering/README.md`) |
+| | `signal_screen` | which per-frame channels and descriptors clear the noise floor, vary within a track, and are synchronous beyond chance (guide 15 §15.9, A1–A3) |
 | | `event_check` | whether the class moves together at events (A4) |
 | | `descriptor_subset` | the descriptors to cluster on, chosen without labels (A5) |
 | | `stability` | how stable each clustering and threshold is (A6) |

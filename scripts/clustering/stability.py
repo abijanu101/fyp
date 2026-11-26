@@ -1,9 +1,12 @@
 """How stable is each candidate clustering? Screen 6 of guide 15 §15.9.
 
   python -m scripts.clustering.stability [--config docs/experiments/09_vfoa.json] [--set k=v ...]
-         [--sets all subset head] [--channels hp.yaw rf.total] [--taus-desc 0.4 0.6 0.8 1.0 1.5]
-         [--taus-sync 0.3 0.5 0.7 0.9] [--boot 10] [--max-windows 0] [--sessions <stem> ...]
+         [--sets all subset head] [--channels hp.yaw rf.total] [--taus-desc 0.4 0.6 0.8 1.0 1.5 2.0 3.0]
+         [--taus-sync 0.3 0.5 0.7 0.9 1.1 1.3] [--null-gap 10] [--boot 10] [--max-windows 0] [--sessions <stem> ...]
          [--workers 1] [--out outputs/experiments/10_clustering]
+
+Resumable: each recording's result is saved under <out>/partial/stability/<settings hash>/ as it
+finishes; a rerun with the same settings only computes the rest.
 
 For every regular-grid window with at least 4 visible students, every space (descriptor sets,
 standardised per track; synchrony channels, correlation distance) and every method (agglomerative
@@ -14,6 +17,13 @@ at each threshold tau, HDBSCAN with min_cluster_size 2 and 3):
                  Subsampling, not the bootstrap, because duplicated students form fake clusters.
   temporal ARI   the clustering of the students two consecutive windows share (they overlap by
                  50%, so half their frames are the same): a stable grouping should mostly persist
+  null ARI       the same comparison against a random window of the same recording at least
+                 --null-gap windows away (20 s at the default grid): what any clustering of these
+                 students scores by chance, including the trivial agreement of coarse clusterings
+                 (everyone in one cluster in both windows gives ARI 1.0)
+  temporal excess  temporal ARI minus null ARI: how much more a grouping persists into the next
+                 window than into an unrelated one. This, not the raw temporal ARI, is what tau is
+                 chosen on: the raw value rises mechanically as clusters get coarser
   silhouette     where there are 2 to n-1 clusters
   degeneracy     the mean number of clusters per student, and the share of windows where everyone
                  is in one cluster, or where most students are alone (more clusters than n / 2, a
@@ -22,8 +32,12 @@ at each threshold tau, HDBSCAN with min_cluster_size 2 and 3):
 
 With 7-20 students the silhouette is noisy; trust the two ARIs more (guide 15 R5).
 
-Writes to --out:
-  stability.csv   one row per (space, method, parameter): the measures above and `usable`
+Choosing tau: among usable agglomerative rows, the highest temporal excess (descriptor space on its
+own; synchrony space averaged over the channels). If the best tau is the largest one tested, the
+optimum may lie beyond the grid: extend --taus-desc / --taus-sync and rerun.
+
+Writes to --out (tables as .csv and .json):
+  stability       one row per (space, method, parameter): the measures above and `usable`
                   (not degenerate in more than 80% of windows)
   stability.png   subsample and temporal ARI against tau per space
 """
@@ -34,8 +48,9 @@ import numpy as np
 import pandas as pd
 
 from scripts.clustering.common import (TrackStandardiser, available_channels, base_parser, cached_stems,
-                                       descriptor_sets, load, load_session, map_sessions, plot_ready, series_matrix,
-                                       write_table)
+                                       descriptor_sets, load, load_session, map_sessions, partial_dir, plot_ready,
+                                       series_matrix, write_table)
+from scripts.run_pipeline import features_dir
 from src.cfmu.classrel import (MIN_CLUSTER_N, _rms_scale, agglomerative_labels, correlation_distance, hdbscan_labels,
                                pairwise_corr)
 
@@ -71,7 +86,26 @@ def subset(X, D, idx):
     return (X[idx] if X is not None else None), (D[np.ix_(idx, idx)] if D is not None else None)
 
 
-def evaluate(spaces: dict, methods: list[tuple[str, str, float]], boot: int, rng) -> list[dict]:
+def null_ari(done: list[tuple], gap: int, rng) -> list[float]:
+    """For each (window, tids, labels) of one session, the ARI against a random window at least `gap`
+    windows away, on the students both contain (NaN when none is far enough or too few are shared)."""
+    out = []
+    for wi, tids, lab in done:
+        far = [d for d in done if abs(d[0] - wi) >= gap]
+        if not far:
+            out.append(np.nan)
+            continue
+        wj, tj, lj = far[int(rng.integers(len(far)))]
+        common = sorted(set(tids) & set(tj))
+        if len(common) < MIN_CLUSTER_N:
+            out.append(np.nan)
+            continue
+        a, b = dict(zip(tids, lab)), dict(zip(tj, lj))
+        out.append(ari([a[t] for t in common], [b[t] for t in common]))
+    return out
+
+
+def evaluate(spaces: dict, methods: list[tuple[str, str, float]], boot: int, rng, gap: int = 10) -> list[dict]:
     """spaces: {space: [(window index, tids, X or None, D or None), ...]} for one session."""
     recs = []
     for space, wins in spaces.items():
@@ -79,7 +113,7 @@ def evaluate(spaces: dict, methods: list[tuple[str, str, float]], boot: int, rng
         for mkind, method, param in methods:
             if mkind != kind:
                 continue
-            prev = None
+            prev, done, first = None, [], len(recs)
             for wi, tids, X, D in wins:
                 n = len(tids)
                 lab = label(method, param, X, D)
@@ -101,7 +135,10 @@ def evaluate(spaces: dict, methods: list[tuple[str, str, float]], boot: int, rng
                         ca = dict(zip(tids, lab))
                         rec["temporal_ari"] = ari([pa[t] for t in common], [ca[t] for t in common])
                 prev = (wi, tids, lab)
+                done.append((wi, tids, lab))
                 recs.append(rec)
+            for rec, v in zip(recs[first:], null_ari(done, gap, rng)):
+                rec["null_ari"] = v
     return recs
 
 
@@ -111,13 +148,13 @@ def plot(summary: pd.DataFrame, path) -> None:
     spaces = sorted(agg["space"].unique())
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.5), sharey=True)
     for ax, col, title in ((axes[0], "subsample_ari", "subsample ARI (80% of students)"),
-                           (axes[1], "temporal_ari", "temporal ARI (consecutive windows)")):
+                           (axes[1], "temporal_excess", "temporal ARI minus null (consecutive vs distant windows)")):
         for s in spaces:
             d = agg[agg["space"] == s].sort_values("param")
             ax.plot(d["param"], d[col], marker="o", lw=1.5, label=s, alpha=0.9 if d["usable"].any() else 0.35)
         ax.set_xlabel("distance threshold tau")
         ax.set_title(title, fontsize=10)
-        ax.set_ylim(-0.1, 1.05)
+        ax.set_ylim(-0.1 if col == "subsample_ari" else None, 1.05 if col == "subsample_ari" else None)
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
     axes[0].set_ylabel("adjusted Rand index")
@@ -129,7 +166,7 @@ def plot(summary: pd.DataFrame, path) -> None:
 
 
 def stability_one(cfg: dict, stem: str, sets_wanted: list[str], channels, methods, boot: int, max_windows: int,
-                  out, seed) -> list[dict]:
+                  out, seed, gap: int = 10) -> list[dict]:
     """One session (worker process): the per-window records of every space and method."""
     from scripts.clustering.common import DEFAULT_CHANNELS
 
@@ -157,15 +194,16 @@ def stability_one(cfg: dict, stem: str, sets_wanted: list[str], channels, method
             for c in chans:
                 D = correlation_distance(pairwise_corr(series_matrix(sd, w, tracks, c)))
                 spaces[f"sync:{c}"].append((wi, tids, None, D))
-    return [{"stem": stem, **r} for r in evaluate(spaces, methods, boot, rng)]
+    return [{"stem": stem, **r} for r in evaluate(spaces, methods, boot, rng, gap)]
 
 
 def main() -> None:
     ap = base_parser(__doc__, workers=True)
     ap.add_argument("--sets", nargs="*", default=["all", "subset", "head"], help="descriptor sets (those present)")
     ap.add_argument("--channels", nargs="*", default=None, help="default: hp.yaw hp.head_height rf.total kg.speed")
-    ap.add_argument("--taus-desc", nargs="*", type=float, default=[0.4, 0.6, 0.8, 1.0, 1.5])
-    ap.add_argument("--taus-sync", nargs="*", type=float, default=[0.3, 0.5, 0.7, 0.9])
+    ap.add_argument("--taus-desc", nargs="*", type=float, default=[0.4, 0.6, 0.8, 1.0, 1.5, 2.0, 3.0])
+    ap.add_argument("--taus-sync", nargs="*", type=float, default=[0.3, 0.5, 0.7, 0.9, 1.1, 1.3])
+    ap.add_argument("--null-gap", type=int, default=10, help="windows between a window and its null partner")
     ap.add_argument("--hdbscan", nargs="*", type=int, default=[2, 3], help="min_cluster_size values")
     ap.add_argument("--boot", type=int, default=10)
     ap.add_argument("--max-windows", type=int, default=0, help="per session, evenly spaced pairs of consecutive windows; 0 = all")
@@ -174,10 +212,16 @@ def main() -> None:
 
     methods = [("descriptor", "agglomerative", t) for t in args.taus_desc] +               [("synchrony", "agglomerative", t) for t in args.taus_sync] +               [(k, "hdbscan", m) for k in ("descriptor", "synchrony") for m in args.hdbscan]
     stems = cached_stems(cfg, args.sessions)
-    jobs = [(cfg, stem, args.sets, args.channels, methods, args.boot, args.max_windows, out, [cfg["seed"], i])
-            for i, stem in enumerate(stems)]
+    jobs = [(cfg, stem, args.sets, args.channels, methods, args.boot, args.max_windows, out, [cfg["seed"], i],
+             args.null_gap) for i, stem in enumerate(stems)]
+    subset = out / "descriptor_subset.json"
+    resume = partial_dir(out, "stability", {"features": features_dir(cfg).name, "sets": args.sets,
+                                            "channels": args.channels, "methods": methods, "boot": args.boot,
+                                            "max_windows": args.max_windows, "gap": args.null_gap, "seed": cfg["seed"],
+                                            "subset": subset.read_text(encoding="utf-8") if subset.exists() else None,
+                                            "version": 2})
     recs = []
-    for i, (job, r) in enumerate(map_sessions(stability_one, jobs, args.workers), 1):
+    for i, (job, r) in enumerate(map_sessions(stability_one, jobs, args.workers, stems, resume), 1):
         recs += r
         print(f"  [{i}/{len(stems)}] {job[1]}", flush=True)
     if not recs:
@@ -185,20 +229,27 @@ def main() -> None:
     df = pd.DataFrame(recs)
     summary = df.groupby(["space", "method", "param"]).agg(
         windows=("window", "size"), subsample_ari=("subsample_ari", "mean"), temporal_ari=("temporal_ari", "mean"),
-        silhouette=("silhouette", "mean"), clusters_per_student=("clusters_per_student", "mean"),
+        null_ari=("null_ari", "mean"), silhouette=("silhouette", "mean"),
+        clusters_per_student=("clusters_per_student", "mean"),
         one_cluster=("one_cluster", "mean"), mostly_alone=("mostly_alone", "mean")).reset_index()
+    summary["temporal_excess"] = summary["temporal_ari"] - summary["null_ari"]
     summary["usable"] = (summary["one_cluster"] < 0.8) & (summary["mostly_alone"] < 0.8)
-    summary = summary.sort_values(["usable", "subsample_ari"], ascending=[False, False])
+    summary = summary.sort_values(["usable", "temporal_excess"], ascending=[False, False])
     write_table(summary, out / "stability")
     plot(summary, out / "stability.png")
     print("\n" + summary.round(3).to_string(index=False))
-    best = summary[summary["usable"]].head(5)
-    if len(best):
-        print("\nmost stable usable settings:")
-        for _, r in best.iterrows():
-            print(f"  {r['space']:22s} {r['method']:13s} {r['param']:<5g} subsample ARI {r['subsample_ari']:.3f}  "
-                  f"temporal {r['temporal_ari']:.3f}  clusters/student {r['clusters_per_student']:.2f}")
-    print(f"\nwrote {out}/stability.csv, stability.png")
+    agg = summary[summary["usable"] & (summary["method"] == "agglomerative")]
+    desc = agg[agg["space"] == "desc:subset"] if (agg["space"] == "desc:subset").any() else agg[agg["space"].str.startswith("desc:")]
+    sync = agg[agg["space"].str.startswith("sync:")].groupby("param")["temporal_excess"].mean().sort_values(ascending=False)
+    print("\nchoice of tau (highest temporal excess = temporal ARI - null ARI, usable agglomerative settings):")
+    if len(desc):
+        d = desc.sort_values("temporal_excess", ascending=False).iloc[0]
+        edge = " (largest tested: extend --taus-desc)" if d["param"] == max(args.taus_desc) else ""
+        print(f"  tau-desc {d['param']:g}: excess {d['temporal_excess']:.3f} ({d['space']}){edge}")
+    if len(sync):
+        edge = " (largest tested: extend --taus-sync)" if sync.index[0] == max(args.taus_sync) else ""
+        print(f"  tau-sync {sync.index[0]:g}: mean excess over channels {sync.iloc[0]:.3f}{edge}")
+    print(f"\nwrote {out}/stability (.csv/.json), stability.png")
 
 
 if __name__ == "__main__":

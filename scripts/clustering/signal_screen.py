@@ -4,6 +4,9 @@
          [--channels hp.yaw rf.total ...] [--surrogates 20] [--max-windows 0] [--sessions <stem> ...]
          [--workers 1] [--out outputs/experiments/10_clustering]
 
+Resumable: each recording's result is saved under <out>/partial/signal_screen/<settings hash>/ as it
+finishes; a rerun with the same settings loads those and only computes the rest.
+
 Reads only the caches of `run_pipeline extract` (frame-pass .npz, window and per-student tables), on
 the original recordings. For every regular-grid window and every per-frame channel:
 
@@ -21,10 +24,24 @@ the original recordings. For every regular-grid window and every per-frame chann
                        each student's signal, breaks the timing between them). A channel whose real
                        synchrony is not above the shifted one carries no class synchrony.
 
+Statistics: windows overlap and neighbouring windows are alike, so they are not independent. The
+pass flag therefore uses one value per recording (its mean real-minus-shifted synchrony), tested
+across recordings with a one-sided Wilcoxon signed-rank test, then Benjamini-Hochberg across the
+channels (q < 0.05). The window-level sign test is kept as a description only.
+
+Camera check: motion shared by every student at once (camera shake, lighting) keeps its timing in
+the real data and so beats the shifted series too. Each window is tagged with its whole-picture
+motion (the scene feature `motion`); synchrony is also reported in each recording's calmest third
+of windows (`sync_excess_low_motion`, with its own per-recording test), with the Spearman
+correlation between a window's excess synchrony and its global motion. Synchrony that holds in the
+calm windows is not driven by the camera; synchrony that only shows when the picture moves may be.
+
 Every table is written as .csv and .json (records). Writes to --out:
   signal_screen_channels.csv     per channel: noise ratio, lag-1 autocorrelation, real and
-                                 surrogate synchrony, its z-score and sign test, within-track
-                                 share of the window mean, and pass flags for screens 1 and 3
+                                 surrogate synchrony, the per-recording test (p, q), the camera
+                                 check, within-track share of the window mean, and pass flags
+  signal_screen_recordings.csv   per (channel, recording): mean excess synchrony, overall and in the
+                                 calm third of windows
   signal_screen_descriptors.csv  per trk.* descriptor: between-track, between-session and
                                  within-track variance shares (screen 2)
   signal_screen.png              the three screens side by side
@@ -35,8 +52,10 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from scripts.clustering.common import (available_channels, base_parser, cached_stems, load, load_session,
-                                       map_sessions, plot_ready, series_matrix, write_table)
+from scripts.clustering.common import (available_channels, base_parser, bh_qvalues, cached_stems, load,
+                                       load_session, map_sessions, partial_dir, per_recording_test, plot_ready,
+                                       series_matrix, write_table)
+from scripts.run_pipeline import features_dir
 from src.cfmu.classrel import circular_shift, lag1_autocorr, noise_ratio, pairwise_corr
 
 
@@ -79,6 +98,7 @@ def screen_session(sd, channels: list[str], n_surr: int, max_windows: int, rng) 
             surr = np.array(surr)
             sdv = surr.std() if len(surr) > 1 else np.nan
             win_recs.append({"stem": sd.stem, "t": w.t_start, "channel": ch, "n": len(tracks), "real": real,
+                             "global_motion": sd.global_motion(w),
                              "surrogate": surr.mean() if len(surr) else np.nan,
                              "z": (real - surr.mean()) / sdv if sdv and np.isfinite(sdv) and sdv > 1e-12 else np.nan,
                              "above_95": float(real > np.quantile(surr, 0.95)) if len(surr) >= 10 else np.nan})
@@ -93,13 +113,28 @@ def screen_one(cfg: dict, stem: str, channels, n_surr: int, max_windows: int, se
     return pd.DataFrame(w), pd.DataFrame(s), sd.tracks.assign(stem=stem), chans
 
 
+def per_recording(win: pd.DataFrame) -> pd.DataFrame:
+    """Per (channel, recording): mean excess synchrony over all windows and over the recording's
+    calmest third (lowest global motion)."""
+    w = win.assign(excess=win["real"] - win["surrogate"])
+    w["calm"] = w.groupby(["channel", "stem"])["global_motion"].rank(pct=True) <= 1 / 3
+    allw = w.groupby(["channel", "stem"]).agg(n_windows=("excess", "size"), excess=("excess", "mean"))
+    calm = w[w["calm"]].groupby(["channel", "stem"]).agg(excess_low_motion=("excess", "mean"))
+    return allw.join(calm).reset_index()
+
+
 def summarise(win: pd.DataFrame, stu: pd.DataFrame, noise_pass: float) -> pd.DataFrame:
-    from scipy.stats import binomtest
+    from scipy.stats import binomtest, spearmanr
 
     out = []
     stu = stu.assign(track=stu["stem"] + "#" + stu["tid"].astype(str))
+    per_rec = per_recording(win)
     for ch, s in stu.groupby("channel"):
         w = win[win["channel"] == ch]
+        r = per_rec[per_rec["channel"] == ch]
+        ex = (w["real"] - w["surrogate"])
+        ok = ex.notna() & w["global_motion"].notna()
+        rho_m = float(spearmanr(ex[ok], w.loc[ok, "global_motion"]).statistic) if ok.sum() > 10 else np.nan
         finite = s["noise_ratio"].replace(np.inf, np.nan)
         diff = (w["real"] - w["surrogate"]).dropna()
         p = binomtest(int((diff > 0).sum()), len(diff), 0.5, alternative="greater").pvalue if len(diff) else np.nan
@@ -112,12 +147,22 @@ def summarise(win: pd.DataFrame, stu: pd.DataFrame, noise_pass: float) -> pd.Dat
                "sync_excess": float(diff.mean()) if len(diff) else np.nan,
                "sync_z_median": float(w["z"].median()) if len(w) else np.nan,
                "share_above_95": float(w["above_95"].mean()) if len(w) else np.nan,
-               "sign_test_p": float(p),
+               "sign_test_p_windows": float(p),
+               "n_recordings": int(r["excess"].notna().sum()),
+               "recordings_positive": float((r["excess"] > 0).mean()) if len(r) else np.nan,
+               "p_recordings": per_recording_test(r["excess"]),
+               "sync_excess_low_motion": float(r["excess_low_motion"].mean()) if len(r) else np.nan,
+               "p_recordings_low_motion": per_recording_test(r["excess_low_motion"]),
+               "rho_excess_vs_global_motion": rho_m,
                **variance_shares(s["window_mean"], s["track"], s["stem"])}
-        rec["pass_noise"] = bool(rec["noise_ratio_median"] > noise_pass)
-        rec["pass_sync"] = bool(np.isfinite(p) and p < 0.05 and rec["sync_excess"] > 0)
         out.append(rec)
-    return pd.DataFrame(out).sort_values(["pass_sync", "sync_excess"], ascending=[False, False])
+    df = pd.DataFrame(out)
+    df["q_recordings"] = bh_qvalues(df["p_recordings"])
+    df["q_recordings_low_motion"] = bh_qvalues(df["p_recordings_low_motion"])
+    df["pass_noise"] = df["noise_ratio_median"] > noise_pass
+    df["pass_sync"] = (df["q_recordings"] < 0.05) & (df["sync_excess"] > 0)
+    df["pass_sync_low_motion"] = (df["q_recordings_low_motion"] < 0.05) & (df["sync_excess_low_motion"] > 0)
+    return df.sort_values(["pass_sync", "sync_excess"], ascending=[False, False])
 
 
 def plot(ch: pd.DataFrame, desc: pd.DataFrame, stu: pd.DataFrame, noise_pass: float, path) -> None:
@@ -134,8 +179,9 @@ def plot(ch: pd.DataFrame, desc: pd.DataFrame, stu: pd.DataFrame, noise_pass: fl
     y = np.arange(len(order))
     axes[1].barh(y + 0.2, ch["sync_real"], height=0.4, color="#2a78d6", label="real")
     axes[1].barh(y - 0.2, ch["sync_surrogate"], height=0.4, color="#bbbbbb", label="shifted (surrogate)")
-    for yi, (ok, p) in enumerate(zip(ch["pass_sync"], ch["sign_test_p"])):
-        axes[1].text(axes[1].get_xlim()[1], yi, " pass" if ok else f" p={p:.2f}", va="center", fontsize=7)
+    for yi, (ok, q, calm) in enumerate(zip(ch["pass_sync"], ch["q_recordings"], ch["pass_sync_low_motion"])):
+        txt = (" pass" + (", calm too" if calm else ", NOT in calm windows")) if ok else f" q={q:.2f}"
+        axes[1].text(axes[1].get_xlim()[1], yi, txt, va="center", fontsize=7)
     axes[1].set_yticks(y, order, fontsize=8)
     axes[1].invert_yaxis()
     axes[1].set_xlabel("class mean pairwise correlation")
@@ -171,8 +217,11 @@ def main() -> None:
 
     stems = cached_stems(cfg, args.sessions)
     jobs = [(cfg, stem, args.channels, args.surrogates, args.max_windows, [cfg["seed"], i]) for i, stem in enumerate(stems)]
+    resume = partial_dir(out, "signal_screen", {"features": features_dir(cfg).name, "channels": args.channels,
+                                                "surrogates": args.surrogates, "max_windows": args.max_windows,
+                                                "seed": cfg["seed"], "version": 2})
     wins, stus, desc_rows, channels = [], [], [], set()
-    for i, (job, (w, s, tracks, chans)) in enumerate(map_sessions(screen_one, jobs, args.workers), 1):
+    for i, (job, (w, s, tracks, chans)) in enumerate(map_sessions(screen_one, jobs, args.workers, stems, resume), 1):
         wins.append(w)
         stus.append(s)
         desc_rows.append(tracks)
@@ -183,6 +232,7 @@ def main() -> None:
         raise SystemExit("no window with at least 3 visible students")
     ch = summarise(win, stu, args.noise_pass)
     write_table(ch, out / "signal_screen_channels")
+    write_table(per_recording(win), out / "signal_screen_recordings")
 
     grid = pd.concat(desc_rows, ignore_index=True)
     track = grid["stem"] + "#" + grid["tid"].astype(str)
@@ -193,12 +243,16 @@ def main() -> None:
 
     n_win = len(win.drop_duplicates(["stem", "t"])) if len(win) else 0
     print(f"\n{len(stems)} sessions, {n_win} windows with 3+ students, {len(channels)} channels")
-    print(f"{'channel':22s} {'noise':>6s} {'ac1':>6s} {'real':>7s} {'shifted':>7s} {'p':>7s} {'within':>7s}  pass")
+    print(f"{'channel':22s} {'noise':>6s} {'real':>7s} {'shifted':>7s} {'q (rec)':>8s} {'calm excess':>11s} "
+          f"{'q calm':>7s} {'rho motion':>10s} {'within':>7s}  pass")
     for _, r in ch.iterrows():
-        flags = ("noise " if r["pass_noise"] else "") + ("sync" if r["pass_sync"] else "")
-        print(f"{r['channel']:22s} {r['noise_ratio_median']:6.2f} {r['ac1_median']:6.2f} {r['sync_real']:7.3f} "
-              f"{r['sync_surrogate']:7.3f} {r['sign_test_p']:7.3f} {r['within_track_share']:7.2f}  {flags}")
-    print(f"\nwrote {out}/signal_screen_channels.csv, signal_screen_descriptors.csv, signal_screen.png")
+        flags = ("noise " if r["pass_noise"] else "") + ("sync " if r["pass_sync"] else "") + \
+                ("calm" if r["pass_sync_low_motion"] else "")
+        print(f"{r['channel']:22s} {r['noise_ratio_median']:6.2f} {r['sync_real']:7.3f} {r['sync_surrogate']:7.3f} "
+              f"{r['q_recordings']:8.3f} {r['sync_excess_low_motion']:11.3f} {r['q_recordings_low_motion']:7.3f} "
+              f"{r['rho_excess_vs_global_motion']:10.3f} {r['within_track_share']:7.2f}  {flags}")
+    print(f"\nwrote {out}/signal_screen_channels, signal_screen_recordings, signal_screen_descriptors (.csv/.json), "
+          f"signal_screen.png")
 
 
 if __name__ == "__main__":

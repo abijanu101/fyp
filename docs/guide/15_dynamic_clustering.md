@@ -302,7 +302,7 @@ a valid result for the clustering experiment.
 
 **Arms**, each added to the experiment 08/09 configuration with the class-context columns off:
 
-1. `null`: no class-relative features (the baseline).
+1. `base` (`null` in the first full run): no class-relative features (the baseline).
 2. `sync`: option 0. Deviation, synchrony and lag with the class, in descriptor space and on 2–3
    per-frame channels (total residual flow, Kalman speed, `scb.read`).
 3. `agglomerative`: option 1 in both spaces, plus the window-level chaos and fragmentation. HDBSCAN
@@ -311,9 +311,9 @@ a valid result for the clustering experiment.
 5. `sync + best clustering`: whether clustering adds to option 0 rather than replacing it.
 
 **The test of the claim:**
-- Held-out MAE and RMSE (training scores alongside), against `null` and against `sync`.
+- Held-out MAE and RMSE (training scores alongside), against `base` and against `sync`.
 - Clustering is justified only if (3), (4) or (5) beat (2) by more than the spread across folds.
-- **If none of them beats `null`,** class-relative information is not visible in these features.
+- **If none of them beats `base`,** class-relative information is not visible in these features.
   That bears on FYP-1's first claim.
 - The mean-of-experts benchmark paragraph is reported as in every experiment from 08 on.
 
@@ -368,27 +368,31 @@ than the next and removes candidates before it.
 
 | # | Script | Question | Labels? | Output (in `outputs/experiments/10_clustering/`) |
 |---|---|---|---|---|
-| A1–A3 | `signal_screen` | Is the channel above the tracker's jitter (noise ratio, lag-1 autocorrelation)? How much of each descriptor's variance is within a track, where the labels move? Does the class move together more than when each student's series is circularly shifted? | no | `signal_screen_channels.csv`, `signal_screen_descriptors.csv`, `signal_screen.png` |
-| A4 | `event_check` | Do the students move together at moments when the class should react? Events come from half of the class and are tested on the other half, or are given with `--events` | no | `event_check.csv`, `event_times.csv`, `event_check_<channel>.png` |
+| A1–A3 | `signal_screen` | Is the channel above the tracker's jitter (noise ratio, lag-1 autocorrelation)? How much of each descriptor's variance is within a track, where the labels move? Does the class move together more than when each student's series is circularly shifted, tested per recording, and also in each recording's calmest windows (a camera check)? | no | `signal_screen_channels.csv`, `signal_screen_recordings.csv`, `signal_screen_descriptors.csv`, `signal_screen.png` |
+| A4 | `event_check` | Do the students move together at moments when the class should react? Events come from half of the class and are tested on the other half, or are given with `--events`; tested per recording, with and without camera-like events | no | `event_check.csv`, `event_check_channels.csv`, `event_times.csv`, `event_check_<channel>.png` |
 | A5 | `descriptor_subset` | Which descriptors to cluster on: drop seat-like ones (A2), rank by Laplacian score, keep one per redundancy group | no | `descriptor_subset.csv`, `descriptor_subset.json` (the set `subset` the later scripts read) |
-| A6 | `stability` | How stable is each clustering under subsampling of the students, and between overlapping windows? Which thresholds τ are degenerate? | no | `stability.csv`, `stability.png` |
-| B7 | `candidates` | Every candidate of options 0, 1 and 2 on the windows centred on rating entries, at the τ chosen in A6 | no | `candidates/<feature hash>-<settings hash>/<stem>.json` (`--format csv` for flat tables) |
-| B8 | `feature_screen` | Within-student Spearman ρ and mutual information with the ratings, on the **training** rows of each fold (the held-out ρ is shown, not used), per split | train folds | `feature_screen.csv`, `feature_screen_folds.csv`, `feature_screen_<split>.png` |
+| A6 | `stability` | How stable is each clustering under subsampling of the students, and between overlapping windows, beyond a null of distant windows? Which thresholds τ are degenerate? | no | `stability.csv`, `stability.png` |
+| B7 | `candidates` | Every candidate of options 0, 1 and 2 on the windows centred on rating entries, at the τ chosen in A6; synchrony and lag over the 24 s ending with each window | no | `candidates/<feature hash>-<settings hash>/<stem>.json` (`--format csv` for flat tables) |
+| B8 | `feature_screen` | Within-student Spearman ρ with the ratings, on the **training** rows of each fold (the held-out ρ is shown, not used), per split, with a within-student block null and Benjamini–Hochberg | train folds | `feature_screen.csv`, `feature_screen_folds.csv`, `feature_screen_<split>.png` |
 | B9 | `importance` | Held-out permutation importance of each feature family in the configured per-labeler model, per split; `--gate` also tests the window-level features in the activity gate (group split) | held-out | `importance*.csv`, `importance_<split>.png` |
-| B10 | `ablation` | The arms of §15.6 (`null`, `sync`, `agglomerative`, `hdbscan`, `prototype`, `sync+best`), plus `normalised` (`null`'s inputs standardised per student over their session, no class-relative features), on both splits, train_models' models and metrics, with the §15.6 test per split | held-out | `ablation/<config hash>-<settings hash>.json`, `ablation.csv`, `ablation_verdict.csv` |
+| B10 | `ablation` | Arms fixed in advance: `base`, `normalised`, the per-student families (`sync`, `agglomerative`, `hdbscan`, `prototype`), their combinations with `sync`, `normalised+sync`, `normalised+sync+agglomerative`, and `window` (window-level features, centred per recording); both splits; paired differences against `base` and `sync` with 95% intervals over recordings; two pre-specified primary tests (experts and self-report, Bonferroni) | held-out | `ablation/<config hash>-<settings hash>.json`, `ablation.csv`, `ablation_intervals.csv`, `ablation_predictions.csv.gz` |
 | – | `report` | Every result above gathered in one file, to carry back from the machine that ran them | – | `clustering_report.json` |
 
 ```
 python -m scripts.clustering.signal_screen
 python -m scripts.clustering.event_check
 python -m scripts.clustering.descriptor_subset
-python -m scripts.clustering.stability
-python -m scripts.clustering.candidates --tau-desc <from stability> --tau-sync <from stability>
+python -m scripts.clustering.stability --channels <channels>
+python -m scripts.clustering.candidates --channels <channels> --tau-desc <from stability> --tau-sync <from stability>
 python -m scripts.clustering.feature_screen
-python -m scripts.clustering.importance --gate
-python -m scripts.clustering.ablation --best <agglomerative|hdbscan|prototype>
+python -m scripts.clustering.importance --gate --repeats 2
+python -m scripts.clustering.ablation
 python -m scripts.clustering.report
 ```
+
+`python -m scripts.clustering.run_all` runs all of them in order, with one resumable command:
+it chooses the channels and τ from the outputs by the rules below, and skips finished steps when
+rerun.
 
 Every script takes `--config` (default `docs/experiments/09_vfoa.json`, whose head-pose channels
 are the natural input), `--set`, `--sessions` and `--out`. Every result table is written as `.csv`
@@ -409,18 +413,48 @@ tables). The full-dataset run, from a fresh GPU machine to the report, is in
   needs at least 3 activities with label rows; the group split needs at least 2 groups.
 - B10 also needs the augmented copies the config names (`augmentation.copies`), as `train_models` does.
 
-**Choices made here** (the screens report them, so they can be revisited):
-- Per-track standardisation uses the regular-grid rows of the session (`tracks.csv`). Where a track
-  has fewer than 5 windows, or a flat descriptor, it uses the whole session's statistics instead.
-- A noise ratio of 1.5 is the default pass mark (`--noise-pass`).
-- Synchrony "passes" with a one-sided sign test p < 0.05 over windows that the real correlation
-  exceeds the surrogate mean.
-- An event-response "move" is a frame-to-frame change above the student's own 90th percentile.
-- The prototype codebook is fitted per fold on the training groups' label-window descriptors, with
-  augmented copies included and no labels (option 4, way 2).
-- `sync+best` chosen automatically uses the held-out folds. Freeze `--best` before a result is cited.
-- Window-level `cluster.*` columns are included by default. They are constant within a window and
-  can identify sessions, as the class context did in experiment 08, so `--no-window` is the check.
+**Choices made here** (the screens report them, so they can be revisited). Several were changed
+after the first full run (26 November 2026; `docs/run_reports/10_clustering.md`), which showed
+the original choices to be biased or too loose:
+- **Per-track standardisation** uses the regular-grid rows of the session (`tracks.csv`).
+  - Where a track has fewer than 5 windows, or a flat descriptor, it uses the whole session's
+    statistics instead.
+  - A track's SD is floored at a quarter of the typical per-track SD, so a quiet student's jitter
+    is not inflated.
+- **Noise floor:** a noise ratio of 1.5 is the default pass mark (`--noise-pass`).
+- **Synchrony passes** when the per-recording mean excess over the shifted series is above 0 across
+  recordings (one-sided Wilcoxon), with Benjamini–Hochberg across channels (q < 0.05).
+  - Overlapping windows are not counted as independent evidence.
+  - The same is reported for each recording's calmest third of windows, a check against camera
+    motion, which beats the shifted series too.
+- **Event reactions:** a "move" is a frame-to-frame change above the student's own 90th percentile.
+  Events within 1 s of a whole-picture motion jump are flagged as camera-like and also excluded in a
+  second test.
+- **Synchrony and lag** are measured over the 24 s ending with each window (`--context-s`). Pairs
+  must share at least half those frames, and the lag range is ±3 s. A 4 s window has about 20
+  autocorrelated frames, too few for a per-student correlation or a seconds-scale lag.
+- **τ** is chosen on the temporal *excess*: consecutive windows' ARI minus that of windows 20 s
+  apart. The raw temporal ARI favours coarse clusterings, because one cluster against one cluster
+  scores 1.
+- **The prototype codebook** is fitted per fold on the training sessions' label-window descriptors,
+  with augmented copies included and no labels (option 4, way 2).
+- **The label screen** uses a within-student block null (the ratings circularly shifted along each
+  student's time order) and Benjamini–Hochberg across candidates. Mutual information was dropped:
+  its k-NN estimator breaks on tied values.
+- **The ablation's arms are all fixed in advance.** The earlier `sync+best`, chosen on test folds,
+  is gone.
+  - **Window-level features** form their own arm, centred per recording: raw, they can stand in for
+    the scene or activity, as the class context did in experiment 08. The per-student arms never
+    include them.
+  - **The test:** paired differences with 95% intervals from a bootstrap over recordings.
+  - **Two tests are primary,** fixed before the rerun, group split, Spearman, against `base`, each
+    with a Bonferroni-adjusted 98.75% interval:
+    - `sync+agglomerative` on the experts' labels;
+    - `normalised` on the self-report, which confirms the first run's finding that per-student
+      standardisation turns the self-report positive (all 18 folds).
+  - All others are exploratory.
+- **Label rows** that train_models' join duplicates (entries < 0.5 ms apart) are dropped and counted.
+  train_models itself is unchanged.
 
 ## 15.8 References
 

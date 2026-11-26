@@ -3,7 +3,10 @@ guide 15 §15.9.
 
   python -m scripts.clustering.event_check [--config docs/experiments/09_vfoa.json] [--set k=v ...]
          [--channels hp.yaw rf.total ...] [--events 36012.4 36090 ...] [--n-events 10]
-         [--response-s 1.0] [--sessions <stem> ...] [--out outputs/experiments/10_clustering]
+         [--response-s 1.0] [--sessions <stem> ...] [--workers 1] [--out outputs/experiments/10_clustering]
+
+Parallel (--workers) and resumable: each recording's result is saved under
+<out>/partial/event_check/<settings hash>/ as it finishes.
 
 DIPSER has no annotated class events (a recording is one activity), so events come from the data,
 without circularity: the students of each session are split at random into two halves; events are
@@ -15,9 +18,20 @@ the teacher pointing, everyone starting to write), every student is tested at th
 A student "moves" at a moment when their own frame-to-frame change exceeds their own 90th
 percentile within --response-s of it.
 
-Writes to --out:
-  event_check.csv          per (session, channel): events, the share of half B moving at events and
-                           at random moments, their ratio and an empirical p-value
+Camera check: a camera bump or lighting change moves every student at once and would pass this
+test without any student reacting to another. An event is flagged as camera-like when the
+whole-picture motion (scene feature `motion`) jumps above its own 90th percentile within
+--response-s of it; the test is repeated on the events that are not camera-like (`*_nocam`).
+
+Statistics: each recording counts once. Across recordings, the ratio minus 1 is tested with a
+one-sided Wilcoxon signed-rank test, then Benjamini-Hochberg across the channels.
+
+Writes to --out (tables as .csv and .json):
+  event_check              per (session, channel): events, the share of half B moving at events and
+                           at random moments, their ratio and an empirical p-value; the same without
+                           camera-like events
+  event_check_channels     per channel: the across-recording tests (p, q), with and without
+                           camera-like events
   event_times.csv          every event (seconds since midnight and since the recording's start),
                            to look up in the viewers
   event_check_<channel>.png  per channel, for the first session: the students x time raster
@@ -30,8 +44,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from scripts.clustering.common import (DEFAULT_CHANNELS, available_channels, base_parser, cached_stems, load,
-                                       load_session, plot_ready, series_matrix, write_table)
+from pathlib import Path
+
+from scripts.clustering.common import (DEFAULT_CHANNELS, available_channels, base_parser, bh_qvalues,
+                                       cached_stems, load, load_session, map_sessions, partial_dir,
+                                       per_recording_test, plot_ready, series_matrix, write_table)
+from scripts.run_pipeline import features_dir
 from src.core.types import Window
 
 
@@ -155,8 +173,60 @@ def plot(sd, ch: str, Z: np.ndarray, B: np.ndarray, events: np.ndarray, half: in
     plt.close(fig)
 
 
+def camera_like(sd, events: np.ndarray, half: int) -> np.ndarray:
+    """True for events within +-half frames of a jump in whole-picture motion above its 90th percentile."""
+    g = sd.scene_motion
+    if not np.isfinite(g).any():
+        return np.zeros(len(events), bool)
+    jump = np.abs(np.diff(smooth(g), prepend=np.nan))
+    thr = np.nanquantile(jump, 0.9)
+    out = []
+    for f in events:
+        a, b = max(0, f - half), min(len(jump), f + half + 1)
+        seg = jump[a:b]
+        out.append(bool(np.isfinite(seg).any() and np.nanmax(seg) > thr))
+    return np.array(out, bool)
+
+
+def event_one(cfg: dict, stem: str, channels, a: dict, seed, plot_dir) -> tuple[list[dict], list[dict], list[str]]:
+    """One recording (worker process): (per-channel records, event times, channels used). plot_dir:
+    where to draw the channel plots, or None."""
+    rng = np.random.default_rng(seed)
+    sd = load_session(cfg, stem)
+    chans = channels or [c for c in DEFAULT_CHANNELS if c in available_channels(sd)]
+    half = margin = max(1, int(round(a["response_s"] * sd.fps)))
+    recs, times = [], []
+    for ch in chans:
+        Z = session_matrix(sd, ch)
+        if len(Z) < 4 or Z.shape[1] < 4 * margin:
+            continue
+        perm = rng.permutation(len(Z))
+        A, B = np.sort(perm[: len(Z) // 2]), np.sort(perm[len(Z) // 2:])
+        if a["events"]:
+            events = np.clip(np.searchsorted(sd.frame_t, a["events"]), 0, len(sd.frame_t) - 1)
+            B = np.arange(len(Z))
+        else:
+            events = pick_events(Z[A], a["n_events"], int(round(a["min_sep_s"] * sd.fps)))
+        if not len(events):
+            continue
+        cam = camera_like(sd, events, half)
+        res = check(Z[B], events, half, a["n_null"], rng, margin)
+        nocam = events[~cam]
+        res_nc = check(Z[B], nocam, half, a["n_null"], rng, margin) if len(nocam) >= 3 else {}
+        recs.append({"stem": stem, "channel": ch, "n_students": len(Z),
+                     "source": "given" if a["events"] else "half A", **res,
+                     "n_events_camera_like": int(cam.sum()),
+                     **{f"{k}_nocam": v for k, v in res_nc.items() if k != "n_events"},
+                     "n_events_nocam": int(len(nocam))})
+        times += [{"stem": stem, "channel": ch, "t": float(sd.frame_t[f]),
+                   "t_from_start": float(sd.frame_t[f] - sd.frame_t[0])} for f in events]
+        if plot_dir is not None:
+            plot(sd, ch, Z, B, events, half, rng, Path(plot_dir) / f"event_check_{ch.replace('.', '_')}.png")
+    return recs, times, chans
+
+
 def main() -> None:
-    ap = base_parser(__doc__)
+    ap = base_parser(__doc__, workers=True)
     ap.add_argument("--channels", nargs="*", default=None, help=f"default: {' '.join(DEFAULT_CHANNELS)} (those present)")
     ap.add_argument("--events", nargs="*", type=float, default=None, help="seconds since midnight; replaces the data events")
     ap.add_argument("--n-events", type=int, default=10)
@@ -165,44 +235,37 @@ def main() -> None:
     ap.add_argument("--n-null", type=int, default=300)
     args = ap.parse_args()
     cfg, out = load(args)
-    rng = np.random.default_rng(cfg["seed"])
-
+    a = {k: getattr(args, k) for k in ("events", "n_events", "min_sep_s", "response_s", "n_null")}
+    stems = cached_stems(cfg, args.sessions)
+    jobs = [(cfg, stem, args.channels, a, [cfg["seed"], i], str(out) if i == 0 else None) for i, stem in enumerate(stems)]
+    resume = partial_dir(out, "event_check", {"features": features_dir(cfg).name, "channels": args.channels, **a,
+                                              "seed": cfg["seed"], "version": 2})
     recs, times = [], []
-    for si, stem in enumerate(cached_stems(cfg, args.sessions)):
-        sd = load_session(cfg, stem)
-        chans = args.channels or [c for c in DEFAULT_CHANNELS if c in available_channels(sd)]
-        half, margin = max(1, int(round(args.response_s * sd.fps))), max(1, int(round(args.response_s * sd.fps)))
-        for ch in chans:
-            Z = session_matrix(sd, ch)
-            if len(Z) < 4 or Z.shape[1] < 4 * margin:
-                continue
-            perm = rng.permutation(len(Z))
-            A, B = np.sort(perm[: len(Z) // 2]), np.sort(perm[len(Z) // 2:])
-            if args.events:
-                events = np.clip(np.searchsorted(sd.frame_t, args.events), 0, len(sd.frame_t) - 1)
-                B = np.arange(len(Z))
-            else:
-                events = pick_events(Z[A], args.n_events, int(round(args.min_sep_s * sd.fps)))
-            if not len(events):
-                continue
-            recs.append({"stem": stem, "channel": ch, "n_students": len(Z),
-                         "source": "given" if args.events else "half A", **check(Z[B], events, half, args.n_null, rng, margin)})
-            times += [{"stem": stem, "channel": ch, "t": float(sd.frame_t[f]), "t_from_start": float(sd.frame_t[f] - sd.frame_t[0])}
-                      for f in events]
-            if si == 0:
-                plot(sd, ch, Z, B, events, half, rng, out / f"event_check_{ch.replace('.', '_')}.png")
-        print(f"  {stem}: {', '.join(chans)}", flush=True)
+    for i, (job, (r, t, chans)) in enumerate(map_sessions(event_one, jobs, args.workers, stems, resume), 1):
+        recs += r
+        times += t
+        print(f"  [{i}/{len(stems)}] {job[1]}: {', '.join(chans)}", flush=True)
     if not recs:
         raise SystemExit("no session with at least 4 students and events")
     df = pd.DataFrame(recs)
     write_table(df, out / "event_check")
     write_table(pd.DataFrame(times), out / "event_times")
-    summary = df.groupby("channel").agg(sessions=("stem", "nunique"), at_events=("share_at_events", "mean"),
-                                        random=("share_random", "mean"), ratio=("ratio", "mean"),
-                                        p_below_05=("p", lambda p: float((p < 0.05).mean())))
-    print("\nhalf B moving within the response window (mean over sessions):")
-    print(summary.round(3).to_string())
-    print(f"\nwrote {out}/event_check.csv, event_times.csv, event_check_<channel>.png")
+    rows = []
+    for ch, d in df.groupby("channel"):
+        nc = d["ratio_nocam"] if "ratio_nocam" in d else pd.Series(dtype=float)
+        rows.append({"channel": ch, "recordings": int(d["stem"].nunique()),
+                     "share_at_events": d["share_at_events"].mean(), "share_random": d["share_random"].mean(),
+                     "ratio": d["ratio"].mean(), "p_recordings": per_recording_test(d["ratio"] - 1),
+                     "camera_like_share": d["n_events_camera_like"].sum() / max(d["n_events"].sum(), 1),
+                     "ratio_nocam": nc.mean() if len(nc) else np.nan,
+                     "p_recordings_nocam": per_recording_test(nc - 1) if len(nc) else np.nan})
+    summary = pd.DataFrame(rows)
+    summary["q_recordings"] = bh_qvalues(summary["p_recordings"])
+    summary["q_recordings_nocam"] = bh_qvalues(summary["p_recordings_nocam"])
+    write_table(summary, out / "event_check_channels")
+    print("\nhalf B moving at half A's events against random moments, each recording counted once:")
+    print(summary.round(3).to_string(index=False))
+    print(f"\nwrote {out}/event_check, event_check_channels, event_times (.csv/.json), event_check_<channel>.png")
 
 
 if __name__ == "__main__":

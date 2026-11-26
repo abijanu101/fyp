@@ -30,6 +30,7 @@ DEFAULT_CHANNELS = ["hp.yaw", "hp.head_height", "rf.total", "kg.speed"]
 EXPERTS = ["labeler_01", "labeler_02", "labeler_03", "labeler_04", "labeler_05"]
 SELF = "self_labeling"
 PER_STUDENT, PER_WINDOW = "trk.cluster.", "cluster."    # the column names guide 15 §15.7 fixes
+SD_FLOOR = 0.25          # per-track SD at least this share of the session's typical per-track SD
 
 # windows where a student or a frame has no finite value are expected (occlusion, gaps) and give NaN
 warnings.filterwarnings("ignore", message="Mean of empty slice", category=RuntimeWarning)
@@ -51,19 +52,134 @@ def base_parser(doc: str, workers: bool = False) -> argparse.ArgumentParser:
     return ap
 
 
-def map_sessions(fn, jobs: list[tuple], workers: int):
-    """fn(*job) for every job, in worker processes when workers > 1; yields (job, result) as they
-    finish, so progress shows on long runs. fn must be a module-level function (picklable)."""
-    if workers <= 1 or len(jobs) <= 1:
-        for job in jobs:
-            yield job, fn(*job)
-        return
-    from concurrent.futures import ProcessPoolExecutor, as_completed
+_SHARED: dict = {}
 
-    with ProcessPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(fn, *job): job for job in jobs}
-        for f in as_completed(futures):
-            yield futures[f], f.result()
+
+def _set_shared(shared: dict) -> None:
+    """Pool initializer: large read-only inputs (the label rows, the config) are sent to each worker
+    process once, instead of with every job."""
+    _SHARED.clear()
+    _SHARED.update(shared)
+
+
+def shared(name: str):
+    """A value passed to map_jobs(shared=...), in the main process or a worker."""
+    return _SHARED[name]
+
+
+def map_jobs(fn, jobs: list[tuple], workers: int, names: list[str] | None = None, cache_dir: Path | None = None,
+             shared: dict | None = None):
+    """fn(*job) for every job; yields (job, result) as they finish, so progress shows on long runs.
+
+    - workers > 1: in that many processes (fn must be a module-level function). `shared` holds large
+      read-only inputs, given to each worker once (read them inside fn with common.shared(name)).
+    - cache_dir with names (one file name per job): each finished result is saved there as it
+      arrives (pickle, written then renamed), and a rerun loads saved results instead of recomputing,
+      so a long step resumes where it stopped. The folder name must encode every setting that
+      changes the results.
+    - A job that raises does not stop the others: they finish (and are saved); the failures are
+      printed with their tracebacks at the end, then SystemExit, so a rerun only redoes the failed jobs.
+    """
+    import pickle
+    import traceback
+
+    names = names or [None] * len(jobs)
+    if cache_dir is not None:
+        Path(cache_dir).mkdir(parents=True, exist_ok=True)
+
+    def saved(name):
+        return None if cache_dir is None or name is None else Path(cache_dir) / f"{name}.pkl"
+
+    todo = []
+    for job, name in zip(jobs, names):
+        path = saved(name)
+        if path is not None and path.exists():
+            with open(path, "rb") as f:
+                yield job, pickle.load(f)
+        else:
+            todo.append((job, name))
+    if cache_dir is not None and len(todo) < len(jobs):
+        print(f"  {len(jobs) - len(todo)} of {len(jobs)} jobs loaded from {cache_dir}", flush=True)
+
+    def keep(name, result):
+        path = saved(name)
+        if path is not None:
+            tmp = path.with_suffix(".tmp")
+            with open(tmp, "wb") as f:
+                pickle.dump(result, f, protocol=pickle.HIGHEST_PROTOCOL)
+            tmp.replace(path)
+
+    failures = []
+    if workers <= 1 or len(todo) <= 1:
+        _set_shared(shared or {})
+        for job, name in todo:
+            try:
+                result = fn(*job)
+            except Exception:
+                failures.append((name or job[:2], traceback.format_exc()))
+                continue
+            keep(name, result)
+            yield job, result
+    else:
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+
+        with ProcessPoolExecutor(max_workers=workers, initializer=_set_shared, initargs=(shared or {},)) as pool:
+            futures = {pool.submit(fn, *job): (job, name) for job, name in todo}
+            for f in as_completed(futures):
+                job, name = futures[f]
+                try:
+                    result = f.result()
+                except Exception:
+                    failures.append((name or job[:2], traceback.format_exc()))
+                    continue
+                keep(name, result)
+                yield job, result
+    if failures:
+        for name, tb in failures:
+            print(f"\nFAILED {name}:\n{tb}", flush=True)
+        raise SystemExit(f"{len(failures)} of {len(jobs)} jobs failed (listed above); the others are done"
+                         + (f" and saved in {cache_dir}: rerun to redo only the failed ones" if cache_dir else ""))
+
+
+def map_sessions(fn, jobs: list[tuple], workers: int, names: list[str] | None = None, cache_dir: Path | None = None):
+    """map_jobs for per-session work (kept for the scripts that call it)."""
+    yield from map_jobs(fn, jobs, workers, names, cache_dir)
+
+
+def subset_text(out: Path) -> str | None:
+    """The saved descriptor subset (it changes the prototype features), for resume keys."""
+    f = Path(out) / "descriptor_subset.json"
+    return f.read_text(encoding="utf-8") if f.exists() else None
+
+
+def fold_jobs(fn, rows: pd.DataFrame, split_names: list[str], workers: int, out: Path, step: str,
+              settings: dict, shared_inputs: dict, seed: int):
+    """Run fn(split, fold index, seed) for every fold of every split; yields (split, fold index, result).
+
+    The label rows and `shared_inputs` go to each worker process once (read them in fn with
+    common.shared("rows"), shared("<name>")). Each fold has its own seed, so the result does not
+    depend on which worker ran it or in what order. Every finished fold is saved under
+    <out>/partial/<step>/<hash of settings>/, so an interrupted step resumes from the folds it had
+    finished; `settings` must hold everything that changes a fold's result."""
+    jobs, names = [], []
+    for si, split in enumerate(split_names):
+        for i, _ in enumerate(folds(rows, split)):
+            jobs.append((split, i, [seed, si, i]))
+            names.append(f"{split}_{i:02d}")
+    resume = partial_dir(out, step, settings)
+    print(f"  {len(jobs)} folds ({', '.join(split_names)}), {workers} worker(s); resumable in {resume}", flush=True)
+    for job, result in map_jobs(fn, jobs, workers, names, resume, {"rows": rows, **shared_inputs}):
+        yield job[0], job[1], result
+
+
+def fold_of(split: str, i: int):
+    """(name, training mask, test mask) of fold i of a split, recomputed in the worker from the shared rows."""
+    return list(folds(shared("rows"), split))[i]
+
+
+def partial_dir(out: Path, step: str, settings: dict) -> Path:
+    """Where a step's per-job results are saved for resuming: <out>/partial/<step>/<settings hash>."""
+    return Path(out) / "partial" / step / params_hash(settings)
 
 
 def write_table(df: pd.DataFrame, path: Path) -> None:
@@ -73,7 +189,35 @@ def write_table(df: pd.DataFrame, path: Path) -> None:
     path.with_suffix(".json").write_text(df.to_json(orient="records", indent=1, double_precision=6), encoding="utf-8")
 
 
+class _Timestamped:
+    """stdout with the time (HH:MM:SS) at the start of every non-empty line, so a log shows when each
+    step and session ran (the run report had to reconstruct times from file dates)."""
+
+    def __init__(self, stream):
+        self.stream, self.at_line_start = stream, True
+
+    def write(self, text: str) -> int:
+        import time
+
+        for part in text.splitlines(keepends=True):
+            if self.at_line_start and part.strip():
+                self.stream.write(time.strftime("%H:%M:%S "))
+            self.stream.write(part)
+            self.at_line_start = part.endswith("\n")
+        return len(text)
+
+    def flush(self) -> None:
+        self.stream.flush()
+
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
+
+
 def load(args) -> tuple[dict, Path]:
+    import sys
+
+    if not isinstance(sys.stdout, _Timestamped):
+        sys.stdout = _Timestamped(sys.stdout)
     cfg = load_config(args.config, parse_sets(args.set))
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -118,10 +262,19 @@ class SessionData:
     windows: list[Window]              # the regular grid of the cached window table
     tracks: pd.DataFrame               # <stem>.tracks.csv: window, tid, trk.* per visible student
     aggregator: WindowAggregator
+    scene_motion: np.ndarray           # whole-picture motion per decoded frame (scene feature `motion`), NaN if absent
 
     def visible(self, w: Window) -> list[Tracklet]:
         """The window's visible students, sliced to it (the aggregator's own rule, min_coverage)."""
         return self.aggregator.visible(w, self.tracklets)
+
+    def global_motion(self, w: Window) -> float:
+        """Mean whole-picture motion over the window's frames: camera shake, lighting changes and every
+        student's movement together. Used to check whether synchrony is driven by the camera."""
+        idx = frames_in(self.frame_t, w)
+        vals = self.scene_motion[idx] if len(idx) else np.zeros(0)
+        vals = vals[np.isfinite(vals)]
+        return float(vals.mean()) if len(vals) else np.nan
 
     def labelwin(self, cfg: dict) -> pd.DataFrame | None:
         """<stem>.labelwin.csv (windows centred on rating entries), if train_models built it."""
@@ -138,8 +291,11 @@ def load_session(cfg: dict, stem: str) -> SessionData:
     tp = features_dir(cfg) / f"{stem}.tracks.csv"
     tracks = pd.read_csv(tp) if tp.exists() else pd.DataFrame(columns=["window", "tid"])
     agg = WindowAggregator([], NullClusterExtractor(), **cfg["aggregation"])
+    motion = np.array([r.get("motion", np.nan) for r in st.scene_rows], float)
+    if len(motion) != len(st.frame_t):
+        motion = np.full(len(st.frame_t), np.nan)
     return SessionData(stem, SessionKey(*stem.split(".")[0].split("__")), np.asarray(st.frame_t, float), fps,
-                       tracklets, windows, tracks, agg)
+                       tracklets, windows, tracks, agg, motion)
 
 
 # ------------------------------------------------------------------ per-frame channels (synchrony space)
@@ -162,6 +318,26 @@ def available_channels(sd: SessionData) -> list[str]:
     keys = sorted({k for tr in sd.tracklets for k in tr.signals})
     derived = ["kg.speed"] + (["rf.total"] if any(k.startswith("rf.mag_") for k in keys) else [])
     return derived + [k for k in keys if not k.startswith("rf.mag_") and k != "hp.matched"]
+
+
+def full_tracks(sd: SessionData, tids: list[int]) -> list[Tracklet]:
+    """Each student's whole session tracklet, in the order of `tids`: filter_visible can split a
+    tracker id into several pieces, which are joined here (the gaps between them stay missing)."""
+    pieces: dict[int, list[Tracklet]] = {}
+    for tr in sd.tracklets:
+        pieces.setdefault(int(tr.tid), []).append(tr)
+    out = []
+    for tid in tids:
+        ps = sorted(pieces.get(int(tid), []), key=lambda tr: tr.t[0] if len(tr.t) else 0)
+        if not ps:
+            out.append(Tracklet(int(tid), np.zeros(0), np.zeros((0, 4)), np.zeros(0), np.zeros((0, 2)), {}))
+            continue
+        keys = sorted({k for tr in ps for k in tr.signals})
+        cat = lambda f: np.concatenate([f(tr) for tr in ps])
+        out.append(Tracklet(int(tid), cat(lambda tr: tr.t), cat(lambda tr: tr.xyxy), cat(lambda tr: tr.conf),
+                            cat(lambda tr: tr.velocity),
+                            {k: cat(lambda tr, k=k: tr.signals.get(k, np.full(len(tr.t), np.nan))) for k in keys}))
+    return out
 
 
 def series_matrix(sd: SessionData, w: Window, tracks: list[Tracklet], name: str) -> np.ndarray:
@@ -196,9 +372,14 @@ def descriptor_sets(cols: list[str], out: Path | None = None) -> dict[str, list[
 class TrackStandardiser:
     """Per-track standardisation over the session (R6): every descriptor minus the track's own
     session mean, over its own session SD; session-wide statistics where a track has fewer than
-    `min_rows` windows or a flat descriptor. Fitted on the regular-grid rows (tracks.csv)."""
+    `min_rows` windows or a flat descriptor. Fitted on the regular-grid rows (tracks.csv).
 
-    def __init__(self, tracks: pd.DataFrame, cols: list[str], min_rows: int = 5):
+    SD floor: a quiet student's tiny SD would turn jitter into large z-scores. Each track's SD is
+    therefore at least `floor` times the median of the per-track SDs of that descriptor in the
+    session (0.25 by default): a student can be up to four times quieter than the typical student
+    before their values stop being scaled up further."""
+
+    def __init__(self, tracks: pd.DataFrame, cols: list[str], min_rows: int = 5, floor: float = SD_FLOOR):
         t = tracks.reindex(columns=["tid"] + cols)
         self.cols = cols
         self.glob_mu = t[cols].mean()
@@ -207,7 +388,9 @@ class TrackStandardiser:
         n = g.size()
         ok = n[n >= min_rows].index
         self.mu = g.mean().loc[ok]
-        self.sd = g.std(ddof=0).loc[ok].where(lambda s: s > 1e-12)
+        sd = g.std(ddof=0).loc[ok].where(lambda s: s > 1e-12)
+        typical = sd.median()                                   # per descriptor, over the tracks
+        self.sd = sd.clip(lower=floor * typical, axis=1) if floor > 0 else sd
 
     def transform(self, df: pd.DataFrame) -> np.ndarray:
         X = df.reindex(columns=self.cols).to_numpy(float)
@@ -221,18 +404,80 @@ class TrackStandardiser:
 
 
 # ------------------------------------------------------------------ label rows and candidates
-def label_table(cfg: dict, with_windows: bool = False):
+def _rows_cache_key(cfg: dict) -> str:
+    """What the label rows depend on: the whole resolved config, and the names, sizes and times of
+    the cached feature tables and of the label archives in scope (any change rebuilds them)."""
+    from src.datasets import DipserIndex
+
+    # the window tables, not the rating-window tables (<stem>.labelwin.csv): label_rows writes those
+    # itself, so counting them would make the first build invalidate its own cache
+    files = sorted(f for f in features_dir(cfg).glob("*.csv") if ".labelwin" not in f.name)
+    index = DipserIndex.from_config(cfg)
+    for k in index.sessions():
+        files += sorted(index.subject_zips(k).values())
+    sig = [(f.name, f.stat().st_size, int(f.stat().st_mtime)) for f in files]
+    return config_hash({"config": cfg, "files": sig})[:16]
+
+
+def rows_key(cfg: dict) -> str:
+    """Identifies the label rows' inputs (config and files): part of every resume key of the label steps."""
+    return _rows_cache_key(cfg)
+
+
+def label_table(cfg: dict, with_windows: bool = False, cache: bool = True):
     """The training rows train_models builds (one per rating entry and linked track), augmented
     copies included (flag `aug`), with `stem` and `student` (student-session-labeler) keys. With
-    with_windows, also the regular-grid window table the gate trains on."""
+    with_windows, also the regular-grid window table the gate trains on.
+
+    Duplicates: train_models' join (src/experts/per_labeler.join_entries) matches entries to windows on
+    centres rounded to 1 ms, and two labelers' entries < 0.5 ms apart give two windows with one key,
+    so such an entry is joined twice with identical features. The duplicates are dropped here (one
+    row per recording, entry and track) and counted; train_models itself is unchanged.
+
+    Cache: building the rows takes ~10 min on the full data; they are saved under
+    <output_dir>/cache/label_rows/<key>.pkl, keyed by the config and the input files, and reused."""
+    import pickle
+
     from scripts.train_models import label_rows, load_table, with_augmented
 
+    cpath = Path(cfg["output_dir"]) / "cache" / "label_rows" / f"{_rows_cache_key(cfg)}.pkl"
+    if cache and cpath.exists():
+        with open(cpath, "rb") as f:
+            rows, df = pickle.load(f)
+        print(f"label rows: {len(rows)} from cache {cpath.name}", flush=True)
+        return (rows, df) if with_windows else rows
     df = with_augmented(cfg, load_table(cfg))
     rows = label_rows(cfg, df)
     rows = rows.assign(stem=rows["session"].map(stem_of), t_key=rows["t"].astype(float).round(3))
     rows["student"] = rows["group"] + "/" + rows["exp"].astype(str) + "/" + rows["sid"].astype(str) + "/" + rows["labeler"]
-    rows = rows.reset_index(drop=True)
+    dup = rows.duplicated(["stem", "entry_id", "tid"])
+    if dup.any():
+        print(f"label rows: dropped {int(dup.sum())} duplicate rows of {len(rows)} "
+              f"({dup.mean():.2%}; entries < 0.5 ms apart joined twice)", flush=True)
+    rows = rows[~dup].reset_index(drop=True)
+    if cache:
+        cpath.parent.mkdir(parents=True, exist_ok=True)
+        tmp = cpath.with_suffix(".tmp")
+        with open(tmp, "wb") as f:
+            pickle.dump((rows, df), f, protocol=pickle.HIGHEST_PROTOCOL)
+        tmp.replace(cpath)
     return (rows, df) if with_windows else rows
+
+
+def centre_window_features(rows: pd.DataFrame) -> pd.DataFrame:
+    """rows with every window-level candidate (cluster.*) minus its recording's mean over the
+    recording's distinct windows (stem, window centre). Window features are the same for every
+    student in a window and differ systematically between recordings and activities, so raw they can
+    stand in for the scene; centred, they carry only the moment-to-moment variation inside a recording.
+    Label-free and per recording, like `normalised`."""
+    cols = [c for c in rows if c.startswith(PER_WINDOW)]
+    if not cols:
+        return rows
+    out = rows.copy()
+    win = rows.drop_duplicates(["stem", "t_key"])
+    means = win.groupby("stem")[cols].mean()
+    out[cols] = rows[cols].to_numpy(float) - means.reindex(rows["stem"]).to_numpy(float)
+    return out
 
 
 def latest_candidates(out: Path, given: str | None) -> Path:
@@ -528,6 +773,35 @@ def prototype_table(cfg: dict, stems: list[str], fit_stems: list[str], set_name:
                 rec |= {f"{PER_WINDOW}proto.{set_name}.{n}": float(v) for n, v in win.items()}
                 out_rows.append(rec)
     return pd.DataFrame(out_rows)
+
+
+def bh_qvalues(p) -> np.ndarray:
+    """Benjamini-Hochberg adjusted p-values (q-values); NaN stays NaN and is not counted as a test."""
+    p = np.asarray(p, float)
+    q = np.full(p.shape, np.nan)
+    ok = np.isfinite(p)
+    m = int(ok.sum())
+    if not m:
+        return q
+    order = np.argsort(p[ok])
+    ranked = p[ok][order] * m / np.arange(1, m + 1)
+    ranked = np.minimum.accumulate(ranked[::-1])[::-1]          # monotone from the largest p down
+    out = np.empty(m)
+    out[order] = np.clip(ranked, 0, 1)
+    q[ok] = out
+    return q
+
+
+def per_recording_test(values: pd.Series, min_n: int = 5) -> float:
+    """One-sided Wilcoxon signed-rank p-value that per-recording values are above 0: each recording
+    counts once, so overlapping windows inside a recording are not treated as independent."""
+    from scipy.stats import wilcoxon
+
+    v = pd.Series(values, dtype=float).dropna()
+    v = v[v != 0]
+    if len(v) < min_n:
+        return np.nan
+    return float(wilcoxon(v, alternative="greater").pvalue)
 
 
 def demean(values, keys: pd.Series):

@@ -59,14 +59,15 @@ def load_table(cfg: dict) -> pd.DataFrame:
         df = pd.read_csv(csv)
         windows = [Window(a, b) for a, b in zip(df.t_start, df.t_end)]
         labels = label_session(index, key, windows, cfg["labels"])
-        df["session"], df["group"], df["exp"] = str(key), key.group, key.exp_id
-        df["window_local"] = np.arange(len(df))
-        df["y"] = [np.nan if l.engaged is None else l.engaged for l in labels]
-        df["share"] = [l.share_engaged for l in labels]
-        df["n_labeled"] = [l.n_labeled for l in labels]
-        df = df.copy()                       # defragment after the column-by-column build
-        df["stem"], df["flip_width"], df["aug"] = csv.stem, 0, False
-        parts.append(df)
+        # every added column in one concat: adding them one by one to this wide table fragments it
+        # and floods the console with pandas PerformanceWarnings (docs/run_reports/10_clustering.md §5)
+        extra = pd.DataFrame({"session": str(key), "group": key.group, "exp": key.exp_id,
+                              "window_local": np.arange(len(df)),
+                              "y": [np.nan if l.engaged is None else l.engaged for l in labels],
+                              "share": [l.share_engaged for l in labels],
+                              "n_labeled": [l.n_labeled for l in labels],
+                              "stem": csv.stem, "flip_width": 0, "aug": False}, index=df.index)
+        parts.append(pd.concat([df, extra], axis=1))
     if not parts:
         raise SystemExit(f"No cached features in {features_dir(cfg)}; run `run_pipeline extract` first.")
     return pd.concat(parts, ignore_index=True)

@@ -42,20 +42,20 @@ import json
 import numpy as np
 import pandas as pd
 
-from scripts.clustering.common import (DEFAULT_CHANNELS, PER_STUDENT, PER_WINDOW, TrackStandardiser,
+from scripts.clustering.common import (DEFAULT_CHANNELS, PER_STUDENT, PER_WINDOW, SD_FLOOR, TrackStandardiser,
                                        available_channels, base_parser, candidate_dir, candidates_to_json,
-                                       descriptor_sets, label_table, load, load_session, map_sessions,
-                                       series_matrix)
+                                       descriptor_sets, full_tracks, label_table, load, load_session,
+                                       map_sessions, series_matrix)
+from src.aggregation import frames_in
 from scripts.run_pipeline import features_dir
-from src.cfmu.classrel import (agglomerative_labels, cluster_features, correlation_distance, deviation_from_class,
-                               hdbscan_labels, pairwise_corr, sync_features)
+from src.cfmu.classrel import (MIN_COMMON, agglomerative_labels, cluster_features, correlation_distance,
+                               deviation_from_class, hdbscan_labels, pairwise_corr, sync_features)
 from src.core.types import Window
 
 
 def window_candidates(sd, w: Window, tracks: list, X: np.ndarray, channels: list[str], p: dict) -> list[dict]:
     """Every candidate for the students of one window, in the order of `tracks`; X: their
     standardised descriptors (n, D), NaN rows where a student has none."""
-    n = len(tracks)
     per: dict[str, np.ndarray] = {}
     win: dict[str, float] = {}
 
@@ -64,12 +64,18 @@ def window_candidates(sd, w: Window, tracks: list, X: np.ndarray, channels: list
         win.update({f"{PER_WINDOW}{prefix}.{k}": v for k, v in wd.items()})
 
     max_lag = max(1, int(round(p["max_lag_s"] * sd.fps)))
+    # synchrony, lag and synchrony clustering over the context ending with the window (a 4 s window
+    # has ~20 autocorrelated frames: too few for a per-student correlation or a seconds-scale lag)
+    ctx = Window(w.t_end - max(p["context_s"], w.t_end - w.t_start), w.t_end)
+    ctx_tracks = full_tracks(sd, [tr.tid for tr in tracks])
+    n_frames = len(frames_in(sd.frame_t, ctx))
+    min_common = max(MIN_COMMON, int(np.ceil(p["min_common_share"] * n_frames)))
     for ch in channels:
-        S = series_matrix(sd, w, tracks, ch)
-        s, wd = sync_features(S, max_lag=max_lag, threshold=p["sync_threshold"])
+        S = series_matrix(sd, ctx, ctx_tracks, ch)
+        s, wd = sync_features(S, max_lag=max_lag, min_common=min_common, threshold=p["sync_threshold"])
         s["lag"] = s["lag"] / sd.fps
         put(f"sync.{ch}", s, wd)
-        D = correlation_distance(pairwise_corr(S))
+        D = correlation_distance(pairwise_corr(S, min_common))
         s, wd = cluster_features(agglomerative_labels(p["tau_sync"], D=D), D=D)
         put(f"agg.{ch}", s, {k: wd[k] for k in ("n_clusters", "largest_share")})
     per[f"{PER_STUDENT}sync.desc.dev"] = deviation_from_class(X)
@@ -127,7 +133,11 @@ def main() -> None:
     ap.add_argument("--tau-desc", type=float, default=0.8)
     ap.add_argument("--tau-sync", type=float, default=0.6)
     ap.add_argument("--hdb-min", type=int, default=3)
-    ap.add_argument("--max-lag-s", type=float, default=1.0)
+    ap.add_argument("--max-lag-s", type=float, default=3.0, help="lag range for synchrony, seconds either way")
+    ap.add_argument("--context-s", type=float, default=24.0,
+                    help="synchrony and lag are computed over this many seconds ending with the window")
+    ap.add_argument("--min-common-share", type=float, default=0.5,
+                    help="two students' series must share at least this share of the context's frames")
     ap.add_argument("--sync-threshold", type=float, default=0.3)
     ap.add_argument("--format", choices=["json", "csv", "both"], default="json")
     ap.add_argument("--force", action="store_true")
@@ -135,7 +145,8 @@ def main() -> None:
     cfg, out = load(args)
     set_name = args.set_name or ("subset" if (out / "descriptor_subset.json").exists() else "all")
     p = {"channels": args.channels, "set_name": set_name, "tau_desc": args.tau_desc, "tau_sync": args.tau_sync,
-         "hdb_min": args.hdb_min, "max_lag_s": args.max_lag_s, "sync_threshold": args.sync_threshold}
+         "hdb_min": args.hdb_min, "max_lag_s": args.max_lag_s, "sync_threshold": args.sync_threshold,
+         "context_s": args.context_s, "min_common_share": args.min_common_share, "sd_floor": SD_FLOOR}
     if set_name == "subset":
         p["subset"] = json.loads((out / "descriptor_subset.json").read_text(encoding="utf-8"))["subset"]
     cdir = candidate_dir(cfg, out, p)

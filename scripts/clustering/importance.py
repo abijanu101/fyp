@@ -2,7 +2,11 @@
 
   python -m scripts.clustering.importance [--config docs/experiments/09_vfoa.json] [--set k=v ...]
          [--candidates <dir>] [--arms sync agg hdb proto] [--prototypes 8] [--by family]
-         [--repeats 5] [--context oracle] [--gate] [--split both] [--out outputs/experiments/10_clustering]
+         [--repeats 5] [--context oracle] [--gate] [--split both] [--workers 1]
+         [--out outputs/experiments/10_clustering]
+
+Folds run in parallel with --workers (2-4 on 16 GB: each worker holds the label rows) and are
+resumable: each finished fold is saved under <out>/partial/importance/<settings hash>/.
 
 The model: the configured per-labeler model (expert, e.g. `--set expert.name=...`, mixture and
 labelers as in the config) on the configured inputs (trk.*, plus the class context only if
@@ -21,10 +25,14 @@ model uses it on unseen data. Base inputs are included, as a scale.
 classified uses the configured gate, as train_models' headline numbers do (group split only: the
 activity split always uses oracle, since a gate cannot name an activity it never saw).
 
+Window-level features (cluster.*) are centred per recording, as in ablation's `window` arm, so
+they carry only within-recording variation.
+
 --gate: also the activity gate (the configured SPU gate, a random forest in 06-09) on the centred
 windows, on the group split only (it predicts the activity, so it cannot be tested on held-out
 activities): held-out accuracy with scene.* alone against scene.* plus the window-level cluster.*
-candidates, and the permutation importance of each cluster.* family on that accuracy.
+candidates (not centred here: recognising the scene is the gate's job), and the permutation
+importance of each cluster.* family on that accuracy.
 
 Writes to --out (tables as .csv and .json): importance (per split, fold, track, feature: base score,
 permuted score, drop), importance_summary (mean and SD over a split's folds), importance_<split>.png;
@@ -37,9 +45,11 @@ import numpy as np
 import pandas as pd
 
 from scripts.clustering.common import (PER_STUDENT, PER_WINDOW, base_columns, base_parser, candidate_columns,
-                                       fit_model, fold_context, folds, label_table, latest_candidates, load,
+                                       fit_model, fold_context, label_table, latest_candidates, load,
                                        load_candidates, own_ratings, plot_ready, score, splits, split_parser_arg,
-                                       check_split, levels_of, with_fold_prototypes, write_table)
+                                       centre_window_features, check_split, fold_jobs, fold_of, levels_of,
+                                       rows_key, shared, subset_text, with_fold_prototypes, write_table)
+from src.core.config import config_hash
 
 ARM_KEYS = {"sync": ".sync.", "agg": ".agg.", "hdb": ".hdb.", "proto": ".proto."}
 
@@ -132,8 +142,31 @@ def plot(summary: pd.DataFrame, split: str, context: str, path) -> None:
     plt.close(fig)
 
 
+def importance_fold(split: str, i: int, seed) -> list[dict]:
+    """One fold (worker process): the held-out score drop of every feature group when shuffled."""
+    cfg, a, out, proto_set = shared("cfg"), shared("args"), shared("out"), shared("proto_set")
+    rows, windows, tau = shared("rows"), shared("windows"), shared("tau")
+    rng = np.random.default_rng(seed)
+    context = "oracle" if split == "activity" else a["context"]
+    g, tr, te = fold_of(split, i)
+    r = with_fold_prototypes(cfg, rows, tr, proto_set, a["prototypes"], out) if a["use_proto"] else rows
+    r = centre_window_features(r)        # window-level features: within-recording variation only
+    base = base_columns(cfg, r)
+    extra = arm_columns(candidate_columns(r), a["arms"])
+    cols = base + extra
+    groups: dict[str, list[int]] = {}
+    for j, c in enumerate(cols):
+        groups.setdefault(family(c) if a["by"] == "family" else c, []).append(j)
+    model = fit_model(cfg, r, cols, tr)
+    G = fold_context(cfg, r, windows, tr, context, split)
+    rte = r[te].reset_index(drop=True)
+    X = rte.reindex(columns=cols).to_numpy(float)
+    return [{"split": split, "context": context, "fold": g, **x}
+            for x in permutation_drop(model, X, G[te], rte, groups, a["repeats"], tau, rng, levels_of(cfg))]
+
+
 def main() -> None:
-    ap = base_parser(__doc__)
+    ap = base_parser(__doc__, workers=True)
     ap.add_argument("--candidates", default=None)
     ap.add_argument("--arms", nargs="*", default=["sync", "agg", "hdb", "proto"], choices=list(ARM_KEYS))
     ap.add_argument("--prototypes", type=int, default=8)
@@ -155,25 +188,16 @@ def main() -> None:
     proto_set = args.proto_set if (out / "descriptor_subset.json").exists() or args.proto_set != "subset" else "all"
     use_proto = "proto" in args.arms and args.prototypes > 0
 
+    a = {"arms": args.arms, "prototypes": args.prototypes, "by": args.by, "repeats": args.repeats,
+         "context": args.context, "use_proto": use_proto}
+    settings = {"config": config_hash(cfg), "candidates": cdir.name, "args": a, "proto_set": proto_set,
+                "subset": subset_text(out), "rows": rows_key(cfg), "version": 2}
     recs = []
-    for split in splits(args.split):
-        context = "oracle" if split == "activity" else args.context
-        for g, tr, te in folds(rows, split):
-            r = with_fold_prototypes(cfg, rows, tr, proto_set, args.prototypes, out) if use_proto else rows
-            base = base_columns(cfg, r)
-            extra = arm_columns(candidate_columns(r), args.arms)
-            cols = base + extra
-            groups: dict[str, list[int]] = {}
-            for j, c in enumerate(cols):
-                groups.setdefault(family(c) if args.by == "family" else c, []).append(j)
-            model = fit_model(cfg, r, cols, tr)
-            G = fold_context(cfg, r, windows, tr, context, split)
-            rte = r[te].reset_index(drop=True)
-            X = rte.reindex(columns=cols).to_numpy(float)
-            recs += [{"split": split, "context": context, "fold": g, **x}
-                     for x in permutation_drop(model, X, G[te], rte, groups, args.repeats, tau, rng, levels_of(cfg))]
-            print(f"  {split} fold {g}: {len(base)} base + {len(extra)} candidate columns, "
-                  f"{len(groups)} features scored", flush=True)
+    for split, i, r in fold_jobs(importance_fold, rows, splits(args.split), args.workers, out, "importance", settings,
+                                 {"cfg": cfg, "args": a, "out": out, "proto_set": proto_set, "windows": windows,
+                                  "tau": tau}, cfg["seed"]):
+        recs += r
+        print(f"  {split} fold {r[0]['fold'] if r else i}: done", flush=True)
     df = pd.DataFrame(recs)
     write_table(df, out / "importance")
     summary = df.groupby(["split", "context", "feature", "track"]).agg(
