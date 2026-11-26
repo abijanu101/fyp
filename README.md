@@ -113,6 +113,9 @@ experiments and every config key. `docs/experiments/` records what was tried and
 possible attention targets (unit × aggregation × self-report) and where each work sits.
 `docs/misc/proposed_metrics.md` holds metrics proposed for review but not computed (currently
 `retention_r`, removed from the code).
+OUC-CGE (a second dataset, mp4 clips with one group label each) runs through the same frame and
+feature passes with `configs/ouc_cge.json` and `scripts/ouc_cge/`: see `docs/experiments/ouc_cge_benchmark.md`
+and the run steps in `docs/ouc_cge/RUN_REQUEST.md`.
 
 Any config value can be overridden per run with `--set key.path=<json>`, e.g.
 `--set window.length_s=10 labels.tau_att=3`.

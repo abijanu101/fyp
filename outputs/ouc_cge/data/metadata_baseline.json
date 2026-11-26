@@ -1,0 +1,189 @@
+{
+  "n": {
+    "train": 6062,
+    "test": 764,
+    "val": 763
+  },
+  "runs": [
+    {
+      "model": "random_forest",
+      "arm": "duration",
+      "split": "val",
+      "n": 763,
+      "accuracy": 0.4875491480996068,
+      "balanced_accuracy": 0.4766101427342715,
+      "macro_f1": 0.47652200647565796
+    },
+    {
+      "model": "random_forest",
+      "arm": "duration",
+      "split": "test",
+      "n": 764,
+      "accuracy": 0.46465968586387435,
+      "balanced_accuracy": 0.4611157237823904,
+      "macro_f1": 0.45618467040103305
+    },
+    {
+      "model": "logreg",
+      "arm": "duration",
+      "split": "val",
+      "n": 763,
+      "accuracy": 0.40629095674967236,
+      "balanced_accuracy": 0.3756934288887837,
+      "macro_f1": 0.3025438455454485
+    },
+    {
+      "model": "logreg",
+      "arm": "duration",
+      "split": "test",
+      "n": 764,
+      "accuracy": 0.412303664921466,
+      "balanced_accuracy": 0.3599782933116266,
+      "macro_f1": 0.2853305574998355
+    },
+    {
+      "model": "random_forest",
+      "arm": "format",
+      "split": "val",
+      "n": 763,
+      "accuracy": 0.35386631716906947,
+      "balanced_accuracy": 0.40653191389037696,
+      "macro_f1": 0.30978528453938287
+    },
+    {
+      "model": "random_forest",
+      "arm": "format",
+      "split": "test",
+      "n": 764,
+      "accuracy": 0.3416230366492147,
+      "balanced_accuracy": 0.40896757563424235,
+      "macro_f1": 0.29318783068783066
+    },
+    {
+      "model": "logreg",
+      "arm": "format",
+      "split": "val",
+      "n": 763,
+      "accuracy": 0.33420707732634336,
+      "balanced_accuracy": 0.38706562126593874,
+      "macro_f1": 0.2542272311751694
+    },
+    {
+      "model": "logreg",
+      "arm": "format",
+      "split": "test",
+      "n": 764,
+      "accuracy": 0.31544502617801046,
+      "balanced_accuracy": 0.38297652964319634,
+      "macro_f1": 0.233304300941479
+    },
+    {
+      "model": "random_forest",
+      "arm": "duration+format",
+      "split": "val",
+      "n": 763,
+      "accuracy": 0.5111402359108781,
+      "balanced_accuracy": 0.5022135566190332,
+      "macro_f1": 0.5012679962825336
+    },
+    {
+      "model": "random_forest",
+      "arm": "duration+format",
+      "split": "test",
+      "n": 764,
+      "accuracy": 0.4882198952879581,
+      "balanced_accuracy": 0.48363749830416497,
+      "macro_f1": 0.47889906780081315
+    },
+    {
+      "model": "logreg",
+      "arm": "duration+format",
+      "split": "val",
+      "n": 763,
+      "accuracy": 0.418086500655308,
+      "balanced_accuracy": 0.3973172622386448,
+      "macro_f1": 0.3710828475534358
+    },
+    {
+      "model": "logreg",
+      "arm": "duration+format",
+      "split": "test",
+      "n": 764,
+      "accuracy": 0.4175392670157068,
+      "balanced_accuracy": 0.3784154117487451,
+      "macro_f1": 0.3473243548973816
+    },
+    {
+      "model": "random_forest",
+      "arm": "bitrate",
+      "split": "val",
+      "n": 763,
+      "accuracy": 0.4325032765399738,
+      "balanced_accuracy": 0.4444717323334926,
+      "macro_f1": 0.4331751281498597
+    },
+    {
+      "model": "random_forest",
+      "arm": "bitrate",
+      "split": "test",
+      "n": 764,
+      "accuracy": 0.4083769633507853,
+      "balanced_accuracy": 0.418054538054538,
+      "macro_f1": 0.40698027381912816
+    },
+    {
+      "model": "logreg",
+      "arm": "bitrate",
+      "split": "val",
+      "n": 763,
+      "accuracy": 0.3853211009174312,
+      "balanced_accuracy": 0.34513429091319875,
+      "macro_f1": 0.3160630694851787
+    },
+    {
+      "model": "logreg",
+      "arm": "bitrate",
+      "split": "test",
+      "n": 764,
+      "accuracy": 0.36780104712041883,
+      "balanced_accuracy": 0.327028083028083,
+      "macro_f1": 0.31300864431794223
+    },
+    {
+      "model": "random_forest",
+      "arm": "all",
+      "split": "val",
+      "n": 763,
+      "accuracy": 0.5910878112712975,
+      "balanced_accuracy": 0.5932836805565065,
+      "macro_f1": 0.5859722741131268
+    },
+    {
+      "model": "random_forest",
+      "arm": "all",
+      "split": "test",
+      "n": 764,
+      "accuracy": 0.5772251308900523,
+      "balanced_accuracy": 0.5854304707638042,
+      "macro_f1": 0.5716927089817726
+    },
+    {
+      "model": "logreg",
+      "arm": "all",
+      "split": "val",
+      "n": 763,
+      "accuracy": 0.4167758846657929,
+      "balanced_accuracy": 0.39795482649902275,
+      "macro_f1": 0.3667081298140728
+    },
+    {
+      "model": "logreg",
+      "arm": "all",
+      "split": "test",
+      "n": 764,
+      "accuracy": 0.4175392670157068,
+      "balanced_accuracy": 0.38019915886582556,
+      "macro_f1": 0.34976802425201003
+    }
+  ]
+}
