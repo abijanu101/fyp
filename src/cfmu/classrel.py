@@ -95,7 +95,7 @@ def lag_behind_class(S: np.ndarray, max_lag: int, min_common: int = MIN_COMMON) 
     M = loo_median(S)
     for i in range(n):
         best, best_k = -np.inf, np.nan
-        for k in range(-max_lag, max_lag + 1):
+        for k in range(-min(max_lag, T - 1), min(max_lag, T - 1) + 1):   # |k| < T: short windows
             if k >= 0:
                 a, b = S[i, k:], M[i, :T - k]
             else:
@@ -375,7 +375,8 @@ def lag1_autocorr(series: np.ndarray) -> float:
     x = x[np.isfinite(x)]
     if len(x) < 4 or x.std() <= 1e-12:
         return np.nan
-    return float(np.corrcoef(x[:-1], x[1:])[0, 1])
+    with np.errstate(invalid="ignore", divide="ignore"):    # x[:-1] or x[1:] can be flat when x is not: NaN
+        return float(np.corrcoef(x[:-1], x[1:])[0, 1])
 
 
 def laplacian_score(X: np.ndarray, k: int = 5) -> np.ndarray:

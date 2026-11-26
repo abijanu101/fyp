@@ -708,32 +708,43 @@ still has `derived` (naming D3 and T3), so it is frozen after the extraction, no
 
 ### `outputs/` or `tmp/`: the rule
 
-**`outputs/` holds products; `tmp/` holds process.** A file belongs in `outputs/` if a document
-cites it or a script reproduces it from the config and the data; it is named by hash or by
-experiment, and it is meant to survive. Everything that only *produced* those files (the run
-chains, their running logs, the scripts that built a table and pasted it into a document) is in
-`tmp/`, and may be deleted once its products are archived.
+**`outputs/` holds products; `scripts/experiments/` holds the scripts that made them; `tmp/` holds
+the rest of the process.**
+- **`outputs/`:** a file belongs here if a document cites it or a script reproduces it from the
+  config and the data. It is named by hash or by experiment, and it is meant to survive.
+- **`scripts/experiments/`:** an experiment's run chains and table builders, so a run can be
+  repeated or extended. They are shared.
+- **`tmp/`:** everything else that only *produced* those files, such as running logs, drafts, and
+  scripts that pasted a table into a document once. It may be deleted once its products are archived.
 
 | Folder | Contents | In git? |
 |---|---|---|
-| `outputs/results/`, `outputs/models/` | evaluation results, trained model bundles, by config hash | yes |
+| `outputs/results/` | evaluation results, by config hash | yes |
+| `outputs/models/` | trained model bundles, by config hash; up to ~320 MB each (k-NN stores its training rows), rebuilt by retraining | no |
 | `outputs/predictions/` | per-entry predictions of every training run, by config hash; a few MB each, rebuilt by retraining | no |
 | `outputs/cache/detections*/` | detections and ReID embeddings for tuning: large, regenerable | no |
 | `outputs/cache/tracks/`, `outputs/cache/features/` | frame-pass and feature-pass results: regenerable with `run_pipeline extract` | no |
 | `outputs/experiments/<NN_name>/` | an experiment's own products: figures, CSVs, pilot overlays; once frozen, its run index and logs | yes |
 | `outputs/tuning/`, `outputs/benchmarks/` | tuning and timing results (the D and T scans that `configs/derived*.py` read) | yes |
-| `outputs/plots/`, `outputs/augmentation/` | held-out curves (`plot_results`), augmentation samples | yes |
-| `outputs/labels/`, `outputs/label_plots/`, `outputs/scb_check/` | dataset and label inspection | yes |
+| `outputs/augmentation/`, `outputs/scb_check/` | augmentation samples and SCB detector overlays: previews of what the pipeline sees | yes |
+| `outputs/labels/` | label agreement and the human ceiling, read by the scripts and cited by the documents | yes |
+| `outputs/label_plots/` | rating plots per subject: inspection only, regenerable | no |
+| `outputs/experiments/10_clustering/candidates/` | experiment 10's candidate features, ~1.2 GB: regenerable with `scripts.clustering.candidates` | no |
 | `docs/experiments/NN_name.json` | the frozen config snapshots | yes |
-| `tmp/` | working files that must outlive a session: run chains and their logs, table builders, smoke-test output folders | no |
+| `scripts/experiments/<NN_name>/` | an experiment's run chains and table builders | yes |
+| `docs/run_reports/` | how a run went (time, errors, choices), when someone other than the owner ran it | yes |
+| `tmp/` | working files that must outlive a session: running logs, drafts, smoke-test output folders | no |
 
-What goes in `tmp/`, concretely:
-- **Run chains** (`tmp/exp08/knn.sh`): one shell script per batch of arms, each arm a
-  `train_models --config <snapshot> --set ...` line writing `tmp/expNN/<arm>.log`. They are
-  **resumable**: an arm whose log already contains its `config` line is skipped, so a chain
-  interrupted by a reboot is simply started again. Long ones run in your own terminal.
-- **Table builders and document patches** (`tmp/exp08/build_head.py`): read the hashes, call
-  `scripts/reporting/results_table.py`, and write the Markdown pasted into the document.
+The working files, concretely:
+- **Run chains** (`scripts/experiments/08_pca/knn.sh`): one shell script per batch of arms, each arm
+  a `train_models --config <snapshot> --set ...` line writing `<arm>.log`. They are **resumable**: an
+  arm whose log already contains its `config` line is skipped, so a chain interrupted by a reboot is
+  simply started again. Long ones run in your own terminal.
+  - **Where the logs go:** while an experiment is running, its logs can go to `tmp/expNN/`. Once it
+    is frozen, the chain points at `outputs/experiments/<NN_name>/logs/`.
+- **Table builders** (`scripts/experiments/08_pca/build_head.py`): read the hashes, call
+  `scripts/reporting/results_table.py`, and write the Markdown for the document to `tmp/`. A script
+  that only pastes text into a document once stays in `tmp/` and is deleted afterwards.
 - **Smoke tests and check harnesses**: `--set output_dir='"tmp/e2e6"'` keeps a trial run apart
   from the real results (`output_dir` is not hashed, so the hash is still the real one); the LaTeX
   check for `docs/test/test_cases.tex` lives in `tmp/tests_doc/tex/`.
@@ -745,12 +756,14 @@ the session's own temporary folder, not even `tmp/`.
 - **Freezing an experiment** copies what its document depends on into `outputs/`: each cited run's
   training log goes to `outputs/experiments/<NN_name>/logs/`, and a `README.md` there lists every
   arm with its setting, results hash and log. Every listed hash is checked to have its results file,
-  and the document gets a "Frozen" status line. After that, deleting `tmp/expNN/` loses nothing a
-  document cites.
-- **Promoting a script.** A `tmp/` script that turns out to be needed again moves into `scripts/`,
-  by role (`reporting/`, `analysis/`, `tuning/`, ...), with a docstring and a command line.
+  and the document gets a "Frozen" status line. Its run chains and table builders move to
+  `scripts/experiments/<NN_name>/`, with their log paths pointed at the archive. After that,
+  deleting `tmp/expNN/` loses nothing a document cites.
+- **Promoting a script.** A general-purpose `tmp/` script that turns out to be needed again moves
+  into `scripts/`, by role (`reporting/`, `analysis/`, `tuning/`, ...), with a docstring and a command
+  line.
 
 **Git** follows the same rule. Everything in `outputs/` is shared except what a fresh clone can
-rebuild (the caches and the predictions), and `tmp/` is not shared at all; `.gitignore` names each
+rebuild (the caches, the predictions and the model bundles), and `tmp/` is not shared at all; `.gitignore` names each
 ignored folder on its own line, with a comment saying why. Model bundles (`.joblib`) are pickles:
 only load ones you trust.

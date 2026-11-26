@@ -1,0 +1,306 @@
+{
+ "stats": {
+  "labelers": {
+   "labeler_01": {
+    "student_sessions": 321,
+    "entries": 14258,
+    "share_of_expert_entries": 0.6151257603865568,
+    "rating_shares_1_5": [
+     0.0,
+     0.41478468228363025,
+     0.46556319259363166,
+     0.09608640763080376,
+     0.023565717491934354
+    ],
+    "mean_rating": 2.728433160331042,
+    "entries_per_minute": 8.890931961892527,
+    "run_length_median_s": 3.0004509999998845,
+    "runs_le_2s": 0.36485837734037446,
+    "entries_in_first_tenth_of_second": 0.8826623649880768,
+    "entries_repeating_previous_value": 0.0,
+    "tracks_never_changing": 0.0,
+    "first_value_shares_1_5": [
+     0.0,
+     0.32087227414330216,
+     0.5763239875389408,
+     0.09345794392523364,
+     0.009345794392523364
+    ]
+   },
+   "labeler_02": {
+    "student_sessions": 321,
+    "entries": 1263,
+    "share_of_expert_entries": 0.05448897709133267,
+    "rating_shares_1_5": [
+     0.0023752969121140144,
+     0.3285827395091053,
+     0.4679334916864608,
+     0.19319081551860648,
+     0.00791765637371338
+    ],
+    "mean_rating": 2.8756927949327,
+    "entries_per_minute": 0.7875751906207225,
+    "run_length_median_s": 12.988479999999981,
+    "runs_le_2s": 0.15141955835962145,
+    "entries_in_first_tenth_of_second": 0.9113222486144101,
+    "entries_repeating_previous_value": 0.0,
+    "tracks_never_changing": 0.48598130841121495,
+    "first_value_shares_1_5": [
+     0.0,
+     0.0529595015576324,
+     0.8878504672897196,
+     0.059190031152647975,
+     0.0
+    ]
+   },
+   "labeler_03": {
+    "student_sessions": 321,
+    "entries": 5702,
+    "share_of_expert_entries": 0.245998533155011,
+    "rating_shares_1_5": [
+     0.0,
+     0.4617678007716591,
+     0.32479831638021744,
+     0.11083830235005261,
+     0.10259558049807085
+    ],
+    "mean_rating": 2.8542616625745354,
+    "entries_per_minute": 3.555624494789675,
+    "run_length_median_s": 3.1014760000034585,
+    "runs_le_2s": 0.34362037497926,
+    "entries_in_first_tenth_of_second": 0.8954752718344441,
+    "entries_repeating_previous_value": 0.0,
+    "tracks_never_changing": 0.08411214953271028,
+    "first_value_shares_1_5": [
+     0.0,
+     0.6978193146417445,
+     0.27414330218068533,
+     0.018691588785046728,
+     0.009345794392523364
+    ]
+   },
+   "labeler_04": {
+    "student_sessions": 178,
+    "entries": 1370,
+    "share_of_expert_entries": 0.059105224556710814,
+    "rating_shares_1_5": [
+     0.0,
+     0.3700729927007299,
+     0.4211678832116788,
+     0.1591240875912409,
+     0.049635036496350364
+    ],
+    "mean_rating": 2.8883211678832117,
+    "entries_per_minute": 1.5402571063141852,
+    "run_length_median_s": 8.997165000000678,
+    "runs_le_2s": 0.1821705426356589,
+    "entries_in_first_tenth_of_second": 0.8795620437956204,
+    "entries_repeating_previous_value": 0.0,
+    "tracks_never_changing": 0.1404494382022472,
+    "first_value_shares_1_5": [
+     0.0,
+     0.33146067415730335,
+     0.5,
+     0.1404494382022472,
+     0.028089887640449437
+    ]
+   },
+   "labeler_05": {
+    "student_sessions": 143,
+    "entries": 586,
+    "share_of_expert_entries": 0.025281504810388714,
+    "rating_shares_1_5": [
+     0.0,
+     0.3174061433447099,
+     0.3873720136518771,
+     0.24232081911262798,
+     0.052901023890784986
+    ],
+    "mean_rating": 3.030716723549488,
+    "entries_per_minute": 0.820504761897574,
+    "run_length_median_s": 24.001132000004873,
+    "runs_le_2s": 0.06721536351165981,
+    "entries_in_first_tenth_of_second": 0.8344709897610921,
+    "entries_repeating_previous_value": 0.0,
+    "tracks_never_changing": 0.13986013986013987,
+    "first_value_shares_1_5": [
+     0.0,
+     0.22377622377622378,
+     0.5384615384615384,
+     0.22377622377622378,
+     0.013986013986013986
+    ]
+   },
+   "self_labeling": {
+    "student_sessions": 321,
+    "entries": 2634,
+    "share_of_expert_entries": null,
+    "rating_shares_1_5": [
+     0.012148823082763858,
+     0.3678815489749431,
+     0.41305998481397116,
+     0.13971146545178437,
+     0.06719817767653759
+    ],
+    "mean_rating": 2.8819286256643886,
+    "entries_per_minute": 1.6424964783016494,
+    "run_length_median_s": 9.497412000000622,
+    "runs_le_2s": 0.14377537212449257,
+    "entries_in_first_tenth_of_second": 0.8720577069096431,
+    "entries_repeating_previous_value": 0.0,
+    "tracks_never_changing": 0.11214953271028037,
+    "first_value_shares_1_5": [
+     0.009345794392523364,
+     0.3956386292834891,
+     0.4797507788161994,
+     0.08722741433021806,
+     0.028037383177570093
+    ]
+   }
+  },
+  "activities": {
+   "01": {
+    "entries": 2367,
+    "mean_rating": 2.724123362906633,
+    "rating_shares_1_5": [
+     0.0012674271229404308,
+     0.4233206590621039,
+     0.43599493029150826,
+     0.12885509083227714,
+     0.010561892691170258
+    ],
+    "expert_entries_per_minute": 1.841044785015164,
+    "self_entries_per_minute": 1.4083483005651984
+   },
+   "02": {
+    "entries": 6385,
+    "mean_rating": 2.908692247454973,
+    "rating_shares_1_5": [
+     0.0009397024275646045,
+     0.3674236491777604,
+     0.41738449490994517,
+     0.15050900548159749,
+     0.06374314800313234
+    ],
+    "expert_entries_per_minute": 5.351115154873149,
+    "self_entries_per_minute": 2.256806876258828
+   },
+   "03": {
+    "entries": 4009,
+    "mean_rating": 2.5752057869792964,
+    "rating_shares_1_5": [
+     0.0009977550511349464,
+     0.47368421052631576,
+     0.4859067099027189,
+     0.027937141431778497,
+     0.011474183088051882
+    ],
+    "expert_entries_per_minute": 3.3658211487705265,
+    "self_entries_per_minute": 1.4056707607537517
+   },
+   "04": {
+    "entries": 3691,
+    "mean_rating": 2.811704145218098,
+    "rating_shares_1_5": [
+     0.000812787862367922,
+     0.41018694120834465,
+     0.4053102140341371,
+     0.1438634516391222,
+     0.03982660525602818
+    ],
+    "expert_entries_per_minute": 3.2545440302218704,
+    "self_entries_per_minute": 0.9215070999409762
+   },
+   "05": {
+    "entries": 4097,
+    "mean_rating": 2.859653404930437,
+    "rating_shares_1_5": [
+     0.00122040517451794,
+     0.4078594093238955,
+     0.386868440322187,
+     0.1381498657554308,
+     0.06590187942396876
+    ],
+    "expert_entries_per_minute": 3.544574606305982,
+    "self_entries_per_minute": 1.2913390310057478
+   },
+   "06": {
+    "entries": 5264,
+    "mean_rating": 2.7916033434650456,
+    "rating_shares_1_5": [
+     0.0026595744680851063,
+     0.41641337386018235,
+     0.42686170212765956,
+     0.09479483282674772,
+     0.05927051671732523
+    ],
+    "expert_entries_per_minute": 4.328786552904685,
+    "self_entries_per_minute": 2.5685644467497264
+   }
+  },
+  "co_occurrence": {
+   "experts/any_other": {
+    "within_0.5s": 0.3595064498037016,
+    "within_2s": 0.5766857931748566,
+    "within_5s": 0.7159066396307002,
+    "within_10s": 0.8024073514819449
+   },
+   "experts/other_expert": {
+    "within_0.5s": 0.3220587600845593,
+    "within_2s": 0.524008801069934,
+    "within_5s": 0.6580525475646058,
+    "within_10s": 0.74770266189223
+   },
+   "self/any_other": {
+    "within_0.5s": 0.489749430523918,
+    "within_2s": 0.782839787395596,
+    "within_5s": 0.9111617312072893,
+    "within_10s": 0.9612756264236902
+   },
+   "self/other_expert": {
+    "within_0.5s": 0.489749430523918,
+    "within_2s": 0.782839787395596,
+    "within_5s": 0.9111617312072893,
+    "within_10s": 0.9612756264236902
+   }
+  }
+ },
+ "meta": {
+  "student_sessions": 321,
+  "tau": 3.0,
+  "modes": {
+   "step": [
+    "step",
+    3.0,
+    2.0
+   ],
+   "ramp3": [
+    "ramp",
+    3.0,
+    2.0
+   ],
+   "ramp7": [
+    "ramp",
+    7.0,
+    2.0
+   ],
+   "gauss1": [
+    "gauss",
+    3.0,
+    1.0
+   ],
+   "gauss2": [
+    "gauss",
+    3.0,
+    2.0
+   ],
+   "gauss4": [
+    "gauss",
+    3.0,
+    4.0
+   ]
+  },
+  "window_length_s": 4,
+  "written": "2026-11-17 01:01"
+ }
+}

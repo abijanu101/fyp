@@ -30,7 +30,7 @@ k = 1 (pure memorisation: each prediction copies the single nearest training row
 out, per-labeler, scored like experiment 06.
 
 ```
-bash tmp/exp07/knn.sh        # the 8 arms, resumable (log: tmp/exp07/knn.log, with each arm's hash)
+bash scripts/experiments/07_knn/knn.sh   # the 8 arms, resumable (logs: outputs/experiments/07_knn/logs/, knn.log with each arm's hash)
 python -m scripts.reporting.results_table "k 5=<hash>" "k 25=<hash>" ...
 python -m scripts.reporting.results_table "k ...=<hash>" --track self
 python -m scripts.reporting.results_table "k ...=<hash>" --by-labeler

@@ -419,6 +419,9 @@ def attach(rows: pd.DataFrame, table: pd.DataFrame) -> pd.DataFrame:
     """Join per-(stem, window centre, tid) feature columns onto the label rows."""
     t = table.assign(t_key=table["t_centre"].astype(float).round(3)).drop(columns="t_centre")
     t["tid"] = t["tid"].astype(int)
+    # rating windows whose centres are < 0.5 ms apart (two labelers' entries at the same moment) share
+    # a key after rounding; they cover the same frames, so keep one, or the left join duplicates rows
+    t = t.drop_duplicates(["stem", "t_key", "tid"])
     r = rows.assign(tid=rows["tid"].astype(int))
     return r.merge(t, on=["stem", "t_key", "tid"], how="left")
 

@@ -1,0 +1,55 @@
+fold,feature,accuracy,accuracy_drop
+group_01,scene only,0.36099901012716057,
+group_01,scene + cluster,0.4700373105916394,
+group_01,win:agg.desc,,0.0036244574735399327
+group_01,win:agg.hp.face_conf,,0.0003654915099368217
+group_01,win:agg.kg.speed,,-0.0002741186324525913
+group_01,win:agg.rf.total,,-0.0001522881291403211
+group_01,win:agg.scb.hand_raising,,0.0058935505977309125
+group_01,win:agg.scb.m0.obj,,0.01786339754816113
+group_01,win:agg.scb.read,,0.040158379654305965
+group_01,win:agg.scb.write,,0.03511764257976091
+group_01,win:hdb.desc,,-0.003776745602680265
+group_01,win:sync.hp.face_conf,,0.0023147795629330893
+group_01,win:sync.kg.speed,,0.0012335338460367161
+group_01,win:sync.rf.total,,0.0006243813294753764
+group_01,win:sync.scb.hand_raising,,0.001492423665575282
+group_01,win:sync.scb.m0.obj,,-0.00019797456788241962
+group_01,win:sync.scb.read,,-0.0008071270844437594
+group_01,win:sync.scb.write,,0.0012030762202086432
+group_02,scene only,0.37910175671196555,
+group_02,scene + cluster,0.48823334438183624,
+group_02,win:agg.desc,,0.002055021544580693
+group_02,win:agg.hp.face_conf,,0.00019887305270132049
+group_02,win:agg.kg.speed,,0.0005800464037122866
+group_02,win:agg.rf.total,,0.0007292011932383047
+group_02,win:agg.scb.hand_raising,,0.005883327809081851
+group_02,win:agg.scb.m0.obj,,0.019655286708650965
+group_02,win:agg.scb.read,,0.019539277427908498
+group_02,win:agg.scb.write,,0.019937023533311216
+group_02,win:hdb.desc,,-0.00014915478952604033
+group_02,win:sync.hp.face_conf,,0.0009115014915478725
+group_02,win:sync.kg.speed,,0.0007457739476300684
+group_02,win:sync.rf.total,,0.00038117335101092167
+group_02,win:sync.scb.hand_raising,,0.002436194895591637
+group_02,win:sync.scb.m0.obj,,0.0009612197547232304
+group_02,win:sync.scb.read,,0.0017732847199204206
+group_02,win:sync.scb.write,,0.00170699370235331
+group_03,scene only,0.2648704663212435,
+group_03,scene + cluster,0.31803108808290154,
+group_03,win:agg.desc,,0.0037927461139896203
+group_03,win:agg.hp.face_conf,,0.00020725388601035012
+group_03,win:agg.kg.speed,,0.0005595854922279652
+group_03,win:agg.rf.total,,-0.00045595854922282354
+group_03,win:agg.scb.hand_raising,,8.290155440413561e-05
+group_03,win:agg.scb.m0.obj,,0.0005388601036269147
+group_03,win:agg.scb.read,,0.005409326424870442
+group_03,win:agg.scb.write,,0.0017823834196890932
+group_03,win:hdb.desc,,0.0022383419689119056
+group_03,win:sync.hp.face_conf,,0.0015129533678756245
+group_03,win:sync.kg.speed,,-0.0002487046632124512
+group_03,win:sync.rf.total,,0.0007046632124352193
+group_03,win:sync.scb.hand_raising,,0.000849740932642462
+group_03,win:sync.scb.m0.obj,,-0.0005181347150259308
+group_03,win:sync.scb.read,,0.0002901554404144968
+group_03,win:sync.scb.write,,-0.0005388601036269592

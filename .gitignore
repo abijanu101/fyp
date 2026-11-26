@@ -24,6 +24,10 @@ outputs/cache/
 outputs/predictions/
 # trained models of every training run (train_models), up to ~320 MB each (k-NN stores its training rows); regenerable by retraining from the config hash
 outputs/models/
+# experiment 10's candidate features, one JSON per session, ~1.2 GB; regenerable with scripts.clustering.candidates (settings in its params.json)
+outputs/experiments/10_clustering/candidates/
+# rating plots per subject (scripts/data_visualization/plot_labels.py --scan); inspection only, regenerable
+outputs/label_plots/
 
 # scratch space for working files that need to live for a while (tests, intermediate runs)
 tmp/

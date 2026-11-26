@@ -29,5 +29,7 @@ script's docstring gives its full usage.
 | | `report` | every clustering result in one JSON file; the full-dataset run guide is `clustering/README.md` |
 | `analysis/` | `feature_study` | the feature vector against every labeler (experiment 08 §1) |
 | | `experiment_decoders`, `label_interp_compare`, `e2e6/` | frozen one-off analyses behind specific doc tables (`analysis/README.md`) |
+| | `assoc_compare` | `association.method` per_frame against mean_box on a config's cached tracks |
+| `experiments/` | `<NN_name>/` | each experiment's run chains and table builders, run with `bash` or `python` from the root (`experiments/README.md`) |
 | `data_visualization/` | `output_viewer`, `augment_samples`, `inspect_labels`, viewers | looking at the data and the pipeline's output |
 | `downloading/` | `dipser`, `scb`, `validate_dipser_remote` | getting the dataset, and the whole SCB dataset (`setup` fetches the one checkpoint used) |

@@ -3,7 +3,7 @@
 *18–24 November 2026. Config [`09_vfoa.json`](09_vfoa.json), hash `b1c2d485d3db`: experiment 08's
 base with the head-pose unit, the pose model as the person detector, and 4 augmented copies. 176
 training runs; their results, logs and settings are listed in
-`outputs/experiments/09_vfoa/` (`all_arms.csv`, `logs/`, `arms.sh`).*
+`outputs/experiments/09_vfoa/` (`all_arms.csv`, `logs/`); the runner is `scripts/experiments/09_vfoa/arms.sh`.*
 
 ## 1. Why this experiment
 
@@ -278,8 +278,8 @@ feature study with the head-pose columns.
 python -m scripts.parallel_runs extract --config docs/experiments/09_vfoa.json --workers 3   # resumable
 python -m scripts.labels.label_agreement ceiling --config docs/experiments/09_vfoa.json \
     --set 'labels.collapse=[[1,2],[3],[4,5]]' --out outputs/labels/agreement_lmh.json
-bash outputs/experiments/09_vfoa/arms.sh all        # comparisons 1–3, 08's four models (80 runs)
-bash outputs/experiments/09_vfoa/arms.sh knnreg     # k-NN regression at 5 and 50, classifier at 50 (96 runs)
+bash scripts/experiments/09_vfoa/arms.sh all        # comparisons 1–3, 08's four models (80 runs)
+bash scripts/experiments/09_vfoa/arms.sh knnreg     # k-NN regression at 5 and 50, classifier at 50 (96 runs)
 ```
 
 Each arm is `python -m scripts.train_models --config docs/experiments/09_vfoa.json --set` plus its
