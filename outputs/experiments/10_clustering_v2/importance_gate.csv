@@ -1,0 +1,73 @@
+fold,feature,accuracy,accuracy_drop
+group_01,scene only,0.36099901012716057,
+group_01,scene + cluster,0.45244803167593084,
+group_01,win:agg.desc,,0.002132033807964645
+group_01,win:agg.hp.ear_asym,,0.015761821366024498
+group_01,win:agg.hp.face_conf,,0.006091525165613315
+group_01,win:agg.hp.head_height,,-0.0007233686134165973
+group_01,win:agg.hp.yaw,,0.0044924998096398105
+group_01,win:agg.kg.speed,,0.0010279448716972173
+group_01,win:agg.rf.total,,0.008946927586994585
+group_01,win:agg.scb.hand_raising,,0.0008756567425569073
+group_01,win:agg.scb.m0.obj,,0.002817330389096151
+group_01,win:agg.scb.read,,0.006243813294753653
+group_01,win:agg.scb.write,,0.002398538033960229
+group_01,win:hdb.desc,,-0.0007995126779867523
+group_01,win:sync.hp.ear_asym,,-0.0006472245488464423
+group_01,win:sync.hp.face_conf,,0.01298256300921341
+group_01,win:sync.hp.head_height,,0.006472245488464146
+group_01,win:sync.hp.yaw,,-0.005177796390771372
+group_01,win:sync.kg.speed,,-0.0007233686134166251
+group_01,win:sync.rf.total,,0.023414299855326254
+group_01,win:sync.scb.hand_raising,,0.0027792583568110596
+group_01,win:sync.scb.m0.obj,,-0.00079951267798678
+group_01,win:sync.scb.read,,-0.0026269702276707496
+group_01,win:sync.scb.write,,0.00045686438742098545
+group_02,scene only,0.37910175671196555,
+group_02,scene + cluster,0.41506463374212793,
+group_02,win:agg.desc,,-0.0006629101756711886
+group_02,win:agg.hp.ear_asym,,0.012968180311567767
+group_02,win:agg.hp.face_conf,,0.004143188597944991
+group_02,win:agg.hp.head_height,,0.0004971826317533845
+group_02,win:agg.hp.yaw,,0.006049055352999655
+group_02,win:agg.kg.speed,,-0.0003314550878356082
+group_02,win:agg.rf.total,,0.0028588001325820234
+group_02,win:agg.scb.hand_raising,,-0.002693072588664247
+group_02,win:agg.scb.m0.obj,,0.0033974146503148728
+group_02,win:agg.scb.read,,0.012429565793834918
+group_02,win:agg.scb.write,,0.001367252237321842
+group_02,win:hdb.desc,,-0.0032316871063970964
+group_02,win:sync.hp.ear_asym,,0.00791349022207491
+group_02,win:sync.hp.face_conf,,0.005469008949287341
+group_02,win:sync.hp.head_height,,-4.14318859794649e-05
+group_02,win:sync.hp.yaw,,0.00385316539608882
+group_02,win:sync.kg.speed,,-0.0004971826317534123
+group_02,win:sync.rf.total,,0.004971826317533956
+group_02,win:sync.scb.hand_raising,,-0.0008700696055684576
+group_02,win:sync.scb.m0.obj,,-0.0013672522373218698
+group_02,win:sync.scb.read,,-0.0017815710971163523
+group_02,win:sync.scb.write,,0.0001657275439178041
+group_03,scene only,0.2648704663212435,
+group_03,scene + cluster,0.33409326424870467,
+group_03,win:agg.desc,,0.004559585492227958
+group_03,win:agg.hp.ear_asym,,0.015906735751295337
+group_03,win:agg.hp.face_conf,,0.0023316062176166052
+group_03,win:agg.hp.head_height,,-0.0014507772020725396
+group_03,win:agg.hp.yaw,,0.001709844559585505
+group_03,win:agg.kg.speed,,-0.001865284974093273
+group_03,win:agg.rf.total,,0.00020725388601036676
+group_03,win:agg.scb.hand_raising,,-0.002797927461139882
+group_03,win:agg.scb.m0.obj,,-0.0028497409326424805
+group_03,win:agg.scb.read,,0.005854922279792757
+group_03,win:agg.scb.write,,-0.0031606217616580445
+group_03,win:hdb.desc,,-0.001036269430051806
+group_03,win:sync.hp.ear_asym,,0.01129533678756478
+group_03,win:sync.hp.face_conf,,0.016787564766839375
+group_03,win:sync.hp.head_height,,-0.0025388601036269443
+group_03,win:sync.hp.yaw,,0.002383419689119176
+group_03,win:sync.kg.speed,,-0.003834196891191688
+group_03,win:sync.rf.total,,0.004766839378238352
+group_03,win:sync.scb.hand_raising,,-0.0009326424870466365
+group_03,win:sync.scb.m0.obj,,-0.001398963730569941
+group_03,win:sync.scb.read,,-0.003108808290155418
+group_03,win:sync.scb.write,,-0.00041450777202070577

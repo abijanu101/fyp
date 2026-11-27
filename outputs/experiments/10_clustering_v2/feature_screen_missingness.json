@@ -1,0 +1,8 @@
+{
+ "rows": 35474,
+ "recordings": 52,
+ "nan_share": 0.01314536958278486,
+ "accuracy_from_nan_pattern": 0.048429829732338905,
+ "largest_recording_share": 0.035885437221627105,
+ "columns_ever_nan": 60
+}

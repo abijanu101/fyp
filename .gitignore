@@ -24,10 +24,13 @@ outputs/cache/
 outputs/predictions/
 # trained models of every training run (train_models), up to ~320 MB each (k-NN stores its training rows); regenerable by retraining from the config hash
 outputs/models/
-# experiment 10's candidate features, one JSON per session, ~1.2 GB; regenerable with scripts.clustering.candidates (settings in its params.json)
-outputs/experiments/10_clustering/candidates/
-# experiment 10's per-job results kept for resuming interrupted steps; regenerable
-outputs/experiments/10_clustering/partial/
+# candidate class-relative features of every clustering run (experiment 10 and its reruns), one JSON per session, 1-2 GB per run;
+# an intermediate read only by feature_screen, importance and ablation, regenerable with scripts.clustering.candidates
+# (each run's settings are also recorded in its clustering_report.json)
+outputs/experiments/*/candidates/
+# per-recording and per-fold resume files of every clustering run (run_all's partial/), up to ~0.75 GB per run;
+# only lets an interrupted step resume, and the finished step's tables hold everything in them
+outputs/experiments/*/partial/
 # rating plots per subject (scripts/data_visualization/plot_labels.py --scan); inspection only, regenerable
 outputs/label_plots/
 

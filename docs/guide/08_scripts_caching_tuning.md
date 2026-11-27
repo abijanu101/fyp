@@ -729,7 +729,7 @@ the rest of the process.**
 | `outputs/augmentation/`, `outputs/scb_check/` | augmentation samples and SCB detector overlays: previews of what the pipeline sees | yes |
 | `outputs/labels/` | label agreement and the human ceiling, read by the scripts and cited by the documents | yes |
 | `outputs/label_plots/` | rating plots per subject: inspection only, regenerable | no |
-| `outputs/experiments/10_clustering/candidates/` | experiment 10's candidate features, ~1.2 GB: regenerable with `scripts.clustering.candidates` | no |
+| `outputs/experiments/*/candidates/` | every clustering run's candidate features, 1–2 GB per run: an intermediate, regenerable with `scripts.clustering.candidates` | no |
 | `docs/experiments/NN_name.json` | the frozen config snapshots | yes |
 | `scripts/experiments/<NN_name>/` | an experiment's run chains and table builders | yes |
 | `docs/run_reports/` | how a run went (time, errors, choices), when someone other than the owner ran it | yes |

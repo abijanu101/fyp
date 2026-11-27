@@ -1,0 +1,1 @@
+{"key": "18abb34a4baeebf6", "cmd": ["scripts.clustering.descriptor_subset", "--config", "docs/experiments/09_vfoa.json", "--out", "outputs\\experiments\\10_clustering_v2"], "finished": "2026-11-26 23:01:58", "minutes": 0.3}
