@@ -1,0 +1,1 @@
+{"key": "61268e210c7fff19", "cmd": ["scripts.clustering.training_variants", "--config", "docs/experiments/10_clustering.json", "--out", "outputs\\experiments\\10_clustering_v2"], "finished": "2026-11-28 22:02:41", "minutes": 7.5}
