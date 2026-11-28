@@ -21,6 +21,12 @@ the evidence for them. They are the raw material for the write-up.
   VFoA), estimated from the classroom cameras. It also tries two strategies against the class
   imbalance that keeps every model near the middle of the scale: scale shrinking (1–2 LOW, 3 MID,
   4–5 HIGH) and filtered training data (each level's entries kept with a set probability).
+- 10 describes each student against the class (synchrony and dynamic clustering). The groups are
+  real, but they move the ranking by at most 0.01; after the run, the features turn out to carry a
+  little information within a session and none between students.
+- 11 gathers the class imbalance: it is not what limits the models, but it hid that their output
+  never used the scale; cut points per labeler turn the same scores into 1–5 ratings with real
+  agreement.
 
 | # | Document | Status |
 |---|---|---|
@@ -34,6 +40,7 @@ the evidence for them. They are the raw material for the write-up.
 | 8 | [PCA and dimensionality reduction](08_pca.md) ([config](08_pca.json)) | **frozen**: the vector (95 inputs, every column against every labeler: the features look fine for what the labels allow, optical flow tracking the experts at ρ ≈ 0.08). PCA helps no model (logistic regression, the forest, k-NN at k = 500 and k = 5; PCA 5 worst everywhere); the 27 per-student columns alone tie or beat all 95, so the class context goes. Every arm within ±0.02, below the experts' mean, the self-report at chance: the limit is the input's information |
 | 9 | [Visual focus of attention, and class-imbalance strategies](09_vfoa.md) ([config](09_vfoa.json)) | done (24 November): head direction from the context cameras (pose model as the detector, 9 head-pose columns) moves the experts' ranking by at most 0.01 and leaves the self-report at chance; scale shrinking and filtered training data widen the predictions without improving the ranking; k-NN regression beats the k-NN classifier at the same k but not logistic regression. 176 runs |
 | 10 | [Class-relative and dynamic-clustering features](10_clustering.md) ([config](10_clustering.json): 09's, unchanged; [settings](10_clustering_settings.json)) | done (27 November): students move together on all 10 channels and the groups persist, but describing a student against the class moves the experts' ranking by at most +0.01–0.016 (agglomerative clustering; the pre-registered `sync+agglomerative` test is not supported). Per-track normalisation takes the self-report from below chance to chance (+0.115, supported): a fix to the baseline, not a gain. Constant 3 keeps the lowest MAE. After the run: entries that look alike in the features are rated no more alike than random pairs between students (Appendix C), and a model trained within the session does no better (Appendix D): further gains need new information in the input |
+| 11 | [Class imbalance: what it does and how to report around it](11_class_imbalance.md) ([config](11_class_imbalance.json): 10's, unchanged) | done (28 November): the imbalance sits in the tails (4s and 5s are 16% of expert entries, 1s absent) and is not what limits the models (09); rounded, they answer 3 for 96% of entries with no agreement (QWK 0.000). Cut points per labeler on the same scores give QWK 0.10 (about 75% of another expert's 0.138), macro-F1 0.29 against 0.17, every class predicted; no gain on the self-report. Report QWK, macro-F1 and balanced accuracy; MAE favours a constant 3 |
 
 **Delayed (18 November 2026).** The original plan after 08, kept here so the work is not lost; it
 will likely change once 09 shows what new information buys.
