@@ -1,0 +1,1 @@
+{"key": "585cc86956fe8f82", "cmd": ["scripts.clustering.seat_check", "--config", "docs/experiments/10_clustering.json", "--out", "outputs\\experiments\\10_clustering_v2"], "finished": "2026-11-28 18:17:02", "minutes": 3.1}
