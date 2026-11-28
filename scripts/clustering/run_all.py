@@ -78,13 +78,23 @@ def pick_taus(out: Path) -> tuple[float | None, float | None, list[str]]:
     return td, ts, notes
 
 
+def marker_key(marker: Path) -> str | None:
+    """The key stored in a step's done marker, or None if there is none or it is not run_all's format
+    (the first run's scripts/experiments/10_clustering/run.sh wrote a plain date there): such a step
+    counts as not done and runs again."""
+    try:
+        return json.loads(marker.read_text(encoding="utf-8")).get("key")
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
 def run_step(name: str, cmd: list[str], logs: Path, redo: set[str], dry: bool, upstream: str) -> str:
     """Run one step unless it already finished with the same command after the same upstream steps;
     returns its key, which the next step's key includes (so anything after a rerun step reruns too,
     each resuming inside itself where its settings are unchanged)."""
     key = hashlib.sha256(json.dumps([cmd[1:], upstream]).encode()).hexdigest()[:16]
     marker = logs / "done" / name
-    if name not in redo and marker.exists() and json.loads(marker.read_text(encoding="utf-8")).get("key") == key:
+    if name not in redo and marker_key(marker) == key:
         stamp(f"{name}: done already (same command, same steps before it), skipped")
         return key
     stamp(f"=== {name}: {' '.join(cmd[2:])}")

@@ -140,6 +140,24 @@ class TestJobPool(unittest.TestCase):
         self._run(2)
 
 
+class TestRunAllMarkers(unittest.TestCase):
+    def test_old_format_and_missing_markers_count_as_not_done(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        from scripts.clustering.run_all import marker_key
+
+        with tempfile.TemporaryDirectory() as d:
+            old = Path(d) / "signal_screen"
+            old.write_text("26 Nov 03:22\n", encoding="utf-8")          # what the first run's run.sh wrote
+            self.assertIsNone(marker_key(old))
+            self.assertIsNone(marker_key(Path(d) / "missing"))
+            new = Path(d) / "stability"
+            new.write_text(json.dumps({"key": "abc123"}), encoding="utf-8")
+            self.assertEqual(marker_key(new), "abc123")
+
+
 class TestArms(unittest.TestCase):
     def test_per_student_arms_never_include_window_features(self):
         cands = ["trk.cluster.sync.rf.total.corr", "trk.cluster.agg.desc.share", "cluster.agg.desc.n_clusters",
