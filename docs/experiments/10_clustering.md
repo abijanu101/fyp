@@ -1,6 +1,10 @@
 # Class-relative and dynamic-clustering features
 
-*25–27 November 2026. Config [`09_vfoa.json`](09_vfoa.json), unchanged (hash `b1c2d485d3db`): experiment
+*25–27 November 2026. Config [`10_clustering.json`](10_clustering.json): experiment 09's
+[`09_vfoa.json`](09_vfoa.json), unchanged (the same hash, `b1c2d485d3db`; the run itself passed
+`09_vfoa.json`). Every setting of experiment 10's own steps (the screens, the choices between them, the
+candidates, the ablation, the analyses after the run) is in
+[`10_clustering_settings.json`](10_clustering_settings.json), a record, not a config. Experiment
 09's tracks (`2a11240a2d42`) and features (`4c761244568f`), 52 recordings with 4 augmented copies each.
 No new extraction. The design is guide 15 (§15.4 the options, §15.9 the screens). Two full runs: the
 first (25–26 November, run report [`docs/run_reports/10_clustering.md`](../run_reports/10_clustering.md))
@@ -490,9 +494,10 @@ time since the start.
   experts' own ratings reach +0.234. The gap is not a lack of labels: the experts see something
   the features do not carry.
 
-This points to one model not yet tried, on the existing features: the self-report trained within
-students (the target is the student's score minus their own mean; the inputs are per-track
-normalised), with +0.23 as its ceiling.
+This pointed to one model not yet tried, on the existing features: one trained within students
+(the target is the student's score minus their own mean; the inputs are per-track normalised).
+Appendix D runs it, and it does not do better (W1 against W0′: experts +0.002, self-report −0.032);
+Appendix C shows why there is little to gain.
 
 ## 4. Conclusion
 
@@ -513,17 +518,29 @@ normalised), with +0.23 as its ceiling.
   variance is within students, and the experts' ratings follow it there at +0.23. The best model
   reaches +0.065, and an expert-trained model +0.05. This is the one gap left that is not set by the
   labels.
-- **The limit is still not the features.** A constant 3 keeps the lowest MAE, and every arm overfits
-  its training groups by about two to one. As in 08 and 09, what can be predicted is bounded by how
-  much the labelers agree.
+- **Between students, the features carry none of what the labelers rate** (Appendix C, after the
+  run). Entries that look nearly the same in another group are rated no more alike than random pairs
+  (−0.002), with the columns weighted equally or by what predicts ratings, while two experts on the
+  same moment agree at 0.09–0.15. So the limit is not only the labels' agreement, as 08 and 09
+  concluded: these features do not hold the between-student information that the labelers' (weak)
+  agreement does. Within a session they hold a little (+0.03 to +0.08 beyond time).
+- **Training on the within-session part does not help** (Appendix D, fixed before the run). A model
+  trained on each rating's deviation from its labeler-session mean ties one trained on the rating on
+  the experts' labels (+0.002 [−0.003, +0.007]) and is worse on the self-report (−0.032). The models
+  already capture the within-session signal: about 0.08 against the humans' 0.137 for the experts,
+  0.06 against 0.271 for the self-report. A causal version, using only each student's past, loses
+  nothing.
+- **Calibration is not the way either.** A constant 3 keeps the lowest MAE, and every arm overfits its
+  training groups by about two to one. Further gains need new information in the input (the face,
+  expression, where the student looks), not new models or targets on these features.
 
-**Not run:** per-labeler tables, the classifier and k-NN models of 06–09, a single pre-registered
-test of `agg.desc.in_largest` on its own, and the within-student self-report model of §3.7.
+**Not run:** per-labeler tables, the classifier and k-NN models of 06–09, and a single pre-registered
+test of `agg.desc.in_largest` on its own.
 
 ## Appendix A: reproducing
 
 ```
-python -m scripts.clustering.run_all --config docs/experiments/09_vfoa.json \
+python -m scripts.clustering.run_all --config docs/experiments/10_clustering.json \
     --out outputs/experiments/10_clustering_v2          # resumable; steps 4-7 of scripts/clustering/README.md
 ```
 
@@ -558,6 +575,17 @@ caches left by an earlier, interrupted one.
 
 Unit tests: `tests/test_clustering_fixes.py`. The real-data end-to-end test (two recordings, with and
 without augmented copies) is `tests/test_clustering_sample.py`, run with `FYP_SAMPLE_TEST=1`.
+
+**After the run** (§3.7, Appendices C and D), on the same outputs:
+
+```
+python -m scripts.analysis.self_within_student           # §3.7, from ablation/ablation_predictions.csv.gz
+python -m scripts.clustering.feature_similarity --out outputs/experiments/10_clustering_v2   # Appendix C, ~15 min
+python -m scripts.clustering.within_session --out outputs/experiments/10_clustering_v2       # Appendix D, ~35 min
+```
+
+Their tests, on synthetic data with known answers: `tests/test_feature_similarity.py` and
+`tests/test_within_session.py`.
 
 ## Appendix B: full tables, activity split
 
@@ -652,3 +680,168 @@ check). Constant 3 on the training entries is computed from their rating counts.
 | *Mean of experts* | 0.689 | 0.884 | 0.619 | 0.241 | 0.179 | 0.435 |
 | *Median of experts* | 0.661 | 0.914 | 0.609 | 0.213 | 0.179 | 0.439 |
 
+## Appendix C: how much do the features tell rating situations apart?
+
+*After the run, not pre-registered. `python -m scripts.clustering.feature_similarity --out
+outputs/experiments/10_clustering_v2` (script at commit `87b40e5`; results
+`feature_similarity.json`, run on 28 November, commit `49c4c05`).*
+
+**The question.** When two entries have nearly the same feature vector, do they get the same
+rating? Each entry's vector is its window's model inputs, standardised. Its rating is compared with
+the rating of its nearest neighbour, and that agreement with the agreement of a **reference**: a
+random partner that shares everything with the neighbour except the feature match. Only the
+difference between the two counts.
+- **Between students:** the nearest entry in another group (other students, other recordings),
+  against a random entry of another group; also with both rated by the entry's own labeler.
+- **Classmates:** where the nearest is a classmate, against a random classmate at the same time gap.
+- **Within a session:** the student's own nearest moment at least 20 s away, against a random moment
+  of the same session at the same time gap (nearby moments agree in rating through time alone).
+
+Each entry counts once (one camera per student-session; 99.7% of entries come from the student's main
+camera), and 15 entries with a missing value are left out. The feature spaces are `base` (experiment
+10's `base` arm), `normalised` and `base+agglomerative`, each also **learned**: every column weighted
+by the size of its ridge coefficient predicting the rating, fitted on the other two groups only, so
+that "near" means alike in what predicts ratings for other students. Intervals: a cluster bootstrap
+over class sessions, computed two ways. The two-way version (each pair weighs its entry's class
+times its partner's) is valid but about 1.5 times too wide on synthetic data with known answers; the
+one-sided version (the entry's class only) covered only 87–93% there where pairs share dependence (a
+shared moment, drift in time). A difference is **firm** if the
+two-way interval excludes 0, **borderline** if only the one-sided one does.
+
+**The labels' own agreement, the yardstick** (Spearman, 95% interval):
+
+| | Experts' labels | Self-report |
+|---|---|---|
+| Another expert's rating in force at the same moment, same student | 0.089 [0.041, 0.134] | – |
+| The mean of the other experts in force (experiment 06: 0.143) | **0.150** [0.076, 0.201] | – |
+| The mean of the experts in force (experiment 06: 0.241) | – | **0.244** [0.151, 0.319] |
+
+**Experts' labels**, nearest neighbour minus its reference (two-way interval; verdict):
+
+| Space | Another group | Another group, same labeler | Within the session |
+|---|---|---|---|
+| `base` | −0.002 [−0.040, +0.030] none | +0.031 [−0.019, +0.077] none | **+0.047 [+0.013, +0.073] firm** |
+| `base@learned` | +0.009 [−0.026, +0.042] none | +0.029 borderline | **+0.032 [+0.003, +0.059] firm** |
+| `normalised` | +0.001 [−0.042, +0.025] none | +0.013 none | **+0.044 [+0.005, +0.068] firm** |
+| `normalised@learned` | −0.004 [−0.044, +0.032] none | +0.027 borderline | **+0.046 [+0.017, +0.065] firm** |
+| `base+agglomerative` | +0.014 [−0.017, +0.050] none | **+0.037 [+0.007, +0.065] firm** | +0.025 borderline |
+| `base+agglomerative@learned` | +0.005 [−0.027, +0.034] none | +0.032 borderline | +0.030 borderline |
+
+In `base`, the nearest entry of another group agrees at 0.006 and a random one at 0.008. Within a
+session, the nearest moment agrees at 0.116 and a random moment at the same time gap at 0.069. A
+classmate who looks alike agrees no more than a random classmate at the same time gap (+0.026, none).
+
+**Self-report**, the same:
+
+| Space | Another group | Within the session |
+|---|---|---|
+| `base` | +0.031 [−0.106, +0.116] none | +0.037 [−0.038, +0.116] none |
+| `base@learned` | −0.006 none | **+0.076 [+0.028, +0.118] firm** |
+| `normalised` | +0.008 none | +0.054 borderline |
+| `normalised@learned` | +0.023 none | **+0.079 [+0.042, +0.151] firm** |
+| `base+agglomerative` | +0.059 borderline | **+0.054 [+0.003, +0.106] firm** |
+| `base+agglomerative@learned` | −0.007 none | +0.038 borderline |
+
+The nearest entry of another group is 0.24 below the experts' reading of the self-report (`base`:
+−0.238 [−0.344, −0.129], firm).
+
+**The features are not degenerate.** The 35 `base` columns need 11 principal components for 80% of
+their variance and 20 for 95% (the first holds 27%), and 42% of entries are someone's nearest
+neighbour. **But look-alikes are common and rated as if random:** 39% of expert entries have a
+near-duplicate in another group (nearer than a quarter of the median random distance; 69% in the
+learned space), and such a near-duplicate's rating differs from the entry's by 0.76 on average,
+against 0.79 for a random partner. The learned weights pick sensible columns (`base`, experts:
+`trk.scb.m0.obj.max` 2.5, `trk.scb.read` 1.8, `trk.rf.mag_11` 1.8, `trk.scb.read.max` 1.6), and
+neighbours in that space still agree at chance.
+
+**What it shows.**
+- **Between students, the features carry none of what the labelers rate.** Students who look the
+  same to every feature, in another group, are rated no more alike than random students, with the
+  columns weighted equally or by what predicts ratings. Two experts on the same moment agree at
+  0.09–0.15, so the information is in the video, but not in these features in a form that carries
+  from one student to another. The one exception is small and labeler-specific: with the clustering
+  columns, the same labeler rates look-alikes slightly more alike (+0.037, firm), consistent with
+  §3.3's +0.01.
+- **Within a student's session, they carry a small amount** beyond what time alone gives: +0.03 to
+  +0.05 for the experts, +0.05 to +0.08 for the self-report with learned weights. This is the
+  within-against-between split that the re-scoring of the predictions found, by an independent
+  method.
+- **A null between students does not prove that no model could use the features:** this is a
+  look-alike test, not a trained model, although the learned weighting narrows that gap. Ratings and
+  features are autocorrelated in time, so the effective sample is smaller than the entry count; the
+  intervals allow for that by resampling whole class sessions.
+
+## Appendix D: a model trained within the session
+
+*After the run; its test was fixed before it was run. `python -m scripts.clustering.within_session
+--out outputs/experiments/10_clustering_v2` (script at commit `0ede76e`; results `within_session/`,
+run on 28 November, commit `d098f25`).*
+
+**The question.** Appendix C and §3.7 say the features carry a little information within a
+student's session and none between students. Does a model trained only on the within-session part
+(the rating minus that labeler's mean for that student in that session) rank a student's own moments
+better than a model trained on the rating itself?
+
+**Design.** Pooled ridge regression, one model for all experts and one for the self-report; the
+ridge strength is chosen by an inner cross-validation grouped by class session, inside the training
+groups only. Only labeler-sessions with at least 3 entries and 2 distinct ratings are used: 21,285 of
+21,519 expert entries and 2,380 of 2,463 self-report entries. An entry seen by several cameras is
+scored once. The score is **within-session Spearman**: prediction and rating each centred on their
+labeler-session mean. It is also computed **detrended** (each labeler-session's linear trend in time
+removed from both), so drift that features and ratings share cannot pass for skill.
+
+| Arm | Model | Inputs | Target |
+|---|---|---|---|
+| W0 | experiment 10's `normalised` arm (per-labeler logistic regression) | `normalised` | rating |
+| **W0′** | pooled ridge | `normalised` | rating |
+| **W1** | pooled ridge | `normalised` | **deviation** from the labeler-session mean |
+| W2 | pooled ridge | + the synchrony candidates | deviation |
+| W3 | pooled ridge | + the student's own features over the trailing 30 s and 120 s | deviation |
+| W1c | pooled ridge | **causal**: each student standardised by their own past only | deviation |
+| T | pooled ridge | the time since the student's first tracked window only | deviation |
+
+**Fixed before the run:** W1 against W0′ (only the target differs), group split, experts and
+self-report, each at 98.75%. A gain counts only if it also holds detrended, W1 beats T, and it holds
+for each of the three labelers with the most entries.
+
+**Results**, group split, within-session Spearman (95% interval):
+
+| | Experts | Self-report |
+|---|---|---|
+| Human ceiling (the other experts' ratings in force, on the same entries) | 0.137 [0.083, 0.180] | 0.271 [0.219, 0.323] |
+| W0, the current model | 0.079 [0.052, 0.108] | 0.058 [0.005, 0.110] |
+| **W0′** | **0.075** [0.043, 0.102] | **0.056** [0.003, 0.108] |
+| **W1** | **0.077** [0.048, 0.102] | **0.024** [−0.030, 0.078] |
+| W2 | 0.077 | 0.003 |
+| W3 | 0.082 | 0.037 |
+| W1c (causal) | 0.076 | 0.027 |
+| T (time only) | 0.011 | 0.018 |
+| **W1 − W0′** (98.75%) | **+0.002 [−0.003, +0.007]** | **−0.032 [−0.059, −0.004]** |
+| W1 − W0′, detrended | +0.001 | −0.032 |
+| W1 − T | +0.066 [+0.043, +0.086] | +0.006 [−0.044, +0.053] |
+| W3 − W1 (detrended) | +0.005 (−0.000) | +0.013 (+0.012) |
+| W1c − W1 | −0.001 [−0.009, +0.005] | +0.003 [−0.028, +0.038] |
+
+On the experts' labels, W1 against W0′ per labeler: labeler_01 +0.006, labeler_03 +0.003, labeler_04
+−0.012. The activity split agrees: on the experts' labels W1 and W0′ both score 0.070, and on the
+self-report W1 is lower (−0.020); there the current model, with its activity gate, is ahead of the
+pooled ridge (W0 0.088, +0.018).
+
+- **The test is not supported.** On the experts' labels, training on the deviation ties training on
+  the rating (+0.002, a tight interval around 0), and labeler_04 goes the other way. On the
+  self-report it is **worse** (−0.032, its interval excludes 0): a self-report session has about 10
+  entries, so subtracting its noisy mean adds noise to every target.
+- **The within-session skill is real, not drift.** Detrending leaves every score in place (experts
+  W1 0.077 → 0.078), time alone gives 0.011, and every feature arm beats it (+0.066, firm).
+- **More inputs add nothing.** Synchrony (W2) and longer context (W3) are within 0.005 of W1, and
+  W3's +0.005 disappears after detrending.
+- **The causal version loses nothing** (W1c − W1: −0.001): standardising each student by their own
+  past only, as a live system would, ranks their moments as well as using the whole session.
+- **Models reach about 55–60% of human agreement within a session** on the experts' labels
+  (0.075–0.082 against 0.137), and about 20% on the self-report (0.056 against 0.271). Over all
+  entries this is lower than the re-scoring of the predictions suggested (0.14–0.15 against
+  0.17–0.23), which looked only at moments where two experts entered a rating within the same 4 s.
+
+**Limit.** For 7 of the 18 group-split fits, the chosen ridge strength was the strongest tested
+(10⁵), with the inner score still rising by about 0.002–0.004 from 10⁴. Stronger settings converge to
+a limit, so at most a few thousandths are left, for W1 and W0′ alike.
